@@ -520,6 +520,22 @@ typedef uint32_t block_id_t;
       data_ptr->off = off;
       return data_ptr;
     }
+
+    template<typename T>
+    ssize_t write_header_and_data(T *h, data_t *d, block_id_t block_id, uint16_t off)
+    {
+      off_t g_off = calc_off(block_id, off);
+
+      // write headers and data
+      int bytes_write = _pwrite(fd_, h, sizeof(T), g_off);
+      bytes_write += _pwrite(fd_, d->data, d->size, g_off + sizeof(T));
+
+      if (bytes_write != sizeof(T) + d->size) {
+        return NULL;
+      }
+      return bytes_write;
+    }
+
   };
 
   /*
@@ -695,28 +711,30 @@ typedef uint32_t block_id_t;
 #pragma pack(1)
     typedef struct {
       uint8_t type; // allocated or free
-      uint32_t size;
-      uint32_t size_padded; // size in a block
-      uint32_t size_data_total;
+      uint32_t size_padded;
       block_id_t last_block_id;
-      block_id_t next_block_id;
-      uint16_t next_off;
-      uint8_t num_succeedings;
+      uint16_t last_off;
+      uint8_t num_units;
     } record_header_t;
 
     // header of a succeeding record
     typedef struct {
       uint8_t type;
       uint32_t size;
-      uint32_t size_padded;
+      uint32_t size_padded; // size in a block
       block_id_t next_block_id;
       uint16_t next_off;
-    } succ_record_header_t;
+    } unit_header_t;
 #pragma pack()
 
     typedef struct {
+      unit_header_t *h;
+      data_t *d;
+    } unit_t;
+
+    typedef struct {
       record_header_t *h;
-      data_t *d; 
+      unit_t *u;
     } record_t;
 
   public:
@@ -725,7 +743,6 @@ typedef uint32_t block_id_t;
     {
       data_ptr_t *data_ptr;
       record_t *r = init_record(data);
-      r->h->size_padded = get_padding(r->h->size);
 /*
       std::cout << "data size: " << r->d->size << std::endl;  
       std::cout << "size (header+data): " << r->h->size << std::endl;  
@@ -734,17 +751,14 @@ typedef uint32_t block_id_t;
       // search free area by data size
       free_pool_ptr_t pool;
       if (search_free_pool(r->h->size_padded, &pool)) {
-        //std::cout << "####### pool found !!! #######" << std::endl;
        
         // [TODO] if the (pool.size - r->h->size_padded) < 32) => r->h->size_padded = pool.size
         //data_ptr = write_record(r, pool.id, pool.off);
         data_ptr = write_record(r, pool.id, pool.off);
         append_free_pool(pool.id, pool.off + r->h->size_padded,
                          pool.size - r->h->size_padded);
-
       } else {
-        // no free pool found
-        //data_ptr = _put(r);
+        data_ptr = _put(r);
       }
 
       delete r->h;
@@ -755,70 +769,110 @@ typedef uint32_t block_id_t;
 
     data_ptr_t *append(data_ptr_t *data_ptr, data_t *data)
     {
-      /*
       // first, try to put the date into the padding
       record_header_t h;
       off_t off = calc_off(data_ptr->id, data_ptr->off);
       _pread(fd_, &h, sizeof(record_header_t), off);
 
-      // if the padding is big enough, then no big deal. just put the data into it.
-      if (h.is_linkable) {
-        extended_record_header_t eh;
-        _pread(fd_, &eh, sizeof(extended_record_header_t), off + sizeof(record_header_t));
-        record_header_t lh;
-        off_t last_header_off = calc_off(eh.last_block_id, 0);
-        _pread(fd_, &lh, sizeof(record_header_t), last_header_off);
-
-        uint32_t rest_size = lh.size_padded - lh.size;
-        if (rest_size >= data->size) {
-          // just append
-          // [TODO] adding append_record method ?
-          _pwrite(fd_, data->data, data->size, last_header_off + lh.size);
-          lh.size += data->size;
-        } else {
-          _pwrite(fd_, data->data, rest_size, last_header_off + lh.size);
-          data_t new_data = { (char *) data + rest_size, data->size - rest_size };
-          record_t *r = init_record(new_data); 
-          r->h->size_padded = lh.size_padded; // the same size
-          // [TODO] block aligned ?
-          data_ptr_t *data_ptr = put(r);
-          lh.size = lh.size_padded; // full
-          lh.next_block_id = data_ptr->id;
-
-          delete r->h;
-          delete r;
-        }
-        // sync lh
-        // sync h
+      unit_header_t u;
+      off_t last_off;
+      if (h.num_units == 1) {
+        // no succeeding unit
+        last_off = off + sizeof(record_header_t);
       } else {
-        if (h.size_padded - h.size >= data->size) {
-          // just append
-          _pwrite(fd_, data->data, data->size, off + h.size);
-          h.size += data->size;
-          _pwrite(fd_, &h, sizeof(record_header_t), off);
-        } else {
-          // del
-          // put
-        }
+        last_off = calc_off(h.last_block_id, h.last_off);
       }
-      */
+      _pread(fd_, &h, sizeof(unit_header_t), last_off);
+
+      // if the padding is big enough, then no big deal. just put the data into it.
+      uint32_t rest_size = u.size_padded - u.size;
+      if (rest_size >= data->size) {
+        _pwrite(fd_, data->data, data->size, last_off + sizeof(unit_header_t));
+        u.size += data->size;
+      } else {
+        // write as much as possible into the padding
+        _pwrite(fd_, data->data, rest_size, last_off + sizeof(unit_header_t));
+
+        // create a new unit 
+        data_t *new_data = { (char *) data->data + rest_size, data->size - rest_size };
+        unit_t *unit = init_unit(new_data);
+        unit->h->size_padded = u.size_padded; // same size
+        data_ptr_t *dp = put_unit(unit);
+
+        // update unit header
+        u.size = u.size_padded; // full
+        u.next_block_id = dp->id;
+        u.next_off = dp->off;
+
+        // update record header
+        ++h.num_units;
+        h.last_block_id = dp->id;
+        h.last_off = dp->off;
+        h.size_padded += unit->h->size_padded;
+        _pwrite(fd_, &h, sizeof(record_header_t), off);
+
+        delete u->h;
+        delete u;
+      }
+      _pwrite(fd_, &u, sizeof(unit_header_t), last_off);
     }
 
     data_ptr_t *update(data_ptr_t *data_ptr, data_t *data)
     {
-      // update is very simple
+      data_ptr_t *ptr;
+      record_header_t h;
+      off_t off = calc_off(data_ptr->id, data_ptr->off);
+      _pread(fd_, &h, sizeof(record_header_t), off);
 
-      // first, try to put the date into the padding
+      // checking the first one only (not checking succeeding blocks)
+      if (h.size_padded - sizeof(record_header_t) >= data->size) {
+        // if the padding is big enough
+        int bytes_write = _pwrite(fd_, data->data, data->size,
+                                  off + sizeof(record_header_t)); 
+        if (bytes_write != data->size) { return NULL; }
 
-      // if the padding is big enough, update the data
+        // update the header
+        h.size = data->size + sizeof(record_header_t);
+        _pwrite(fd_, &h, sizeof(record_header_t), off);
 
-      // else, create a new record and put the data into it.
-      // current record area is appended to free pools.
+        // pointer unchanged
+        ptr = data_ptr;
+
+      } else {
+        // record moved, so pointing another place
+        ptr = put(data);
+
+        // previously used area is put into free pools
+        del(data_ptr);
+      }
+      return ptr;
     }
 
     void del(data_ptr_t *data_ptr)
     {
       // keep deleting the record and keep appending it to free pools
+      record_header_t h;
+      off_t off = calc_off(data_ptr->id, data_ptr->off);
+      _pread(fd_, &h, sizeof(record_header_t), off);
+
+      int cnt = 0;
+      block_id_t id = data_ptr->id;
+      uint16_t off = data_ptr->off;
+      do {
+        unit_header_t u;
+        _pread(fd_, &u, sizeof(unit_header_t), off);
+
+        uint32_t size = u.size_padded;
+        // for the first unit
+        if (cnt == 0) {
+          size += sizeof(record_header_t);
+        }
+        append_free_pool(id, off, size);
+
+        // next unit
+        id = u.next_block_id
+        off = u.next_off; 
+      } while(++cnt <= h.num_units);
     }
 
     data_t *get(data_ptr_t *data_ptr)
@@ -828,14 +882,28 @@ typedef uint32_t block_id_t;
       _pread(fd_, &h, sizeof(record_header_t), off);
 
       data_t *data = new data_t;
-      data->data = new char[h.size - sizeof(record_header_t)];
-      data->size = h.size - sizeof(record_header_t);
-      int nbytes = _pread(fd_, (char *) data->data, data->size, 
-                          off + sizeof(record_header_t));
+      char *d = new char[h.size_padded]; // must be more than data size
+      char *p = d;
 
-      if (nbytes != data->size) {
-        return NULL;
-      }
+      int cnt = 0;
+      off += sizeof(record_header_t);
+      do {
+        unit_header_t u;
+        _pread(fd_, &u, sizeof(unit_header_t), off);
+
+        int bytes_read = _pread(fd_, p, u.size, off + sizeof(unit_header_t));
+        if (bytes_read != u.size) {
+          delete [] d; 
+          return NULL;
+        }
+        p += bytes_read;
+        data->size += bytes_read;
+
+        // next unit
+        off = calc_off(u.next_block_id, u.next_off); 
+      } while(++cnt <= h.num_units);
+
+      data->data = d;
       /*
       std::cout << "data size: [" << nbytes << "]" << std::endl;
       std::cout << "record size: " << h.size << std::endl;
@@ -849,20 +917,71 @@ typedef uint32_t block_id_t;
     {
       record_t *r = new record_t;
       record_header_t *h = new record_header_t;
+      unit_header_t *u = init_unit(data);
 
       h->type = AREA_ALLOCATED;
-      h->size = sizeof(record_header_t) + data->size;
-      h->size_padded = h->size;
-      h->size_data_total = data->size;
+      h->size_padded = sizeof(record_header_t) + u->h->size_padded;
       h->last_block_id = 0;
-      h->next_block_id = 0;
-      h->next_off = 0;
-      h->num_succeedings = 0;
+      h->last_off = 0;
+      h->num_units = 1;
+
       r->h = h;
+      r->u = u;
       r->d = data;
 
       return r;
     }
+
+    unit_t *init_unit(data_t *data)
+    {
+      unit_t *u = new unit_t;
+      unit_header_t *h = new unit_header_t;
+
+      h->type = AREA_ALLOCATED;
+      h->size = data->size + sizeof(unit_header_t);
+      h->size_padded = get_padding(u->size);
+      h->next_block_id = 0;
+      h->next_off = 0;
+
+      u->h = h;
+      u->d = data;
+
+      return u;
+    }
+
+    data_ptr_t *write_record(record_t *r, block_id_t block_id, uint16_t off)
+    {
+      off_t g_off = calc_off(block_id, off);
+
+      // write headers and data
+      int bytes_write = _pwrite(fd_, r->h, sizeof(record_header_t), g_off);
+      bytes_write += _pwrite(fd_, r->u->h, sizeof(unit_header_t),
+                             g_off + sizeof(record_header_t));
+      bytes_write += _pwrite(fd_, r->u->d->data, r->u->d->size,
+                             g_off + sizeof(record_header_t) + sizeof(unit_header_t));
+
+      if (bytes_write != sizeof(record_header_t) + sizeof(unit_header_t) + r->u->d->size) {
+        return NULL;
+      }
+      data_ptr_t *data_ptr = new data_ptr_t;  
+      data_ptr->id = block_id;
+      data_ptr->off = off;
+      return data_ptr;
+    }
+
+    data_ptr_t *put_unit(unit_t *u)
+    {
+      free_pool_ptr_t pool;
+      if (search_free_pool(r->h->size_total, &pool)) {
+        data_ptr = write_header_and_data(u->h, u->d, pool.id, pool.off);
+        append_free_pool(pool.id, pool.off + u->h->size_padded,
+                         pool.size - u->h->size_padded);
+      } else {
+        data_ptr = _put(u);
+      }
+      return data_ptr;
+    }
+
   };
 
 }
