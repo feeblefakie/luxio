@@ -22,7 +22,8 @@ int main(int argc, char *argv[])
   }
 
   double t1, t2;
-  LibMap::Data *dt = new LibMap::PaddedData(LibMap::NOPADDING);
+  //LibMap::Data *dt = new LibMap::PaddedData(LibMap::NOPADDING);
+  LibMap::Data *dt = new LibMap::LinkedData(LibMap::NOPADDING);
   dt->open("datadb", LibMap::DB_CREAT);
 
   LibMap::data_t data = {argv[2], strlen(argv[2])};
@@ -31,7 +32,6 @@ int main(int argc, char *argv[])
   if (strcmp(argv[1], "update") == 0) {
     std::cout << "updating" << std::endl;
     data_ptr = dt->update(&data_ptr_in, &data);
-    data_ptr = dt->append(&data_ptr_in, &data);
     std::cout << data_ptr->id << "," << data_ptr->off << std::endl;
   } else if (strcmp(argv[1], "append") == 0) {
     std::cout << "appending" << std::endl;

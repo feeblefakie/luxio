@@ -22,7 +22,8 @@ int main(int argc, char *argv[])
   }
 
   double t1, t2;
-  LibMap::Data *dt = new LibMap::PaddedData();
+  //LibMap::Data *dt = new LibMap::PaddedData();
+  LibMap::Data *dt = new LibMap::LinkedData();
   dt->open("datadb", LibMap::DB_CREAT);
 
   t1 = gettimeofday_sec();

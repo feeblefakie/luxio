@@ -22,7 +22,8 @@ int main(int argc, char *argv[])
   }
 
   double t1, t2;
-  LibMap::Data *dt = new LibMap::PaddedData(LibMap::FIXEDLEN);
+  //LibMap::Data *dt = new LibMap::PaddedData(LibMap::FIXEDLEN);
+  LibMap::Data *dt = new LibMap::LinkedData(LibMap::FIXEDLEN);
   dt->open("datadb", LibMap::DB_CREAT);
 
   LibMap::data_t data = {argv[1], strlen(argv[1])};
