@@ -807,7 +807,8 @@ typedef uint32_t block_id_t;
         // create a new unit 
         data_t new_data = { (char *) data->data + rest_size, data->size - rest_size };
         unit_t *unit = init_unit(&new_data);
-        unit->h->size_padded = u.size_padded; // same size
+        uint32_t padding = get_padding(unit->h->size)
+        unit->h->size_padded = padding > u.size_padded ? padding : u.size_padded; // same size
         data_ptr_t *dp = put_unit(unit);
         std::cout << "dp->id: " << dp->id << std::endl;
         std::cout << "dp->off: " << dp->off << std::endl;
