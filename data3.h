@@ -281,17 +281,17 @@ typedef uint32_t block_id_t;
 
     void append_free_pool(block_id_t block_id, uint16_t off_in_block, uint16_t size)
     {
-      std::cout << "append_free_pool: size: " << size << ", off: " << off_in_block << std::endl;
+      //std::cout << "append_free_pool: size: " << size << ", off: " << off_in_block << std::endl;
       bool is_appended = false;
       for (int i = 11; i >= 5; --i) { 
         if (size >= pow(2, i)) {
-          ///*
+          /*
           std::cout << "_append_free_pool: "
                     << "block_id: " << block_id 
                     << ", off: " << off_in_block 
                     << ", size: " << size
                     << ", pow: " << i << std::endl; 
-                    //*/
+                    */
           _append_free_pool(block_id, off_in_block, size, i);
           is_appended = true;
           break;
@@ -543,7 +543,7 @@ typedef uint32_t block_id_t;
         append_blocks(num_blocks);
 
         //write a record into the head of the block
-        data_ptr_t *data_ptr = write_record(r, dh_->cur_block_id, 0);
+        data_ptr = write_record(r, dh_->cur_block_id, 0);
         if (data_ptr == NULL) {
           return NULL;
         }
