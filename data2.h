@@ -49,6 +49,11 @@ namespace LibMap {
     PO2 // power of 2
   } padding_mode_t;
 
+  typedef enum {
+    LINK,
+    MOVE
+  } extend_mode_t;
+
 // these should move to a shared header file
 #pragma pack(2)
   typedef struct {
@@ -83,6 +88,7 @@ namespace LibMap {
     bool is_last;
   } free_pool_header_t;
 
+  /*
   typedef struct {
     uint8_t type; // allocated or free
     uint32_t size;
@@ -92,6 +98,23 @@ namespace LibMap {
     block_id_t next_block_id;
     // key ?
   } record_header_t;
+  */
+
+  // common
+  typedef struct {
+    uint8_t type; // allocated or free
+    uint32_t size;
+    uint32_t size_padded; // size in a block
+    block_id_t next_block_id; // not used in MOVE
+    //uint16_t next_off;
+    bool is_linkable;
+  } record_header_t;
+
+  typedef struct {
+    uint32_t size_data_total;
+    block_id_t last_block_id;
+    uint8_t num_succeedings;
+  } extended_record_header_t;
 #pragma pack()
 
   typedef struct {
@@ -101,6 +124,7 @@ namespace LibMap {
     block_id_t cur_block_id;
     padding_mode_t pmode;
     uint32_t padding;
+    extend_mode_t emode;
     free_pool_ptr_t first_pool_ptr[32]; // by size
     free_pool_ptr_t last_pool_ptr[32];
     bool is_pool_empty[32];
@@ -108,6 +132,7 @@ namespace LibMap {
 
   typedef struct {
     record_header_t *h;
+    extended_record_header_t *eh;
     data_t *d; 
   } record_t;
 
@@ -120,8 +145,8 @@ namespace LibMap {
    */
   class Data {
   public:
-    Data(padding_mode_t pmode = PO2, uint32_t padding = DEFAULT_PADDING)
-    : pmode_(pmode), padding_(padding)
+    Data()
+    : pmode_(PO2), emode_(LINK)
     {}
 
     ~Data()
@@ -180,10 +205,15 @@ namespace LibMap {
       ::close(fd_);
     }
 
-    void set_padding(padding_mode_t pmode, uint32_t padding)
+    void set_padding(padding_mode_t pmode, uint32_t padding = DEFAULT_PADDING)
     {
       pmode_ = pmode;
       padding_ = padding;
+    }
+
+    void set_extend(extend_mode_t emode)
+    {
+      emode_ = emode;
     }
 
     void *_mmap(int filedes, size_t size, int prot = PROT_READ | PROT_WRITE)
@@ -232,7 +262,14 @@ namespace LibMap {
     data_ptr_t *put(data_t *data)
     {
       data_ptr_t *data_ptr;
-      record_t *r = init_record(data);
+      bool is_primary_list = false;
+      // [TODO] make some rules for linkable records
+      if (dh_->emode == LINK && data->size >= dh_->block_size) {
+        is_linkable = true;
+      }
+
+      record_t *r = init_record(data, is_linkable);
+      put_padding(r);
 /*
       std::cout << "data size: " << r->d->size << std::endl;  
       std::cout << "size (header+data): " << r->h->size << std::endl;  
@@ -258,6 +295,72 @@ namespace LibMap {
       delete r;
 
       return data_ptr;
+    }
+
+    data_ptr_t *append(data_ptr_t *data_ptr, data_t *data)
+    {
+      // first, try to put the date into the padding
+      record_header_t h;
+      off_t off = calc_off(data_ptr->id, data_ptr->off);
+      _pread(fd_, &h, sizeof(record_header_t), off);
+
+      // if the padding is big enough, then no big deal. just put the data into it.
+      if (h.is_linkable) {
+        extended_record_header_t eh;
+        _pread(fd_, &eh, sizeof(extended_record_header_t), off + sizeof(record_header_t));
+        record_header_t lh;
+        off_t last_header_off = calc_off(eh.last_block_id, 0);
+        _pread(fd_, &lh, sizeof(record_header_t), last_header_off);
+
+        uint32_t rest_size = lh.size_padded - lh.size;
+        if (rest_size >= data->size) {
+          // just append
+          // [TODO] adding append_record method ?
+          _pwrite(fd_, data->data, data->size, last_header_off + lh.size);
+          lh.size += data->size;
+        } else {
+          _pwrite(fd_, data->data, rest_size, last_header_off + lh.size);
+          data_t new_data = { (char *) data + rest_size, data->size - rest_size };
+          record_t *r = init_record(new_data); 
+          r->h->size_padded = lh.size_padded; // the same size
+          // [TODO] block aligned ?
+          data_ptr_t *data_ptr = put(r);
+          lh.size = lh.size_padded; // full
+          lh.next_block_id = data_ptr->id;
+
+          delete r->h;
+          delete r;
+        }
+        // sync lh
+        // sync h
+      } else {
+        if (h.size_padded - h.size >= data->size) {
+          // just append
+          _pwrite(fd_, data->data, data->size, off + h.size);
+          h.size += data->size;
+          _pwrite(fd_, &h, sizeof(record_header_t), off);
+        } else {
+          // del
+          // put
+        }
+      }
+    }
+
+    data_ptr_t *update(data_ptr_t *data_ptr, data_t *data)
+    {
+      // update is very simple
+
+      // first, try to put the date into the padding
+
+      // if the padding is big enough, update the data
+
+      // else, create a new record and put the data into it.
+      // current record area is appended to free pools.
+    }
+
+    void del(data_ptr_t *data_ptr)
+    {
+      // keep deleting the record and keep appending it to free pools
     }
 
     void clean_data_ptr(data_ptr_t *data_ptr)
@@ -331,37 +434,48 @@ namespace LibMap {
       return true;
     }
 
-    record_t *init_record(data_t *data)
+    record_t *init_record(data_t *data, bool is_linkable = false)
     {
-      uint32_t record_size = sizeof(record_header_t) + data->size;
-
       record_t *r = new record_t;
       record_header_t *h = new record_header_t;
-      h->type = AREA_ALLOCATED;
-      h->size = record_size;
-      h->num_succeedings = 0;
-      h->next_block_id = 0; // no succeeding block
-      r->d = data;
+      extended_record_header_t *eh = NULL;
 
-      // [TODO] if the size is more than block size, size_padded is selected in two ways.
-      // (block*n or the rest is going to pool)
+      h->type = AREA_ALLOCATED;
+      h->size = sizeof(record_header_t) + data->size;
+      h->size_padded = h->size;
+      h->next_block_id = 0;
+      h->is_linkable = is_linkable;
+      if (is_linkable) {
+        eh = new extended_record_header_t;
+        eh->size_data_total = data->size;
+        eh->last_block_id = 0;
+        eh->num_succeedings = 0;
+        h->size += sizeof(extended_record_header_t);
+      }
+      r->h = h;
+      r->d = data;
+      r->eh = eh;
+
+      return r;
+    }
+
+    void put_padding(record_t *r)
+    {
+      record_header_t *h = r->h;
       switch (dh_->pmode) {
         case NOPADDING:
-          h->size_padded = record_size;
+          h->size_padded = h->size;
           break;
         case FIXEDLEN:
-          h->size_padded = record_size + dh_->padding;
+          h->size_padded = h->size + dh_->padding;
           break;
         case RATIO:
-          h->size_padded = record_size + record_size * dh_->padding / 100;
+          h->size_padded = h->size + h->size * dh_->padding / 100;
           break;
         default: // PO2
-          h->size_padded = pow(2, get_pow_ceiled(record_size, 2, 5));
+          h->size_padded = pow(2, get_pow_ceiled(h->size, 2, 5));
           break;
       }
-      h->size_total = h->size_padded;
-      r->h = h;
-      return r;
     }
 
     data_ptr_t *_put(record_t *r)
@@ -446,10 +560,18 @@ namespace LibMap {
     data_ptr_t *write_record(record_t *r, block_id_t block_id, uint16_t off)
     {
       off_t g_off = calc_off(block_id, off);
-      int nbytes = _pwrite(fd_, r->h, sizeof(record_header_t), g_off);
-      nbytes += _pwrite(fd_, r->d->data, r->d->size, g_off + sizeof(record_header_t));
+      int bytes_write_expected = sizeof(record_header_t) + r->d->size;
+      if (r->h->is_primary) { bytes_write_expected += sizeof(extended_record_header_t); }
 
-      if (nbytes != sizeof(record_header_t) + r->d->size) {
+      int bytes_write = _pwrite(fd_, r->h, sizeof(record_header_t), g_off);
+      g_off += sizeof(record_header_t);
+      if (r->h->is_primary) {
+        bytes_write += _pwrite(fd_, r->eh, sizeof(extended_record_header_t), g_off);
+        g_off += sizeof(extended_record_header_t);
+      }
+      bytes_write += _pwrite(fd_, r->d->data, r->d->size, g_off);
+
+      if (bytes_write != bytes_write_expected) {
         return NULL;
       }
       data_ptr_t *data_ptr = new data_ptr_t;  
@@ -501,6 +623,7 @@ namespace LibMap {
     db_header_t *dh_;
     padding_mode_t pmode_;
     uint32_t padding_;
+    extend_mode_t emode_;
 
     bool append_blocks(uint32_t append_num_blocks)
     {
