@@ -46,6 +46,11 @@ namespace LibMap {
   const uint32_t DEFAULT_PADDING = 20; // depends on the context
 
   typedef enum {
+    Padded,
+    Linked
+  } store_mode_t;
+
+  typedef enum {
     NOPADDING,
     FIXEDLEN,
     RATIO,
@@ -94,6 +99,7 @@ typedef uint32_t block_id_t;
       block_id_t cur_block_id;
       padding_mode_t pmode;
       uint32_t padding;
+      store_mode_t smode;
       free_pool_ptr_t first_pool_ptr[32]; // by size
       free_pool_ptr_t last_pool_ptr[32];
       bool is_pool_empty[32];
@@ -108,8 +114,9 @@ typedef uint32_t block_id_t;
     struct record_t;
 
   public:
-    Data(padding_mode_t pmode = PO2, uint32_t padding = DEFAULT_PADDING)
-    : pmode_(pmode), padding_(padding)
+    Data(store_mode_t smode,
+         padding_mode_t pmode = PO2, uint32_t padding = DEFAULT_PADDING)
+    : smode_(smode), pmode_(pmode), padding_(padding), map_(NULL)
     {}
 
     virtual ~Data()
@@ -136,6 +143,7 @@ typedef uint32_t block_id_t;
         dh.cur_block_id = 0;
         dh.pmode = pmode_;
         dh.padding = padding_;
+        dh.smode = smode_;
         for (int i = 0; i < 32; ++i) {
           dh.first_pool_ptr[i].id = 0;
           dh.first_pool_ptr[i].off = 0;
@@ -153,18 +161,26 @@ typedef uint32_t block_id_t;
           std::cerr << "read failed" << std::endl;
           return false;
         }
+
+        if (dh.smode != smode_) {
+          std::cerr << "[error] opening wrong database type" << std::endl;
+          return false;
+        }
       }
 
       map_ = (char *) _mmap(fd_, DEFAULT_PAGESIZE);
 
       oflags_ = oflags;
       dh_ = (db_header_t *) map_;
+      return true;
     }
 
     bool close()
     {
-      msync(map_, DEFAULT_PAGESIZE, MS_SYNC);
-      munmap(map_, DEFAULT_PAGESIZE);
+      if (map_ != NULL) {
+        msync(map_, DEFAULT_PAGESIZE, MS_SYNC);
+        munmap(map_, DEFAULT_PAGESIZE);
+      }
       ::close(fd_);
     }
 
@@ -230,6 +246,7 @@ typedef uint32_t block_id_t;
     db_header_t *dh_;
     padding_mode_t pmode_;
     uint32_t padding_;
+    store_mode_t smode_;
 
     bool search_free_pool(uint32_t size, free_pool_ptr_t *pool)
     {
@@ -567,7 +584,7 @@ typedef uint32_t block_id_t;
 
   public:
     PaddedData(padding_mode_t pmode = PO2, uint32_t padding = DEFAULT_PADDING)
-    : Data(pmode, padding)
+    : Data(Padded, pmode, padding)
     {}
     ~PaddedData() {}
 
@@ -748,7 +765,7 @@ typedef uint32_t block_id_t;
 
   public:
     LinkedData(padding_mode_t pmode = PO2, uint32_t padding = DEFAULT_PADDING)
-    : Data(pmode, padding)
+    : Data(Linked, pmode, padding)
     {}
     ~LinkedData() {}
 
