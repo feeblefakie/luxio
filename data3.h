@@ -61,7 +61,7 @@ namespace LibMap {
 #pragma pack(2)
   typedef struct {
     uint32_t id;
-    uint16_t off; // uint8_t でOK?
+    uint16_t off;
   } data_ptr_t;
 #pragma pack()
 
@@ -117,7 +117,12 @@ typedef uint32_t block_id_t;
     Data(store_mode_t smode,
          padding_mode_t pmode = PO2, uint32_t padding = DEFAULT_PADDING)
     : smode_(smode), pmode_(pmode), padding_(padding), map_(NULL)
-    {}
+    {
+      // calculate each 2^i (1<=i<=32) in advance
+      for (int i = 0; i < 32; ++i) {
+        pows_[i] = pow(2, i+1);
+      }
+    }
 
     virtual ~Data()
     {}
@@ -247,10 +252,11 @@ typedef uint32_t block_id_t;
     padding_mode_t pmode_;
     uint32_t padding_;
     store_mode_t smode_;
+    double pows_[32];
 
     bool search_free_pool(uint32_t size, free_pool_ptr_t *pool)
     {
-      uint32_t pow = get_pow_ceiled(size, 2, 5);
+      uint32_t pow = get_pow_of_2_ceiled(size, 5);
 
       // search a pool
       bool pool_found = false;
@@ -295,7 +301,7 @@ typedef uint32_t block_id_t;
         case RATIO:
           return size + size * dh_->padding / 100;
         default: // PO2
-          return pow(2, get_pow_ceiled(size, 2, 5));
+          return pows_[get_pow_of_2_ceiled(size, 5)-1];
       }
     }
 
@@ -304,7 +310,7 @@ typedef uint32_t block_id_t;
       //std::cout << "append_free_pool: size: " << size << ", off: " << off_in_block << std::endl;
       bool is_appended = false;
       for (int i = 11; i >= 5; --i) { 
-        if (size >= pow(2, i)) {
+        if (size >= pows_[i-1]) {
           /*
           std::cout << "_append_free_pool: "
                     << "block_id: " << block_id 
@@ -377,31 +383,11 @@ typedef uint32_t block_id_t;
       return (id-1) * dh_->block_size + DEFAULT_PAGESIZE + off;
     }
 
-    uint32_t get_pow_ceiled(uint32_t size, int base, int start_pow)
+    uint32_t get_pow_of_2_ceiled(uint32_t size, int start)
     {
-      for (int i = start_pow; i <= 32; ++i) {
-        if (size <= pow(base, i)) {
+      for (int i = start; i <= 32; ++i) {
+        if (size <= pows_[i-1]) {
           return i;
-        }
-      }
-      return 0;
-    }
-
-    uint32_t get_pow_floored(uint32_t size, int base, int start_pow)
-    {
-      for (int i = start_pow; i >= 1; --i) {
-        if (size >= pow(base, i)) {
-          return i;
-        }
-      }
-      return 0;
-    }
-
-    uint32_t ceil_size(uint32_t size, int base, int start_pow)
-    {
-      for (int i = start_pow; i <= 32; ++i) {
-        if (size <= pow(base, i)) {
-          return pow(base, i);
         }
       }
       return 0;
