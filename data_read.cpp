@@ -24,7 +24,11 @@ int main(int argc, char *argv[])
   double t1, t2;
   LibMap::Data *dt = new LibMap::PaddedData();
   //LibMap::Data *dt = new LibMap::LinkedData();
-  dt->open("datadb", LibMap::DB_CREAT);
+  if (!dt->open("datadb", LibMap::DB_CREAT)) {
+    std::cerr << "open failed" << std::endl;
+    dt->close();
+    exit(-1);
+  }
 
   t1 = gettimeofday_sec();
   LibMap::data_ptr_t data_ptr = {atoi(argv[1]), atoi(argv[2])};
