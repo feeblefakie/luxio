@@ -1,4 +1,4 @@
-#include "data2.h"
+#include "data3.h"
 #include <iostream>
 #include <fstream>
 #include <vector>
@@ -22,7 +22,7 @@ int main(int argc, char *argv[])
   }
 
   double t1, t2;
-  LibMap::Data *dt = new LibMap::Data();
+  LibMap::Data *dt = new LibMap::PaddedData();
   dt->open("datadb", LibMap::DB_CREAT);
 
   t1 = gettimeofday_sec();
@@ -31,6 +31,7 @@ int main(int argc, char *argv[])
   if (data != NULL) {
     std::cout << "HIT" << std::endl;
     std::cout.write((char *) data->data, data->size);
+    std::cout << std::endl;
   }
   t2 = gettimeofday_sec();
   std::cout << "get time: " << t2 - t1 << std::endl;

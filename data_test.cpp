@@ -1,4 +1,4 @@
-#include "data2.h"
+#include "data3.h"
 #include <iostream>
 #include <fstream>
 #include <vector>
@@ -17,7 +17,7 @@ double gettimeofday_sec()
 int main(int argc, char *argv[])
 {
   double t1, t2;
-  LibMap::Data *dt = new LibMap::Data();
+  LibMap::Data *dt = new LibMap::PaddedData(LibMap::RATIO, 10);
   dt->open("datadb", LibMap::DB_CREAT);
 
   std::ifstream fin;
@@ -28,21 +28,20 @@ int main(int argc, char *argv[])
   }
 
   t1 = gettimeofday_sec();
-  //std::vector<LibMap::data_ptr_t *> vec;
+  std::vector<LibMap::data_ptr_t *> vec;
   std::string line;
   while (getline(fin, line)) {
     LibMap::data_t data = {line.c_str(), line.size()};
     LibMap::data_ptr_t *data_ptr = dt->put(&data);
-    //vec.push_back(data_ptr);
-    std::cerr << data_ptr->id << "," << data_ptr->off << std::endl;
-    dt->clean_data_ptr(data_ptr);
+    vec.push_back(data_ptr);
+    //std::cerr << data_ptr->id << "," << data_ptr->off << std::endl;
+    //dt->clean_data_ptr(data_ptr);
   }
   t2 = gettimeofday_sec();
   std::cout << "put time: " << t2 - t1 << std::endl;
 
   fin.close();
 
-/*
   fin.open("./data.txt", std::ios::in);
   if (!fin) {
     std::cout << "cannot open the file" << std::endl;
@@ -71,7 +70,6 @@ int main(int argc, char *argv[])
   std::cout << "get time: " << t2 - t1 << std::endl;
 
   fin.close();
-*/
 
   dt->show_free_pools();
   dt->show_db_header();
