@@ -367,7 +367,7 @@ typedef uint32_t block_id_t;
       return 0;
     }
 
-    bool append_blocks(uint32_t append_num_blocks)
+    bool extend_blocks(uint32_t append_num_blocks)
     {
       dh_->cur_block_id = dh_->num_blocks + 1;
       dh_->num_blocks += append_num_blocks;
@@ -523,7 +523,6 @@ typedef uint32_t block_id_t;
     {
       data_ptr_t *data_ptr;
       record_t *r = init_record(data);
-      r->h->size_padded = get_padding(r->h->size);
 /*
       std::cout << "data size: " << r->d->size << std::endl;  
       std::cout << "size (header+data): " << r->h->size << std::endl;  
@@ -540,7 +539,7 @@ typedef uint32_t block_id_t;
         //data_ptr = _put(r);
         div_t d = div(r->h->size_padded, dh_->block_size);
         uint32_t num_blocks = d.rem > 0 ? d.quot + 1 : d.quot;
-        append_blocks(num_blocks);
+        extend_blocks(num_blocks);
 
         //write a record into the head of the block
         data_ptr = write_record(r, dh_->cur_block_id, 0);
@@ -670,7 +669,7 @@ typedef uint32_t block_id_t;
 
       h->type = AREA_ALLOCATED;
       h->size = sizeof(record_header_t) + data->size;
-      h->size_padded = h->size;
+      h->size_padded = get_padding(r->h->size);
       r->h = h;
       r->d = data;
 
@@ -751,7 +750,7 @@ typedef uint32_t block_id_t;
       } else {
         div_t d = div(r->h->size_padded, dh_->block_size);
         uint32_t num_blocks = d.rem > 0 ? d.quot + 1 : d.quot;
-        append_blocks(num_blocks);
+        extend_blocks(num_blocks);
 
         //write a record into the head of the block
         data_ptr = write_record(r, dh_->cur_block_id, 0);
@@ -786,7 +785,7 @@ typedef uint32_t block_id_t;
       unit_header_t u;
       off_t last_off;
       if (h.num_units == 1) {
-        // no succeeding unit
+        // no succeeding units
         last_off = off + sizeof(record_header_t);
       } else {
         last_off = calc_off(h.last_block_id, h.last_off);
@@ -871,7 +870,6 @@ typedef uint32_t block_id_t;
 
     void del(data_ptr_t *data_ptr)
     {
-      // keep deleting the record and keep appending it to free pools
       record_header_t h;
       off_t g_off = calc_off(data_ptr->id, data_ptr->off);
       _pread(fd_, &h, sizeof(record_header_t), g_off);
@@ -930,11 +928,6 @@ typedef uint32_t block_id_t;
       } while (++cnt < h.num_units);
 
       data->data = d;
-      /*
-      std::cout << "data size: [" << nbytes << "]" << std::endl;
-      std::cout << "record size: " << h.size << std::endl;
-      std::cout << "succeeding block id: " << h.next_block_id << std::endl;
-      */
       return data;
     }
 
@@ -1019,7 +1012,7 @@ typedef uint32_t block_id_t;
       } else {
         div_t d = div(u->h->size_padded, dh_->block_size);
         uint32_t num_blocks = d.rem > 0 ? d.quot + 1 : d.quot;
-        append_blocks(num_blocks);
+        extend_blocks(num_blocks);
 
         //write a record into the head of the block
         data_ptr = write_unit(u, dh_->cur_block_id, 0);
