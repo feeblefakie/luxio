@@ -292,7 +292,8 @@ typedef uint32_t block_id_t;
                     << ", size: " << size
                     << ", pow: " << i << std::endl; 
                     */
-          _append_free_pool(block_id, off_in_block, size, i);
+          //_append_free_pool(block_id, off_in_block, size, i);
+          _prepend_free_pool(block_id, off_in_block, size, i);
           is_appended = true;
           break;
         }
@@ -305,9 +306,28 @@ typedef uint32_t block_id_t;
       }
     }
 
-    void prepend_free_pool(block_id_t id, uint16_t off_in_block, uint32_t size, int pow)
+    void _prepend_free_pool(block_id_t id, uint16_t off_in_block, uint32_t size, int pow)
     {
-      // [TODO]
+      free_pool_ptr_t ptr = {id, off_in_block, size};
+      off_t off = calc_off(id, off_in_block);
+      if (dh_->is_pool_empty[pow-1]) {
+        // first pool is also pointed by last ptr
+        memcpy(&(dh_->last_pool_ptr[pow-1]), &ptr, sizeof(free_pool_ptr_t));
+        dh_->is_pool_empty[pow-1] = false;
+
+        // write the header of the pool
+        free_pool_header_t header = {AREA_FREE, size, 0, 0, 0, true};
+        _pwrite(fd_, &header, sizeof(free_pool_header_t), off);
+      } else {
+        free_pool_ptr_t first_ptr;
+        memcpy(&first_ptr, &(dh_->first_pool_ptr[pow-1]), sizeof(free_pool_ptr_t));
+
+        // write the header of the pool
+        free_pool_header_t header = {AREA_FREE, size, first_ptr.id,
+                                     first_ptr.off, first_ptr.size, false};
+        _pwrite(fd_, &header, sizeof(free_pool_header_t), off);
+      }
+      memcpy(&(dh_->first_pool_ptr[pow-1]), &ptr, sizeof(free_pool_ptr_t));
     }
   
     void _append_free_pool(block_id_t id, uint16_t off_in_block, uint32_t size, int pow)
@@ -746,7 +766,6 @@ typedef uint32_t block_id_t;
 
     data_ptr_t *append(data_ptr_t *data_ptr, data_t *data)
     {
-      // first, try to put the date into the padding
       record_header_t h;
       off_t off = calc_off(data_ptr->id, data_ptr->off);
       _pread(fd_, &h, sizeof(record_header_t), off);
