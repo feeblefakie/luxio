@@ -522,7 +522,6 @@ typedef uint32_t block_id_t;
       }
       return data_ptr;
     }
-
   };
 
   /*
@@ -558,9 +557,8 @@ typedef uint32_t block_id_t;
       if (!write_record(r, data_ptr)) {
         return NULL;
       }
-      delete r->h;
-      delete r;
 
+      clear_record(r);
       return data_ptr;
     }
 
@@ -675,6 +673,12 @@ typedef uint32_t block_id_t;
       return r;
     }
 
+    void clear_record(record_t *r)
+    {
+      delete r->h;
+      delete r;
+    }
+
     bool write_record(record_t *r, data_ptr_t *dp)
     {
       off_t off = calc_off(dp->id, dp->off);
@@ -734,11 +738,8 @@ typedef uint32_t block_id_t;
         return NULL;
       }
   
-      // temporary
-      delete r->u->h;
-      delete r->u;
-      delete r->h;
-      delete r;
+      clear_unit(r->u);
+      clear_record(r);
 
       return data_ptr;
     }
@@ -793,8 +794,7 @@ typedef uint32_t block_id_t;
         h.size_padded += unit->h->size_padded;
         _pwrite(fd_, &h, sizeof(record_header_t), off);
 
-        delete unit->h;
-        delete unit;
+        clear_unit(unit);
       }
       _pwrite(fd_, &u, sizeof(unit_header_t), last_off);
 
@@ -918,6 +918,12 @@ typedef uint32_t block_id_t;
       return r;
     }
 
+    void clear_record(record_t *r)
+    {
+      delete r->h;
+      delete r;
+    }
+
     unit_t *init_unit(data_t *data)
     {
       unit_t *u = new unit_t;
@@ -933,6 +939,12 @@ typedef uint32_t block_id_t;
       u->d = data;
 
       return u;
+    }
+
+    void clear_unit(unit_t *u)
+    {
+      delete u->h;
+      delete u;
     }
 
     bool write_record(record_t *r, data_ptr_t *dp)
