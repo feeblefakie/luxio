@@ -802,7 +802,7 @@ typedef uint32_t block_id_t;
         std::cout << "data->size: " << data->size << std::endl;
       } else {
         // write as much as possible into the padding
-        _pwrite(fd_, data->data, rest_size, last_off + sizeof(unit_header_t));
+        _pwrite(fd_, data->data, rest_size, last_off + u.size);
 
         // create a new unit 
         data_t new_data = { (char *) data->data + rest_size, data->size - rest_size };
