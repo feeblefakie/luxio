@@ -492,6 +492,37 @@ typedef uint32_t block_id_t;
       return bytes_write;
     }
 
+    data_ptr_t *alloc_space(uint32_t size)
+    {
+      data_ptr_t *data_ptr = new data_ptr_t;
+      free_pool_ptr_t pool;
+      if (search_free_pool(size, &pool)) {
+        data_ptr->id = pool.id;
+        data_ptr->off = pool.off;
+        append_free_pool(pool.id, pool.off + size,
+                         pool.size - size);
+      } else {
+        div_t d = div(size, dh_->block_size);
+        uint32_t num_blocks = d.rem > 0 ? d.quot + 1 : d.quot;
+        extend_blocks(num_blocks);
+
+        //write a record into the head of the block
+        data_ptr->id = dh_->cur_block_id;
+        data_ptr->off = 0;
+
+        if (size < dh_->block_size) {
+          append_free_pool(dh_->cur_block_id, size,
+                           dh_->block_size - size);
+        } else {
+          if (d.rem > 0) {
+            append_free_pool(dh_->cur_block_id + d.quot,
+                             d.rem, dh_->block_size - d.rem);
+          }
+        }
+      }
+      return data_ptr;
+    }
+
   };
 
   /*
@@ -518,44 +549,14 @@ typedef uint32_t block_id_t;
     {}
     ~PaddedData() {}
 
-    // put new data
     data_ptr_t *put(data_t *data)
     {
-      data_ptr_t *data_ptr;
       record_t *r = init_record(data);
-/*
-      std::cout << "data size: " << r->d->size << std::endl;  
-      std::cout << "size (header+data): " << r->h->size << std::endl;  
-      std::cout << "size (ceiled): " << r->h->size_padded << std::endl;  
-*/
-      free_pool_ptr_t pool;
-      if (search_free_pool(r->h->size_padded, &pool)) {
-        // [TODO] if the (pool.size - r->h->size_padded) < 32) => r->h->size_padded = pool.size
-        data_ptr = write_record(r, pool.id, pool.off);
-        append_free_pool(pool.id, pool.off + r->h->size_padded,
-                         pool.size - r->h->size_padded);
 
-      } else {
-        //data_ptr = _put(r);
-        div_t d = div(r->h->size_padded, dh_->block_size);
-        uint32_t num_blocks = d.rem > 0 ? d.quot + 1 : d.quot;
-        extend_blocks(num_blocks);
-
-        //write a record into the head of the block
-        data_ptr = write_record(r, dh_->cur_block_id, 0);
-        if (data_ptr == NULL) {
-          return NULL;
-        }
-
-        if (r->h->size_padded < dh_->block_size) {
-          append_free_pool(dh_->cur_block_id, r->h->size_padded,
-                           dh_->block_size - r->h->size_padded);
-        } else {
-          if (d.rem > 0) {
-            append_free_pool(dh_->cur_block_id + d.quot,
-                             d.rem, dh_->block_size - d.rem);
-          }
-        }
+      data_ptr_t *data_ptr = alloc_space(r->h->size_padded);
+      //write a record into the head of the block
+      if (!write_record(r, data_ptr)) {
+        return NULL;
       }
       delete r->h;
       delete r;
@@ -581,7 +582,6 @@ typedef uint32_t block_id_t;
 
         // pointer unchanged
         ptr = data_ptr;
-
       } else {
         data_t d;
         // [TODO] size should specify the size of data (not including header)
@@ -621,7 +621,6 @@ typedef uint32_t block_id_t;
 
         // pointer unchanged
         ptr = data_ptr;
-
       } else {
         // record moved, so pointing another place
         ptr = put(data);
@@ -669,23 +668,20 @@ typedef uint32_t block_id_t;
 
       h->type = AREA_ALLOCATED;
       h->size = sizeof(record_header_t) + data->size;
-      h->size_padded = get_padding(r->h->size);
+      h->size_padded = get_padding(h->size);
       r->h = h;
       r->d = data;
 
       return r;
     }
 
-    data_ptr_t *write_record(record_t *r, block_id_t block_id, uint16_t off)
+    bool write_record(record_t *r, data_ptr_t *dp)
     {
-      off_t g_off = calc_off(block_id, off);
-      if (!write_header_and_data(r->h, r->d, g_off)) {
-        return NULL;
+      off_t off = calc_off(dp->id, dp->off);
+      if (!write_header_and_data(r->h, r->d, off)) {
+        return false;
       }
-      data_ptr_t *data_ptr = new data_ptr_t;  
-      data_ptr->id = block_id;
-      data_ptr->off = off;
-      return data_ptr;
+      return true;
     }
   };
 
@@ -729,46 +725,18 @@ typedef uint32_t block_id_t;
     {}
     ~LinkedData() {}
 
-    // put new data
     data_ptr_t *put(data_t *data)
     {
-      data_ptr_t *data_ptr;
       record_t *r = init_record(data);
-/*
-      std::cout << "data size: " << r->d->size << std::endl;  
-      std::cout << "size (header+data): " << r->h->size << std::endl;  
-      std::cout << "size (ceiled): " << r->h->size_padded << std::endl;  
-*/
-      // search free area by data size
-      free_pool_ptr_t pool;
-      if (search_free_pool(r->h->size_padded, &pool)) {
-       
-        // [TODO] if the (pool.size - r->h->size_padded) < 32) => r->h->size_padded = pool.size
-        data_ptr = write_record(r, pool.id, pool.off);
-        append_free_pool(pool.id, pool.off + r->h->size_padded,
-                         pool.size - r->h->size_padded);
-      } else {
-        div_t d = div(r->h->size_padded, dh_->block_size);
-        uint32_t num_blocks = d.rem > 0 ? d.quot + 1 : d.quot;
-        extend_blocks(num_blocks);
 
-        //write a record into the head of the block
-        data_ptr = write_record(r, dh_->cur_block_id, 0);
-        if (data_ptr == NULL) {
-          return NULL;
-        }
-
-        if (r->h->size_padded < dh_->block_size) {
-          append_free_pool(dh_->cur_block_id, r->h->size_padded,
-                           dh_->block_size - r->h->size_padded);
-        } else {
-          if (d.rem > 0) {
-            append_free_pool(dh_->cur_block_id + d.quot,
-                             d.rem, dh_->block_size - d.rem);
-          }
-        }
+      data_ptr_t *data_ptr = alloc_space(r->h->size_padded);
+      if (!write_record(r, data_ptr)) {
+        return NULL;
       }
-
+  
+      // temporary
+      delete r->u->h;
+      delete r->u;
       delete r->h;
       delete r;
 
@@ -967,68 +935,35 @@ typedef uint32_t block_id_t;
       return u;
     }
 
-    data_ptr_t *write_record(record_t *r, block_id_t block_id, uint16_t off)
+    bool write_record(record_t *r, data_ptr_t *dp)
     {
-      off_t g_off = calc_off(block_id, off);
-      int bytes_write = _pwrite(fd_, r->h, sizeof(record_header_t), g_off);
+      off_t off = calc_off(dp->id, dp->off);
+      int bytes_write = _pwrite(fd_, r->h, sizeof(record_header_t), off);
       bytes_write += write_header_and_data(r->u->h, r->u->d,
-                                           g_off + sizeof(record_header_t));
+                                           off + sizeof(record_header_t));
 
       if (bytes_write != sizeof(record_header_t) + sizeof(unit_header_t) + r->u->d->size) {
-        return NULL;
+        return false;
       }
-      data_ptr_t *data_ptr = new data_ptr_t;  
-      data_ptr->id = block_id;
-      data_ptr->off = off;
-      return data_ptr;
+      return true;
     }
 
-    data_ptr_t *write_unit(unit_t *u, block_id_t block_id, uint16_t off)
+    bool write_unit(unit_t *u, data_ptr_t *dp)
     {
-      off_t g_off = calc_off(block_id, off);
-      int bytes_write = write_header_and_data(u->h, u->d, g_off);
+      off_t off = calc_off(dp->id, dp->off);
+      int bytes_write = write_header_and_data(u->h, u->d, off);
 
       if (bytes_write != sizeof(unit_header_t) + u->d->size) {
-        return NULL;
+        return false;
       }
-      data_ptr_t *data_ptr = new data_ptr_t;  
-      data_ptr->id = block_id;
-      data_ptr->off = off;
-      return data_ptr;
+      return true;
     }
 
     data_ptr_t *put_unit(unit_t *u)
     {
-      std::cout << "put_unit" << std::endl;
-      data_ptr_t *data_ptr;
-      free_pool_ptr_t pool;
-      if (search_free_pool(u->h->size_padded, &pool)) {
-        data_ptr = write_unit(u, pool.id, pool.off);
-        if (data_ptr == NULL) {
-          return NULL;
-        }
-        append_free_pool(pool.id, pool.off + u->h->size_padded,
-                         pool.size - u->h->size_padded);
-      } else {
-        div_t d = div(u->h->size_padded, dh_->block_size);
-        uint32_t num_blocks = d.rem > 0 ? d.quot + 1 : d.quot;
-        extend_blocks(num_blocks);
-
-        //write a record into the head of the block
-        data_ptr = write_unit(u, dh_->cur_block_id, 0);
-        if (data_ptr == NULL) {
-          return NULL;
-        }
-
-        if (u->h->size_padded < dh_->block_size) {
-          append_free_pool(dh_->cur_block_id, u->h->size_padded,
-                           dh_->block_size - u->h->size_padded);
-        } else {
-          if (d.rem > 0) {
-            append_free_pool(dh_->cur_block_id + d.quot,
-                             d.rem, dh_->block_size - d.rem);
-          }
-        }
+      data_ptr_t *data_ptr = alloc_space(u->h->size_padded);
+      if (!write_unit(u, data_ptr)) {
+        return NULL;
       }
       return data_ptr;
     }
