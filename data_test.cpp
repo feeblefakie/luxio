@@ -17,7 +17,8 @@ double gettimeofday_sec()
 int main(int argc, char *argv[])
 {
   double t1, t2;
-  LibMap::Data *dt = new LibMap::PaddedData(LibMap::RATIO, 10);
+  //LibMap::Data *dt = new LibMap::PaddedData(LibMap::RATIO, 10);
+  LibMap::Data *dt = new LibMap::LinkedData(LibMap::RATIO, 10);
   dt->open("datadb", LibMap::DB_CREAT);
 
   std::ifstream fin;
