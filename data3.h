@@ -813,7 +813,8 @@ typedef uint32_t block_id_t;
       _pread(fd_, &u, sizeof(unit_header_t), off);
 
       // checking the first one only (not checking succeeding blocks)
-      if (u.size_padded - sizeof(unit_header_t) >= data->size) {
+      if (h.num_units == 1 && 
+          u.size_padded - sizeof(unit_header_t) >= data->size) {
         // if the padding is big enough
         int bytes_write = _pwrite(fd_, data->data, data->size,
                                   off + sizeof(unit_header_t));
