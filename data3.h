@@ -807,8 +807,8 @@ typedef uint32_t block_id_t;
         // create a new unit 
         data_t new_data = { (char *) data->data + rest_size, data->size - rest_size };
         unit_t *unit = init_unit(&new_data);
-        uint32_t padding = get_padding(unit->h->size)
-        unit->h->size_padded = padding > u.size_padded ? padding : u.size_padded; // same size
+        uint32_t padding = get_padding(unit->h->size);
+        unit->h->size_padded = padding > u.size_padded ? padding : u.size_padded;
         data_ptr_t *dp = put_unit(unit);
         std::cout << "dp->id: " << dp->id << std::endl;
         std::cout << "dp->off: " << dp->off << std::endl;
@@ -845,15 +845,15 @@ typedef uint32_t block_id_t;
       _pread(fd_, &u, sizeof(unit_header_t), off);
 
       // checking the first one only (not checking succeeding blocks)
-      if (u.size_padded - u.size >= data->size) {
+      if (u.size_padded - sizeof(unit_header_t) >= data->size) {
         // if the padding is big enough
         int bytes_write = _pwrite(fd_, data->data, data->size,
                                   off + sizeof(unit_header_t));
         if (bytes_write != data->size) { return NULL; }
 
         // update the header
-        u.size = data->size;
-        _pwrite(fd_, &h, sizeof(unit_header_t), off);
+        u.size = sizeof(unit_header_t) + data->size;
+        _pwrite(fd_, &u, sizeof(unit_header_t), off);
 
         // pointer unchanged
         ptr = data_ptr;
