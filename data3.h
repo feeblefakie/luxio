@@ -724,6 +724,11 @@ typedef uint32_t block_id_t;
     } record_t;
 
   public:
+    LinkedData(padding_mode_t pmode = PO2, uint32_t padding = DEFAULT_PADDING)
+    : Data(pmode, padding)
+    {}
+    ~LinkedData() {}
+
     // put new data
     data_ptr_t *put(data_t *data)
     {
@@ -785,13 +790,16 @@ typedef uint32_t block_id_t;
       } else {
         last_off = calc_off(h.last_block_id, h.last_off);
       }
-      _pread(fd_, &h, sizeof(unit_header_t), last_off);
+      _pread(fd_, &u, sizeof(unit_header_t), last_off);
 
       // if the padding is big enough, then no big deal. just put the data into it.
       uint32_t rest_size = u.size_padded - u.size;
+      std::cout << "rest_size: " << rest_size << std::endl;
       if (rest_size >= data->size) {
-        _pwrite(fd_, data->data, data->size, last_off + sizeof(unit_header_t));
+        _pwrite(fd_, data->data, data->size, last_off + u.size);
         u.size += data->size;
+        std::cout << "u.size: " << u.size << std::endl;
+        std::cout << "data->size: " << data->size << std::endl;
       } else {
         // write as much as possible into the padding
         _pwrite(fd_, data->data, rest_size, last_off + sizeof(unit_header_t));
@@ -801,6 +809,8 @@ typedef uint32_t block_id_t;
         unit_t *unit = init_unit(&new_data);
         unit->h->size_padded = u.size_padded; // same size
         data_ptr_t *dp = put_unit(unit);
+        std::cout << "dp->id: " << dp->id << std::endl;
+        std::cout << "dp->off: " << dp->off << std::endl;
 
         // update unit header
         u.size = u.size_padded; // full
@@ -818,6 +828,8 @@ typedef uint32_t block_id_t;
         delete unit;
       }
       _pwrite(fd_, &u, sizeof(unit_header_t), last_off);
+
+      return data_ptr;
     }
 
     data_ptr_t *update(data_ptr_t *data_ptr, data_t *data)
@@ -889,17 +901,19 @@ typedef uint32_t block_id_t;
       _pread(fd_, &h, sizeof(record_header_t), off);
 
       data_t *data = new data_t;
+      data->size = 0;
       char *d = new char[h.size_padded]; // must be more than data size
       char *p = d;
 
       int cnt = 0;
       off += sizeof(record_header_t);
+      unit_header_t u;
       do {
-        unit_header_t u;
         _pread(fd_, &u, sizeof(unit_header_t), off);
 
-        int bytes_read = _pread(fd_, p, u.size, off + sizeof(unit_header_t));
-        if (bytes_read != u.size) {
+        off += sizeof(unit_header_t);
+        int bytes_read = _pread(fd_, p, u.size - sizeof(unit_header_t), off);
+        if (bytes_read != u.size - sizeof(unit_header_t)) {
           delete [] d; 
           return NULL;
         }
@@ -908,7 +922,7 @@ typedef uint32_t block_id_t;
 
         // next unit
         off = calc_off(u.next_block_id, u.next_off); 
-      } while(++cnt <= h.num_units);
+      } while (++cnt < h.num_units);
 
       data->data = d;
       /*
@@ -987,6 +1001,7 @@ typedef uint32_t block_id_t;
 
     data_ptr_t *put_unit(unit_t *u)
     {
+      std::cout << "put_unit" << std::endl;
       data_ptr_t *data_ptr;
       free_pool_ptr_t pool;
       if (search_free_pool(u->h->size_padded, &pool)) {
