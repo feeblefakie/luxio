@@ -18,6 +18,9 @@
 #ifndef LIBMAP_DATA_H
 #define LIBMAP_DATA__H
 
+// for UINT8_MAX
+#define __STDC_LIMIT_MACROS
+
 #include <unistd.h>
 #include <stdint.h>
 #include <fcntl.h>
@@ -781,25 +784,24 @@ typedef uint32_t block_id_t;
       _pread(fd_, &u, sizeof(unit_header_t), last_off);
 
       // if the padding is big enough, then no big deal. just put the data into it.
-      uint32_t rest_size = u.size_padded - u.size;
-      std::cout << "rest_size: " << rest_size << std::endl;
-      if (rest_size >= data->size) {
+      uint32_t unused_size = u.size_padded - u.size;
+      if (unused_size >= data->size) {
         _pwrite(fd_, data->data, data->size, last_off + u.size);
         u.size += data->size;
-        std::cout << "u.size: " << u.size << std::endl;
-        std::cout << "data->size: " << data->size << std::endl;
       } else {
+        if (h.num_units == UINT8_MAX) {
+          std::cerr << "[error] exceeds link limitation." << std::endl;
+          return NULL;
+        }
         // write as much as possible into the padding
-        _pwrite(fd_, data->data, rest_size, last_off + u.size);
+        _pwrite(fd_, data->data, unused_size, last_off + u.size);
 
-        // create a new unit 
-        data_t new_data = { (char *) data->data + rest_size, data->size - rest_size };
+        // create a new unit and put the rest of the data into the unit
+        data_t new_data = {(char *) data->data + unused_size, data->size - unused_size};
         unit_t *unit = init_unit(&new_data);
         uint32_t padding = get_padding(unit->h->size);
         unit->h->size_padded = padding > u.size_padded ? padding : u.size_padded;
         data_ptr_t *dp = put_unit(unit);
-        std::cout << "dp->id: " << dp->id << std::endl;
-        std::cout << "dp->off: " << dp->off << std::endl;
 
         // update unit header
         u.size = u.size_padded; // full
