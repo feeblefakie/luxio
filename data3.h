@@ -902,7 +902,6 @@ typedef uint32_t block_id_t;
       return r;
     }
   };
-
 }
 
 #endif
