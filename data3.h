@@ -281,16 +281,17 @@ typedef uint32_t block_id_t;
 
     void append_free_pool(block_id_t block_id, uint16_t off_in_block, uint16_t size)
     {
+      std::cout << "append_free_pool: size: " << size << ", off: " << off_in_block << std::endl;
       bool is_appended = false;
       for (int i = 11; i >= 5; --i) { 
         if (size >= pow(2, i)) {
-          /*
+          ///*
           std::cout << "_append_free_pool: "
                     << "block_id: " << block_id 
                     << ", off: " << off_in_block 
                     << ", size: " << size
                     << ", pow: " << i << std::endl; 
-                    */
+                    //*/
           _append_free_pool(block_id, off_in_block, size, i);
           is_appended = true;
           break;
@@ -878,21 +879,24 @@ typedef uint32_t block_id_t;
       int cnt = 0;
       block_id_t id = data_ptr->id;
       uint16_t off = data_ptr->off;
+      g_off += sizeof(record_header_t);
       do {
         unit_header_t u;
-        _pread(fd_, &u, sizeof(unit_header_t), off);
+        _pread(fd_, &u, sizeof(unit_header_t), g_off);
 
         uint32_t size = u.size_padded;
         // for the first unit
         if (cnt == 0) {
           size += sizeof(record_header_t);
         }
+        std::cout << "in del: id:" << id << ", off:" << off << ", size:" << size << std::endl;
         append_free_pool(id, off, size);
 
         // next unit
         id = u.next_block_id;
         off = u.next_off; 
-      } while(++cnt <= h.num_units);
+        g_off = calc_off(id, off);
+      } while(++cnt < h.num_units);
     }
 
     data_t *get(data_ptr_t *data_ptr)
