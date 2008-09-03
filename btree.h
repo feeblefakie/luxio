@@ -37,19 +37,6 @@ namespace LibMap {
   const db_flags_t DB_RDWR = 0x0002;
   const db_flags_t DB_CREAT = 0x0200;
   const db_flags_t DB_TRUNC = 0x0400;
-/*
-  typedef struct {
-    bool is_root;
-    bool is_leaf;
-    uint32_t node_id;
-    uint16_t key_num;
-    uint16_t node_size;
-    uint32_t node_num;
-    uint16_t data_ptr;
-    uint16_t free_ptr;
-  } root_header_t;
-  typedef char * root_body_t;
-  */
 
   // global header
   typedef struct {
@@ -58,7 +45,6 @@ namespace LibMap {
     uint32_t node_num;
   } db_header_t;
 
-  typedef char * node_t;
   typedef struct {
     bool is_root;
     bool is_leaf;
@@ -68,6 +54,11 @@ namespace LibMap {
     uint16_t free_ptr;
   } node_header_t;
   typedef char * node_body_t;
+
+  typedef struct {
+    node_header_t *h;
+    node_body_t *b; 
+  } node_t;
 
   typedef struct {
     const void *key;
@@ -105,7 +96,6 @@ namespace LibMap {
         return false;
       }
 
-      char *map;
       db_header_t db_hdr;
       if (stat_buf.st_size == 0 && oflags & DB_CREAT) {
         // initialize the header for the newly created file
@@ -118,42 +108,26 @@ namespace LibMap {
         if (_write(fd, &db_hdr, sizeof(db_header_t)) < 0) {
           return false;
         }
-        // [TODO] should fix because it might not work in old BSD
+        // [TODO] should fix because it might not work in BSD 4.3 ?
         if (ftruncate(fd, db_hdr.node_size * db_hdr.node_num) < 0) {
           return false;
         }
-        map = (char *) mmap(0, db_hdr.node_size * db_hdr.node_num, 
+        map_ = (char *) mmap(0, db_hdr.node_size * db_hdr.node_num, 
                             PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);  
-        if (map == MAP_FAILED) {
+        if (map_ == MAP_FAILED) {
           return false;
         }
 
-        // must be private method (node_id is argument?)
-        // root node (node id: 1)
-        node_t *node_p = (node_t *) &(map[db_hdr.node_size*1]);
-        node_header_t *node_hdr_p = (node_header_t *) node_p;
-        node_hdr_p->is_root = true;
-        node_hdr_p->is_leaf = false;
-        node_hdr_p->node_id = 1;
-        node_hdr_p->key_num = 0;
-        node_hdr_p->data_ptr = sizeof(node_header_t);
-        node_hdr_p->free_ptr = db_hdr.node_size;
+        // root node and the first leaf node
+        node_t *root = _init_node(1, db_hdr.node_size, true, false);
+        node_t *leaf = _init_node(2, db_hdr.node_size, false, true);
 
-        // first leaf node
-        node_t *leaf_node_p = (node_t *) &(map[db_hdr.node_size*2]);
-        node_header_t *leaf_node_hdr_p = (node_header_t *) leaf_node_p;
-        leaf_node_hdr_p->is_root = false;
-        leaf_node_hdr_p->is_leaf = true;
-        leaf_node_hdr_p->node_id = 2;
-        leaf_node_hdr_p->key_num = 0;
-        leaf_node_hdr_p->data_ptr = sizeof(node_header_t);
-        leaf_node_hdr_p->free_ptr = db_hdr.node_size;
+        // make a link from root to the first leaf node
+        memcpy(root->b, &(leaf->h->node_id), sizeof(uint32_t));
+        root->h->data_ptr += sizeof(uint32_t);
 
-        // must be inline method (linking from node_id to another node_id)
-        // link to the first leaf node
-        char *node_body_p = (char *) (node_p + sizeof(node_header_t));
-        memcpy(node_body_p, &(leaf_node_hdr_p->node_id), sizeof(uint32_t));
-        node_hdr_p->data_ptr += sizeof(uint32_t);
+        delete root;
+        delete leaf;
 
       } else {
         if (_read(fd, &db_hdr, sizeof(db_header_t)) < 0) {
@@ -163,10 +137,10 @@ namespace LibMap {
 
         // [TODO] read filesize and compare with node_num * node_size
         // if they differ, gives alert and trust the filesize ?
-
-        map = (char *) mmap(0, db_hdr.node_size * db_hdr.node_num,
+        
+        map_ = (char *) mmap(0, db_hdr.node_size * db_hdr.node_num,
                             PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);  
-        if (map == MAP_FAILED) {
+        if (map_ == MAP_FAILED) {
           std::cerr << "map failed" << std::endl;
           return false;
         }
@@ -174,33 +148,30 @@ namespace LibMap {
 
       fd_ = fd;
       oflags_ = oflags;
-      map_ = map;
-      db_hdr_p_ = (db_header_t *) map;
+      db_hdr_p_ = (db_header_t *) map_;
 
       std::cout << "key_num: " << db_hdr_p_->key_num << std::endl;
       std::cout << "node_size: " << db_hdr_p_->node_size << std::endl;
       std::cout << "node_num: " << db_hdr_p_->node_num << std::endl;
       std::cout << std::endl;
 
-      root_hdr_p_ = (node_header_t *) &(map[db_hdr_p_->node_size*1]);
-      root_body_p_ = (node_body_t *) (map + sizeof(node_header_t));
-
-      std::cout << "is_root: " << root_hdr_p_->is_root << std::endl;
-      std::cout << "is_leaf: " << root_hdr_p_->is_leaf << std::endl;
-      std::cout << "node_id: " << root_hdr_p_->node_id << std::endl;
-      std::cout << "key_num: " << root_hdr_p_->key_num << std::endl;
-      std::cout << "data_ptr: " << root_hdr_p_->data_ptr << std::endl;
-      std::cout << "free_ptr: " << root_hdr_p_->free_ptr << std::endl;
+      root_ = _alloc_node(1);
+      std::cout << "is_root: " << root_->h->is_root << std::endl;
+      std::cout << "is_leaf: " << root_->h->is_leaf << std::endl;
+      std::cout << "node_id: " << root_->h->node_id << std::endl;
+      std::cout << "key_num: " << root_->h->key_num << std::endl;
+      std::cout << "data_ptr: " << root_->h->data_ptr << std::endl;
+      std::cout << "free_ptr: " << root_->h->free_ptr << std::endl;
       std::cout << std::endl;
 
-      node_header_t *node_hdr_p = (node_header_t *) &(map[db_hdr_p_->node_size*2]);
-
-      std::cout << "is_root: " << node_hdr_p->is_root << std::endl;
-      std::cout << "is_leaf: " << node_hdr_p->is_leaf << std::endl;
-      std::cout << "node_id: " << node_hdr_p->node_id << std::endl;
-      std::cout << "key_num: " << node_hdr_p->key_num << std::endl;
-      std::cout << "data_ptr: " << node_hdr_p->data_ptr << std::endl;
-      std::cout << "free_ptr: " << node_hdr_p->free_ptr << std::endl;
+      node_t *leaf = _alloc_node(2);
+      std::cout << "is_root: " << leaf->h->is_root << std::endl;
+      std::cout << "is_leaf: " << leaf->h->is_leaf << std::endl;
+      std::cout << "node_id: " << leaf->h->node_id << std::endl;
+      std::cout << "key_num: " << leaf->h->key_num << std::endl;
+      std::cout << "data_ptr: " << leaf->h->data_ptr << std::endl;
+      std::cout << "free_ptr: " << leaf->h->free_ptr << std::endl;
+      delete leaf;
     }
 
     bool put(const void *key, uint32_t key_size, 
@@ -216,8 +187,34 @@ namespace LibMap {
     db_flags_t oflags_;
     char *map_;
     db_header_t *db_hdr_p_;
-    node_header_t *root_hdr_p_;
-    node_body_t *root_body_p_;
+    node_t *root_;
+
+    node_t *_init_node(uint32_t node_id, uint16_t node_size, bool is_root, bool is_leaf)
+    {
+      char *node_p = (char *) &(map_[node_size * node_id]);
+      node_header_t *node_hdr_p = (node_header_t *) node_p;
+      node_hdr_p->is_root = is_root;
+      node_hdr_p->is_leaf = is_leaf;
+      node_hdr_p->node_id = node_id;
+      node_hdr_p->key_num = 0;
+      node_hdr_p->data_ptr = 0;
+      node_hdr_p->free_ptr = node_size - sizeof(node_header_t);;
+      node_body_t *node_body_p = (node_body_t *) (node_p + sizeof(node_header_t));
+
+      node_t *node = new node_t;
+      node->h = node_hdr_p;
+      node->b = node_body_p;
+      return node;
+    }
+
+    node_t *_alloc_node(uint32_t node_id)
+    {
+      char *node_p = (char *) &(map_[db_hdr_p_->node_size * node_id]);
+      node_t *node = new node_t;
+      node->h = (node_header_t *) node_p;
+      node->b = (node_body_t *) (node_p + sizeof(node_header_t));
+      return node;
+    }
 
     bool _insert(uint32_t node_id, entry_t *entry, up_entry_t *up_entry)
     {
