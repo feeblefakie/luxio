@@ -326,7 +326,7 @@ namespace LibMap {
           // get key
           char *key_buf = new char[size+1];
           memcpy(key_buf, data_p + ptr, size);
-          key_buf[size] = NULL;
+          key_buf[size] = '\0';
 
           // compare
           if (strcmp((char *) entry->key, key_buf) < 0) {
