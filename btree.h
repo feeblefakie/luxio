@@ -52,6 +52,7 @@ namespace LibMap {
     uint16_t key_num;
     uint16_t data_ptr;
     uint16_t free_ptr;
+    uint16_t free_size;
   } node_header_t;
   typedef char * node_body_t;
 
@@ -62,14 +63,15 @@ namespace LibMap {
 
   typedef struct {
     const void *key;
-    uint32_t key_size;
-    const void *value;
-    uint32_t value_size;
+    uint16_t key_size;
+    const void *val;
+    uint32_t val_size;
+    uint32_t size;
   } entry_t;
 
   typedef struct {
     const void *key;
-    uint32_t key_size;
+    uint16_t key_size;
     uint32_t node_id;
   } up_entry_t;
 
@@ -175,11 +177,58 @@ namespace LibMap {
     }
 
     bool put(const void *key, uint32_t key_size, 
-             const void *value, uint32_t value_size)
+             const void *val, uint32_t val_size)
     {
-      entry_t entry = {key, key_size, value, value_size};
+      std::cout << "key: " << key << std::endl;
+      std::cout << "key_size: " << key_size << std::endl;
+      std::cout << "val: " << val << std::endl;
+      std::cout << "val_size: " << val_size << std::endl;
+      entry_t entry = {key, key_size, val, val_size, key_size + val_size};
       up_entry_t *up_entry = NULL;
-      //_insert(0, &entry, up_entry);
+    
+      _insert(1, &entry, up_entry);
+    }
+
+    // debug method
+    void show_node(uint32_t node_id)
+    {
+      std::cout << std::endl;
+      std::cout << "========= SHOW NODE " << node_id << " ==========" << std::endl;
+      node_t *node = _alloc_node(node_id);
+      std::cout << "is_root: " << node->h->is_root << std::endl;
+      std::cout << "is_leaf: " << node->h->is_leaf << std::endl;
+      std::cout << "node_id: " << node->h->node_id << std::endl;
+      std::cout << "key_num: " << node->h->key_num << std::endl;
+      std::cout << "data_ptr: "<< node->h->data_ptr << std::endl;
+      std::cout << "free_ptr: " << node->h->free_ptr << std::endl;
+      std::cout << "free_size: " << node->h->free_size << std::endl;
+
+      if (node->h->is_leaf) {
+        char *tail_p = (char *) node->h + db_hdr_p_->node_size; // point to the tail of the node
+        char *body_p = (char *) node->b;
+        for (int i = 1; i <= node->h->key_num; ++i) {
+          char *ptr_p = tail_p - 2 * i * sizeof(uint16_t);
+          char *size_p = ptr_p + sizeof(uint16_t);
+          uint16_t ptr, size;
+          memcpy(&ptr, ptr_p, sizeof(uint16_t));
+          memcpy(&size, size_p, sizeof(uint16_t));
+          std::cout << "ptr[" << ptr << "], size[" << size << "]" << std::endl;
+
+          char key_buf[256];
+          uint32_t val;
+          memset(key_buf, 0, 256);
+          memcpy(key_buf, body_p, size);
+          body_p += size;
+          memcpy(&val, body_p, sizeof(uint32_t));
+          body_p += sizeof(uint32_t);
+          std::cout << "key[" << key_buf << "]" << std::endl;
+          // [TODO] value in leaf node is currently uint32_t
+          std::cout << "val[" << val << "]" << std::endl;
+          // [TODO] value in leaf node is currently uint32_t
+        }
+      } else {
+          std::cout << "non-leaf node !!!"<< std::endl;
+      }
     }
 
   private:
@@ -199,6 +248,7 @@ namespace LibMap {
       node_hdr_p->key_num = 0;
       node_hdr_p->data_ptr = 0;
       node_hdr_p->free_ptr = node_size - sizeof(node_header_t);;
+      node_hdr_p->free_size = node_hdr_p->free_ptr;
       node_body_t *node_body_p = (node_body_t *) (node_p + sizeof(node_header_t));
 
       node_t *node = new node_t;
@@ -216,11 +266,169 @@ namespace LibMap {
       return node;
     }
 
-    bool _insert(uint32_t node_id, entry_t *entry, up_entry_t *up_entry)
+    void _insert(uint32_t node_id, entry_t *entry, up_entry_t *up_entry)
     {
-      &(map_[node_id]);
+      std::cerr << "insert: [" << node_id << "]" << std::endl;
+      node_t *node = _alloc_node(node_id);
+      if (node->h->is_leaf) {
+        if (node->h->free_size > entry->size) {
+          // there is enough space, then just put the entry
+          _put_entry(node, entry);
+        } else {
+          /*
+          // no enough space, then splitting the node (codes below are tied up as split?)
+          // allocate new page
+          if (!alloc_page()) {
+            std::cerr << "alloc_page() failed" << std::endl; 
+          }
+          // create new leaf node
+          node_t *new_node = _init_node(db_hdr_p_->node_num-1, 
+                                        db_hdr_p_->node_size, false, true);
+          move_entries(node, new_node);
 
+          // put the entry into the new node
+          // [TODO] to do something if the entry doesn't fit in the new node
+          _put_entry(new_node, entry);
+
+          // [TODO] take the most left entry(key) and new node's node_id
+          // set in up_entry ?
+
+          */
+        }
+
+      } else {
+        uint32_t next_node_id = _find_next_node(node, entry);
+        _insert(next_node_id, entry, up_entry);
+
+        if (up_entry == NULL) { return; }
+
+        // up_entry is not NULL, then continues
+        // [TODO] entry copied (or pushed) up
+      } 
     }
+
+    uint32_t _find_next_node(node_t *node, entry_t *entry)
+    {
+      std::cout << "find_next_node" << std::endl;
+      bool is_found = false;
+      uint32_t next_node_id;
+      char *data_p = (char *) node->b;
+      char *slot_p = (char *) node + db_hdr_p_->node_size;
+      memcpy(&next_node_id, node->b, sizeof(uint32_t));
+      data_p += sizeof(uint32_t);
+
+      if (node->h->key_num > 0) {
+        for (int i = 0; i < node->h->key_num && !is_found; ++i) {
+          // get size and ptr from the slots
+          uint16_t ptr, size;
+          memcpy(&size, slot_p - sizeof(uint16_t), sizeof(uint16_t));
+          memcpy(&ptr, slot_p - sizeof(uint16_t) * 2, sizeof(uint16_t)); 
+          // get key
+          char *key_buf = new char[size+1];
+          memcpy(key_buf, data_p + ptr, size);
+          key_buf[size] = NULL;
+
+          // compare
+          if (strcmp((char *) entry->key, key_buf) < 0) {
+            is_found = true;
+          } else {
+            data_p += size;
+            memcpy(&next_node_id, data_p, sizeof(uint32_t));
+            data_p += sizeof(uint32_t);
+          }
+          delete [] key_buf;
+        }
+      }
+      return next_node_id;
+    }
+
+    void _put_entry(node_t *node, entry_t *entry)
+    {
+      char buf[256];
+      memset(buf, 0, 256);
+      memcpy(buf, entry->key, entry->key_size);
+      std::cerr << "put_entry: node_id[" << node->h->node_id << "]" 
+                << " key[" << buf << "], size[" << entry->key_size << "]"
+                << std::endl;
+      node_header_t *h = node->h;
+      node_body_t *b = node->b;
+
+      // [TODO] put it in order (binary tree search)
+      // just appending it currently
+      uint16_t last_data_ptr = h->data_ptr;
+      memcpy((char *) b + h->data_ptr, entry->key, entry->key_size);
+      h->data_ptr += entry->key_size;
+      memcpy((char *) b + h->data_ptr, entry->val, entry->val_size);
+      h->data_ptr += entry->val_size;
+      h->free_size -= entry->size; 
+
+      // put slots
+      memcpy((char *) b + h->free_ptr - sizeof(uint16_t), &(entry->key_size), sizeof(uint16_t));
+      memcpy((char *) b + h->free_ptr - sizeof(uint16_t) * 2, &last_data_ptr, sizeof(uint16_t));
+      h->free_ptr -= sizeof(uint16_t) * 2;
+      h->free_size -= sizeof(uint16_t) * 2; 
+
+      ++(db_hdr_p_->key_num);
+      ++(node->h->key_num);
+    }
+
+    bool alloc_page(void)
+    {
+      ++(db_hdr_p_->node_num);
+      if (ftruncate(fd_, db_hdr_p_->node_size * db_hdr_p_->node_num) < 0) {
+        return false;
+      }
+      // required ?
+      //munmap(map_);
+      map_ = (char *) mmap(0, db_hdr_p_->node_size * db_hdr_p_->node_num, 
+                           PROT_READ | PROT_WRITE, MAP_SHARED, fd_, 0);  
+      if (map_ == MAP_FAILED) {
+        return false;
+      }
+      return true;
+    }
+/*
+    void move_entries(node_t *node, node_t, *new_node)
+    {
+      uint32_t stay_entry_num = node->h->key_num / 2;
+      uint32_t move_entry_num = node->h->key_num - stay_entry_num;
+
+      char *slot_p = (char *) node->h + db_hdr_p_->node_size;
+      slot_p -= sizeof(uint16_t) * 2 * stay_entry_num;
+      uint16_t ptr;
+      memcpy(&ptr, slot_p - sizeof(uint16_t) * 2, sizeof(uint16_t)); 
+
+      // move data
+      memmove(new_node->b, node->b + ptr, node->h->data_ptr - ptr);
+      new_node->h->data_ptr = node->h->data_ptr - ptr;
+
+      // move slots
+      uint16_t slot_size = sizeof(uint16_t) * move_entry_num;
+      memmove(new_node->b + new_node->h->free_ptr - slot_size,
+              node->b + node->h->free_ptr, slot_size);
+      new_node->h->free_ptr -= slot_size;
+
+      // update key_num
+      node->h->key_num = stay_entry_num;
+      new_node->h->key_num = move_entry_num;
+
+      // modify offset(ptr) values in slots
+      uint16_t offset = 0;          
+      char *tail_p = new_node->h + db_hdr_p_->node_size; // point to the tail of the node
+      for (int i = 1; i <= new_node->h->key_num; ++i) {
+        uint16_t size;
+        //char *ptr_p = new_node->b + new_node->h->free_ptr - 2 * i * sizeof(uint16_t);
+        char *ptr_p = tail_p - 2 * i * sizeof(uint16_t);
+        char *size_p = size_p + sizeof(uint16_t);
+
+        memcpy(ptr_p, offset, sizeof(uint16_t)); // update offset
+        memcpy(&size, size_p, sizeof(uint16_t));
+
+        // [TODO] value in leaf node is currently uint32_t
+        offset += size + sizeof(uint32_t);
+      }
+    }
+    */
 
     int _open(const char *pathname, int flags, mode_t mode)
     {
