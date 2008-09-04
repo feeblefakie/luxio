@@ -119,7 +119,8 @@ namespace LibMap {
         // initialize the header for the newly created file
         //strncpy(h.magic, MAGIC, strlen(MAGIC));
         db_hdr.key_num = 0;
-        db_hdr.node_size = getpagesize();
+        //db_hdr.node_size = getpagesize();
+        db_hdr.node_size = 64;
         // one for db_header, one for root node and one for leaf node
         db_hdr.node_num = 3;
 
@@ -211,6 +212,10 @@ namespace LibMap {
       std::cout << std::endl;
       std::cout << "========= SHOW NODE " << node_id << " ==========" << std::endl;
       node_t *node = _alloc_node(node_id);
+      if (node == NULL) {
+        std::cout << "node[ " << node_id << "] is not allocated, yet" << std::endl;
+        return;
+      }
       std::cout << "is_root: " << node->h->is_root << std::endl;
       std::cout << "is_leaf: " << node->h->is_leaf << std::endl;
       std::cout << "node_id: " << node->h->node_id << std::endl;
@@ -268,6 +273,9 @@ namespace LibMap {
 
     node_t *_alloc_node(uint32_t node_id)
     {
+      if (node_id > db_hdr_p_->node_num - 1) {
+        return NULL;
+      }
       char *node_p = (char *) &(map_[db_hdr_p_->node_size * node_id]);
       node_t *node = new node_t;
       node->h = (node_header_t *) node_p;
@@ -280,30 +288,25 @@ namespace LibMap {
       std::cerr << "insert: [" << node_id << "]" << std::endl;
       node_t *node = _alloc_node(node_id);
       if (node->h->is_leaf) {
-        // must compare with entry->size + slot_size(uint16_t*2) ?
-        if (node->h->free_size > entry->size) {
+        if (node->h->free_size >= entry->size + sizeof(slot_t)) {
           // there is enough space, then just put the entry
           put_entry_in_leaf(node, entry);
         } else {
-          /*
-          // no enough space, then splitting the node (codes below are tied up as split?)
-          // allocate new page
+          std::cout << "SPLITTING" << std::endl;
           if (!alloc_page()) {
             std::cerr << "alloc_page() failed" << std::endl; 
           }
           // create new leaf node
           node_t *new_node = _init_node(db_hdr_p_->node_num-1, 
                                         db_hdr_p_->node_size, false, true);
-          move_entries(node, new_node);
+          //move_entries(node, new_node);
+          split_leaf_node(node, new_node);
 
-          // put the entry into the new node
           // [TODO] to do something if the entry doesn't fit in the new node
-          _put_entry(new_node, entry);
+          //put_entry_in_leaf(new_node, entry);
 
           // [TODO] take the most left entry(key) and new node's node_id
           // set in up_entry ?
-
-          */
         }
 
       } else {
@@ -438,6 +441,79 @@ namespace LibMap {
       }
       return true;
     }
+
+    void split_leaf_node(node_t *node, node_t *new_node)
+    {
+      char *b = (char *) node->b;
+      char *nb = (char *) new_node->b;
+
+      // current node slots
+      char *slot_p = (char *) b + node->h->free_off;
+      slot_t **slots = (slot_t **) slot_p;
+      for (int i = 0; i < node->h->key_num; ++i) {
+        std::cout << "off: " << slots[i]->off << std::endl;
+        std::cout << "size: " << slots[i]->size << std::endl;
+      }
+      slot_t *slot = (slot_t *) b + node->h->free_off;
+      std::cout << "off: " << slot->off << std::endl;
+      std::cout << "size: " << slot->size << std::endl;
+
+      /*
+      // stay_num entries stay in the node, others move to the new node
+      uint32_t stay_num = node->h->key_num / 2;
+      uint32_t move_num = node->h->key_num - stay_num;
+
+      // copy the bigger entries to the new node
+      uint16_t off = 0;
+      char *slot_p = (char *) new_node->h + db_hdr_p_->node_size;
+      for (int i = move_num - 1; i >= 0; --i) {
+        // copy entry to the new node's data area
+        // [TODO] value size is sizeof(uint32_t) for now
+        memcpy(nb, b + slots[i]->off, slots[i]->size + UI32_SIZE);
+        nb += slots[i]->size + UI32_SIZE;
+        // new slot for the entry above
+        slot_t slot = { off, slots[i]->size };
+        memcpy(slot_p - sizeof(slot_t), &slot, sizeof(slot_t));
+        slot_p -= sizeof(slot_t);
+        // [TODO] value size is sizeof(uint32_t) for now
+        off += slots[i]->size + UI32_SIZE;
+      }
+      // update header values
+      new_node->h->data_off = off;
+      new_node->h->free_off = db_hdr_p_->node_size - sizeof(node_header_t) - move_num * sizeof(slot_t);
+      new_node->h->key_num = move_num;
+      
+      // copy staying entries into the buffers
+      char data_buf[db_hdr_p_->node_size]; // buffer for the node's data
+      char slot_buf[db_hdr_p_->node_size]; // buffer for the node's slot
+      char *data_buf_p = data_buf;
+      char *slot_buf_p = slot_buf + db_hdr_p_->node_size;
+      off = 0;
+      for (int i = node->h->key_num - 1; i >= move_num; --i) {
+        // copy entry to the data buffer
+        // [TODO] value size is sizeof(uint32_t) for now
+        memcpy(data_buf_p, b + slots[i]->off, slots[i]->size + UI32_SIZE);
+        data_buf_p += slots[i]->size + UI32_SIZE;
+        // new slot for the entry above
+        slot_t slot = { off, slots[i]->size };
+        memcpy(slot_buf_p - sizeof(slot_t), &slot, sizeof(slot_t));
+        slot_buf_p -= sizeof(slot_t);
+        // [TODO] value size is sizeof(uint32_t) for now
+        off += slots[i]->size + UI32_SIZE;
+      }
+
+      // copy the buffers to the node
+      slot_p = (char *) node->h + db_hdr_p_->node_size;
+      uint16_t slots_size = sizeof(slot_t) * stay_num;
+      memcpy(b, data_buf, off); 
+      memcpy(slot_p - slots_size, slot_buf_p, slots_size);
+      // update header values
+      node->h->data_off = off;
+      node->h->free_off = db_hdr_p_->node_size - sizeof(node_header_t) - stay_num * sizeof(slot_t);
+      node->h->key_num = stay_num;
+      */
+    }
+
 /*
     void move_entries(node_t *node, node_t, *new_node)
     {
