@@ -31,10 +31,6 @@
 #define UI16_SIZE sizeof(uint16_t)
 #define UI32_SIZE sizeof(uint32_t)
 
-#define KEY_FOUND 1
-#define KEY_BIGGER 2
-#define KEY_LESSER 3
-
 namespace LibMap {
 
   const char *MAGIC = "LMBT0001";
@@ -83,6 +79,17 @@ namespace LibMap {
     uint16_t key_size;
     uint32_t node_id;
   } up_entry_t;
+
+  typedef struct {
+    uint16_t off;
+    uint16_t size;
+  } slot_t;
+
+  typedef enum {
+    KEY_FOUND,
+    KEY_BIGGER,
+    KEY_LESSER
+  } find_result_t;
 
   class Btree {
   public:
@@ -213,27 +220,20 @@ namespace LibMap {
       std::cout << "free_size: " << node->h->free_size << std::endl;
 
       if (node->h->is_leaf) {
-        char *tail_p = (char *) node->h + db_hdr_p_->node_size; // point to the tail of the node
+        char *slot_p = (char *) node->h + db_hdr_p_->node_size; // point to the tail of the node
         char *body_p = (char *) node->b;
         for (int i = 1; i <= node->h->key_num; ++i) {
-          char *ptr_p = tail_p - 2 * i * UI16_SIZE;
-          char *size_p = ptr_p + UI16_SIZE;
-          uint16_t ptr, size;
-          memcpy(&ptr, ptr_p, UI16_SIZE);
-          memcpy(&size, size_p, UI16_SIZE);
-          std::cout << "ptr[" << ptr << "], size[" << size << "]" << std::endl;
+          slot_p -= sizeof(slot_t);
+          slot_t *slot = (slot_t *) slot_p;
+          std::cout << "off[" << slot->off << "], size[" << slot->size << "]" << std::endl;
 
           char key_buf[256];
           uint32_t val;
           memset(key_buf, 0, 256);
-          memcpy(key_buf, body_p, size);
-          body_p += size;
-          memcpy(&val, body_p, UI32_SIZE);
-          body_p += UI32_SIZE;
+          memcpy(key_buf, body_p + slot->off, slot->size);
+          memcpy(&val, body_p + slot->off + slot->size, UI32_SIZE);
           std::cout << "key[" << key_buf << "]" << std::endl;
-          // [TODO] value in leaf node is currently uint32_t
           std::cout << "val[" << val << "]" << std::endl;
-          // [TODO] value in leaf node is currently uint32_t
         }
       } else {
           std::cout << "non-leaf node !!!"<< std::endl;
@@ -283,7 +283,7 @@ namespace LibMap {
         // must compare with entry->size + slot_size(uint16_t*2) ?
         if (node->h->free_size > entry->size) {
           // there is enough space, then just put the entry
-          _put_entry(node, entry);
+          put_entry_in_leaf(node, entry);
         } else {
           /*
           // no enough space, then splitting the node (codes below are tied up as split?)
@@ -352,7 +352,7 @@ namespace LibMap {
       return next_node_id;
     }
 
-    void _put_entry(node_t *node, entry_t *entry)
+    void put_entry_in_leaf(node_t *node, entry_t *entry)
     {
       char buf[256];
       memset(buf, 0, 256);
@@ -364,68 +364,75 @@ namespace LibMap {
       node_body_t *b = node->b;
 
       char *data_p, *slot_p;
-      int res = find_in_leaf(node, entry, &data_p, &slot_p);
+      find_result_t res = find_entry_in_leaf(node, entry, &data_p, &slot_p);
       if (res == KEY_FOUND) {
-        // overwrite the val
         std::cout << "KEY_FOUND" << std::endl;
         memcpy((char *) data_p + entry->key_size, entry->val, entry->val_size);
-      } else if (res == KEY_BIGGER) {
-        // append the entry to the last
-        append_entry(node, entry, data_p, slot_p);
-
       } else {
-        // insert the entry to the point
-        std::cout << "not supported yet" << std::endl;
-        // insert_entry
-
+        _put_entry_in_leaf(node, entry, slot_p, res);
       }
     }
+  
+    void _put_entry_in_leaf(node_t *node, entry_t *entry, char *slot_p, find_result_t res)
+    {
+      // append entry
+      char *data_p = (char *) node->b + node->h->data_off;
+      char *free_p = (char *) node->b + node->h->free_off;
+      memcpy(data_p, entry->key, entry->key_size);
+      memcpy(data_p + entry->key_size, entry->val, entry->val_size);
 
-    int find_in_leaf(node_t *node, entry_t *entry, char **data_p, char **slot_p)
+      slot_t slot = { node->h->data_off, entry->key_size };
+      if (res == KEY_LESSER) {
+        // insert
+        int shift_size = slot_p - free_p + sizeof(slot_t);
+        std::cout << "shift_size: " << shift_size << std::endl;
+        /*
+        char *buf = new char[shift_size];
+        memcpy(buf, free_p, shift_size);
+        memcpy(free_p - sizeof(slot_t), buf, shift_size);
+        */
+        memmove(free_p - sizeof(slot_t), free_p, shift_size);
+        memcpy(slot_p, &slot, sizeof(slot_t));
+        //delete [] buf;
+      } else {
+        // prepend
+        std::cout << "PREPEND" << std::endl;
+        memcpy(free_p - sizeof(slot_t), &slot, sizeof(slot_t));
+      }
+
+      node->h->data_off += entry->size;
+      node->h->free_off -= sizeof(slot_t);
+      node->h->free_size -= entry->size + sizeof(slot_t);
+      ++(db_hdr_p_->key_num);
+      ++(node->h->key_num);
+    }
+
+    find_result_t find_entry_in_leaf(node_t *node, entry_t *entry, char **data_p, char **slot_p)
     {
       // [TODO] must be binar search, but linear search for now
-      *data_p = (char *) node->b;
+      char *b = (char *) node->b;
       *slot_p = (char *) node->h + db_hdr_p_->node_size;
       for (int i = 1; i <= node->h->key_num; ++i) {
-        // not using i for now
-        *slot_p -= UI16_SIZE * 2;
-        uint16_t off, size;
-        memcpy(&off, *slot_p, UI16_SIZE);
-        memcpy(&size, *slot_p + UI16_SIZE, UI16_SIZE);
+        *slot_p -= sizeof(slot_t);
+        slot_t *slot = (slot_t *) *slot_p;
 
-        char *key_buf = new char[size + 1];   
-        memset(key_buf, 0, size + 1);
-        memcpy(key_buf, *data_p, size); 
-        key_buf[size] = '\0';
+        char *key_buf = new char[slot->size + 1];   
+        memset(key_buf, 0, slot->size + 1);
+        memcpy(key_buf, b + slot->off, slot->size); 
+        key_buf[slot->size] = '\0';
 
         // [TODO] entry->key is regarded as a string
-        int res = strncmp(key_buf, (char *) entry->key, entry->key_size);
+        int res = strcmp(key_buf, (char *) entry->key);
         delete [] key_buf;
 
         if (res == 0) {
+          *data_p = b + slot->off;
           return KEY_FOUND;
         } else if (res > 0) {
           return KEY_LESSER;
         }
-        *data_p += size + UI32_SIZE;
       }
       return KEY_BIGGER;
-    }
-
-    bool append_entry(node_t *node, entry_t *entry, char *data_p, char *slot_p)
-    {
-        memcpy(data_p, entry->key, entry->key_size);
-        memcpy(data_p + entry->key_size, entry->val, entry->val_size);
-        memcpy(slot_p - UI16_SIZE, &(entry->key_size), UI16_SIZE);
-        memcpy(slot_p - UI16_SIZE * 2, &(node->h->data_off), UI16_SIZE);
-
-        // adjust size variables
-        node->h->data_off += entry->size;
-        node->h->free_off -= UI16_SIZE * 2;
-        node->h->free_size -= entry->size + UI16_SIZE * 2; 
-
-        ++(db_hdr_p_->key_num);
-        ++(node->h->key_num);
     }
 
     bool alloc_page(void)
