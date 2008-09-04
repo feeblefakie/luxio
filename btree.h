@@ -371,44 +371,14 @@ namespace LibMap {
         memcpy((char *) data_p + entry->key_size, entry->val, entry->val_size);
       } else if (res == KEY_BIGGER) {
         // append the entry to the last
-        memcpy(data_p, entry->key, entry->key_size);
-        memcpy(data_p + entry->key_size, entry->val, entry->val_size);
-        memcpy(slot_p - UI16_SIZE, &(entry->key_size), UI16_SIZE);
-        memcpy(slot_p - UI16_SIZE * 2, &(h->data_off), UI16_SIZE);
-
-        // adjust size variables
-        h->data_off += entry->size;
-        h->free_off -= UI16_SIZE * 2;
-        h->free_size -= entry->size + UI16_SIZE * 2; 
-
-        ++(db_hdr_p_->key_num);
-        ++(node->h->key_num);
+        append_entry(node, entry, data_p, slot_p);
 
       } else {
         // insert the entry to the point
         std::cout << "not supported yet" << std::endl;
+        // insert_entry
 
       }
-/*
-      // [TODO] put it in order (binary tree search)
-      // [TODO] search for the key 
-      // just appending it currently
-      uint16_t last_data_off = h->data_off;
-      memcpy((char *) b + h->data_off, entry->key, entry->key_size);
-      h->data_off += entry->key_size;
-      memcpy((char *) b + h->data_off, entry->val, entry->val_size);
-      h->data_off += entry->val_size;
-      h->free_size -= entry->size; 
-
-      // put slots
-      memcpy((char *) b + h->free_off - UI16_SIZE, &(entry->key_size), UI16_SIZE);
-      memcpy((char *) b + h->free_off - UI16_SIZE * 2, &last_data_off, UI16_SIZE);
-      h->free_off -= UI16_SIZE * 2;
-      h->free_size -= UI16_SIZE * 2; 
-
-      ++(db_hdr_p_->key_num);
-      ++(node->h->key_num);
-      */
     }
 
     int find_in_leaf(node_t *node, entry_t *entry, char **data_p, char **slot_p)
@@ -440,6 +410,22 @@ namespace LibMap {
         *data_p += size + UI32_SIZE;
       }
       return KEY_BIGGER;
+    }
+
+    bool append_entry(node_t *node, entry_t *entry, char *data_p, char *slot_p)
+    {
+        memcpy(data_p, entry->key, entry->key_size);
+        memcpy(data_p + entry->key_size, entry->val, entry->val_size);
+        memcpy(slot_p - UI16_SIZE, &(entry->key_size), UI16_SIZE);
+        memcpy(slot_p - UI16_SIZE * 2, &(node->h->data_off), UI16_SIZE);
+
+        // adjust size variables
+        node->h->data_off += entry->size;
+        node->h->free_off -= UI16_SIZE * 2;
+        node->h->free_size -= entry->size + UI16_SIZE * 2; 
+
+        ++(db_hdr_p_->key_num);
+        ++(node->h->key_num);
     }
 
     bool alloc_page(void)
