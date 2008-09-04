@@ -368,7 +368,7 @@ namespace LibMap {
       if (res == KEY_FOUND) {
         // overwrite the val
         std::cout << "KEY_FOUND" << std::endl;
-        memcpy((char *) data_p + entry->key_size, &(entry->val), entry->val_size);
+        memcpy((char *) data_p + entry->key_size, entry->val, entry->val_size);
       } else if (res == KEY_BIGGER) {
         // append the entry to the last
         memcpy(data_p, entry->key, entry->key_size);
