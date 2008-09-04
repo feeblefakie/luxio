@@ -354,19 +354,13 @@ namespace LibMap {
 
     void put_entry_in_leaf(node_t *node, entry_t *entry)
     {
-      char buf[256];
-      memset(buf, 0, 256);
-      memcpy(buf, entry->key, entry->key_size);
-      std::cerr << "put_entry: node_id[" << node->h->node_id << "]" 
-                << " key[" << buf << "], size[" << entry->key_size << "]"
-                << std::endl;
       node_header_t *h = node->h;
       node_body_t *b = node->b;
 
       char *data_p, *slot_p;
       find_result_t res = find_entry_in_leaf(node, entry, &data_p, &slot_p);
       if (res == KEY_FOUND) {
-        std::cout << "KEY_FOUND" << std::endl;
+        // update the value
         memcpy((char *) data_p + entry->key_size, entry->val, entry->val_size);
       } else {
         _put_entry_in_leaf(node, entry, slot_p, res);
@@ -386,14 +380,8 @@ namespace LibMap {
         // insert
         int shift_size = slot_p - free_p + sizeof(slot_t);
         std::cout << "shift_size: " << shift_size << std::endl;
-        /*
-        char *buf = new char[shift_size];
-        memcpy(buf, free_p, shift_size);
-        memcpy(free_p - sizeof(slot_t), buf, shift_size);
-        */
         memmove(free_p - sizeof(slot_t), free_p, shift_size);
         memcpy(slot_p, &slot, sizeof(slot_t));
-        //delete [] buf;
       } else {
         // prepend
         std::cout << "PREPEND" << std::endl;
