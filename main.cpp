@@ -17,6 +17,7 @@ int main(int argc, char *argv[])
   uint32_t val = atoi(argv[2]);
 
   bt->put(key, strlen(key), &val, sizeof(uint32_t));
+  bt->show_node(1);
   bt->show_node(2);
   bt->show_node(3);
 
