@@ -177,13 +177,13 @@ namespace LibMap {
       std::cout << "init_data_size: " << dh_->init_data_size << std::endl;
       std::cout << std::endl;
 
-      root_ = _alloc_node(1);
-      std::cout << "is_root: " << root_->h->is_root << std::endl;
-      std::cout << "is_leaf: " << root_->h->is_leaf << std::endl;
-      std::cout << "node_id: " << root_->h->node_id << std::endl;
-      std::cout << "key_num: " << root_->h->key_num << std::endl;
-      std::cout << "data_off: " << root_->h->data_off << std::endl;
-      std::cout << "free_off: " << root_->h->free_off << std::endl;
+      node_t *root = _alloc_node(1);
+      std::cout << "is_root: " << root->h->is_root << std::endl;
+      std::cout << "is_leaf: " << root->h->is_leaf << std::endl;
+      std::cout << "node_id: " << root->h->node_id << std::endl;
+      std::cout << "key_num: " << root->h->key_num << std::endl;
+      std::cout << "data_off: " << root->h->data_off << std::endl;
+      std::cout << "free_off: " << root->h->free_off << std::endl;
       std::cout << std::endl;
 
       node_t *leaf = _alloc_node(2);
@@ -253,7 +253,6 @@ namespace LibMap {
     db_flags_t oflags_;
     char *map_;
     db_header_t *dh_;
-    node_t *root_;
 
     node_t *_init_node(uint32_t node_id, uint16_t node_size, bool is_root, bool is_leaf)
     {
@@ -442,6 +441,7 @@ namespace LibMap {
       if (map_ == MAP_FAILED) {
         return false;
       }
+      dh_ = (db_header_t *) map_;
       return true;
     }
 
