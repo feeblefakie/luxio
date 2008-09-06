@@ -18,6 +18,7 @@ int main(int argc, char *argv[])
 
   bt->put(key, strlen(key), &val, sizeof(uint32_t));
   bt->show_node(2);
+  bt->show_node(3);
 
   return 0;
 }
