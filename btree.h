@@ -218,6 +218,13 @@ namespace LibMap {
       _insert(1, &entry, &up_entry);
     }
 
+    void show_node(void)
+    {
+      for (int i = 1; i < dh_->node_num; ++i) {
+        show_node(i);
+      }
+    }
+
     // debug method
     void show_node(uint32_t node_id)
     {
