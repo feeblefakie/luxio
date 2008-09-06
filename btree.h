@@ -397,6 +397,7 @@ namespace LibMap {
         //_put_entry_in_leaf(node, entry, slot_p, res);
         _put_entry_in_leaf(node, entry, r);
       }
+      delete r;
     }
  
     // put_entry ?
