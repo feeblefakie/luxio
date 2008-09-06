@@ -361,8 +361,8 @@ namespace LibMap {
 
       if (node->h->key_num > 0) {
         for (int i = 0; i < node->h->key_num && !is_found; ++i) {
-          // get size and ptr from the slots
-          slot_t *slot = (slot_t *) slot_p - sizeof(slot_t);
+          slot_p -= sizeof(slot_t);
+          slot_t *slot = (slot_t *) slot_p;
           char *key_buf = new char[slot->size+1];
           memcpy(key_buf, data_p + slot->off, slot->size);
           key_buf[slot->size] = '\0';
