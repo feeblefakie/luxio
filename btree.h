@@ -92,13 +92,6 @@ namespace LibMap {
     char *slot_p;
     find_key_t type;
   } find_res_t;
-/*
-  typedef enum {
-    KEY_FOUND,
-    KEY_BIGGER,
-    KEY_LESSER
-  } find_result_t;
-  */
 
   class Btree {
   public:
@@ -453,7 +446,6 @@ namespace LibMap {
       ++(node->h->key_num);
     }
 
-    // find_key ?
     find_res_t *find_key(node_t *node, const void *key, uint32_t key_size)
     {
       char *data_p, *slot_p;
@@ -486,36 +478,6 @@ namespace LibMap {
       r->type = KEY_BIGGER;
       return r;
     }
-/*
-    find_result_t find_entry_in_leaf(node_t *node, entry_t *entry, char **data_p, char **slot_p)
-    {
-      // [TODO] must be binar search, but linear search for now
-      char *b = (char *) node->b;
-      //*slot_p = (char *) node->h + dh_->node_size;
-      *slot_p = (char *) node->b + dh_->init_data_size;
-      for (int i = 1; i <= node->h->key_num; ++i) {
-        *slot_p -= sizeof(slot_t);
-        slot_t *slot = (slot_t *) *slot_p;
-
-        char *key_buf = new char[slot->size + 1];   
-        memset(key_buf, 0, slot->size + 1);
-        memcpy(key_buf, b + slot->off, slot->size); 
-        key_buf[slot->size] = '\0';
-
-        // [TODO] entry->key is regarded as a string
-        int res = strcmp(key_buf, (char *) entry->key);
-        delete [] key_buf;
-
-        if (res == 0) {
-          *data_p = b + slot->off;
-          return KEY_FOUND;
-        } else if (res > 0) {
-          return KEY_LESSER;
-        }
-      }
-      return KEY_BIGGER;
-    }
-    */
 
     bool alloc_page(void)
     {
@@ -643,49 +605,6 @@ namespace LibMap {
       //up_entry->node_id = right->h->node_id;
       return up_entry;
     }
-
-/*
-    void move_entries(node_t *node, node_t, *new_node)
-    {
-      uint32_t stay_entry_num = node->h->key_num / 2;
-      uint32_t move_entry_num = node->h->key_num - stay_entry_num;
-
-      char *slot_p = (char *) node->h + dh_->node_size;
-      slot_p -= UI16_SIZE * 2 * stay_entry_num;
-      uint16_t ptr;
-      memcpy(&ptr, slot_p - UI16_SIZE * 2, UI16_SIZE); 
-
-      // move data
-      memmove(new_node->b, node->b + ptr, node->h->data_off - ptr);
-      new_node->h->data_off = node->h->data_off - ptr;
-
-      // move slots
-      uint16_t slot_size = UI16_SIZE * move_entry_num;
-      memmove(new_node->b + new_node->h->free_off - slot_size,
-              node->b + node->h->free_off, slot_size);
-      new_node->h->free_off -= slot_size;
-
-      // update key_num
-      node->h->key_num = stay_entry_num;
-      new_node->h->key_num = move_entry_num;
-
-      // modify offset(ptr) values in slots
-      uint16_t offset = 0;          
-      char *tail_p = new_node->h + dh_->node_size; // point to the tail of the node
-      for (int i = 1; i <= new_node->h->key_num; ++i) {
-        uint16_t size;
-        //char *ptr_p = new_node->b + new_node->h->free_off - 2 * i * UI16_SIZE;
-        char *ptr_p = tail_p - 2 * i * UI16_SIZE;
-        char *size_p = size_p + UI16_SIZE;
-
-        memcpy(ptr_p, offset, UI16_SIZE); // update offset
-        memcpy(&size, size_p, UI16_SIZE);
-
-        // [TODO] value in leaf node is currently uint32_t
-        offset += size + UI32_SIZE;
-      }
-    }
-    */
 
     int _open(const char *pathname, int flags, mode_t mode)
     {
