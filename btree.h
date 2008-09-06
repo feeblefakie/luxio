@@ -312,14 +312,14 @@ namespace LibMap {
           // create new leaf node
           node_t *new_node = _init_node(dh_->node_num-1, 
                                         dh_->node_size, false, true);
-          //move_entries(node, new_node);
-          split_leaf_node(node, new_node);
+          //split_leaf_node(node, new_node);
+          split_node(node, new_node, up_entry);
 
           // [TODO] to do something if the entry doesn't fit in the new node
           //put_entry_in_leaf(new_node, entry);
 
           // node is passed is for prefix key compression, which is not implemented yet.
-          *up_entry = get_up_entry(node, new_node);
+          //*up_entry = get_up_entry(node, new_node);
 
           return;
         }
@@ -338,6 +338,7 @@ namespace LibMap {
         } else {
           std::cout << "non-leaf split is not implemented yet" << std::endl;
           // split non-leaf node
+
         }
 
         delete *up_entry;
@@ -496,6 +497,75 @@ namespace LibMap {
       return true;
     }
 
+    void split_node(node_t *node, node_t *new_node, up_entry_t **up_entry)
+    {
+      char *b = (char *) node->b;
+      char *nb = (char *) new_node->b;
+      node_header_t *h = node->h;
+      node_header_t *nh = new_node->h;
+
+      // current node slots
+      slot_t *slots = (slot_t *) (b + h->free_off);
+
+      // stay_num entries stay in the node, others move to the new node
+      uint32_t moves = h->key_num / 2;
+      uint32_t stays = h->key_num - moves;
+
+      // get a entry being set in the parent node 
+      *up_entry = get_up_entry2(node, slots + moves - 1, nh->id);
+      if (!h->is_leaf) {
+        if (moves == 1) {
+          // error
+          std::cerr << "[error] shoud set enough page size for a node" << std::endl;
+        } else {
+          --moves; // the entry is pushed up in non-leaf node
+        }
+      }
+
+      // copy the bigger entries to the new node
+      uint16_t off = 0;
+      char *slot_p = (char *) new_node->b + dh_->init_data_size;
+      for (int i = moves - 1; i >= 0; --i) {
+        // copy entry to the new node's data area
+        // [TODO] value size is sizeof(uint32_t) for now
+        uint32_t entry_size = (slots+i)->size + UI32_SIZE;
+        memcpy(nb, b + (slots+i)->off, entry_size);
+        nb += entry_size;
+        // new slot for the entry above
+        slot_t slot = { off, (slots+i)->size };
+        slot_p -= sizeof(slot_t);
+        memcpy(slot_p, &slot, sizeof(slot_t));
+        off += entry_size;
+      }
+      set_node_header(nh, off, moves);
+      
+      // copy staying entries into the buffers
+      char dbuf[dh_->node_size], sbuf[dh_->node_size];
+      char *dp = dbuf;
+      char *sp = sbuf + dh_->node_size; // pointing the tail
+      off = 0;
+      for (int i = h->key_num - 1; i >= h->key_num - stays; --i) {
+        // copy entry to the data buffer
+        // [TODO] value size is sizeof(uint32_t) for now
+        uint32_t entry_size = (slots+i)->size + UI32_SIZE;
+        memcpy(dp, b + (slots+i)->off, entry_size);
+        dp += entry_size;
+        // new slot for the entry above
+        slot_t slot = { off, (slots+i)->size };
+        sp -= sizeof(slot_t);
+        memcpy(sp, &slot, sizeof(slot_t));
+        off += entry_size;
+      }
+
+      // copy the buffers to the node
+      slot_p = (char *) node->b + dh_->init_data_size;
+      uint16_t slots_size = sizeof(slot_t) * stays;
+      memcpy(b, dbuf, off); 
+      memcpy(slot_p - slots_size, sp, slots_size);
+
+      set_node_header(h, off, stays);
+    }
+/*
     void split_leaf_node(node_t *node, node_t *new_node)
     {
       char *b = (char *) node->b;
@@ -553,6 +623,7 @@ namespace LibMap {
 
       set_node_header(h, off, stays);
     }
+*/
 
     void set_node_header(node_header_t *h, uint16_t off, uint16_t nkeys)
     {
@@ -582,6 +653,21 @@ namespace LibMap {
         off += entry_size;
       }
     }
+
+    up_entry_t *get_up_entry2(node_t *node, slot_t *slot, uint32_t up_node_id)
+    {
+      char *b = (char *) node->b;
+      up_entry_t *up_entry = new up_entry_t;
+      up_entry->key = new char[slot->size];
+      memcpy((char *) up_entry->key, b + slot->off, slot->size);
+      up_entry->key_size = slot->size;
+      up_entry->val = new char[sizeof(uint32_t)];
+      memcpy((char *) up_entry->val, &up_node_id, sizeof(uint32_t));
+      up_entry->val_size = sizeof(uint32_t);
+      up_entry->size = up_entry->key_size + up_entry->val_size;
+
+      return up_entry;
+    } 
 
     up_entry_t *get_up_entry(node_t *left, node_t *right)
     {
