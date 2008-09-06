@@ -333,7 +333,7 @@ namespace LibMap {
 
         if (node->h->free_size >= (*up_entry)->size + sizeof(slot_t)) {
           put_entry_in_nonleaf(node, *up_entry);
-          up_entry_t *e;
+          up_entry_t *e = NULL;
           _insert(node->h->node_id, entry, &e);
         } else {
           std::cout << "non-leaf split is not implemented yet" << std::endl;
