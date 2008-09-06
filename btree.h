@@ -74,12 +74,7 @@ namespace LibMap {
     uint32_t val_size;
     uint32_t size;
   } entry_t;
-
-  typedef struct {
-    void *key;
-    uint16_t key_size;
-    uint32_t node_id;
-  } up_entry_t;
+  typedef entry_t up_entry_t;
 
   typedef struct {
     uint16_t off;
@@ -90,7 +85,20 @@ namespace LibMap {
     KEY_FOUND,
     KEY_BIGGER,
     KEY_LESSER
+  } find_key_t;
+
+  typedef struct {
+    char *data_p;
+    char *slot_p;
+    find_key_t type;
+  } find_res_t;
+/*
+  typedef enum {
+    KEY_FOUND,
+    KEY_BIGGER,
+    KEY_LESSER
   } find_result_t;
+  */
 
   class Btree {
   public:
@@ -307,7 +315,8 @@ namespace LibMap {
           // [TODO] to do something if the entry doesn't fit in the new node
           //put_entry_in_leaf(new_node, entry);
 
-          *up_entry = get_up_entry(new_node);
+          // node is passed is for prefix key compression, which is not implemented yet.
+          *up_entry = get_up_entry(node, new_node);
 
           return;
         }
@@ -322,7 +331,14 @@ namespace LibMap {
         memcpy(buf, (*up_entry)->key, (*up_entry)->key_size);
         buf[(*up_entry)->key_size] = '\0';
         std::cout << "up_entry->key: " << buf << std::endl;
-        std::cout << "up_entry->node_id: " << (*up_entry)->node_id << std::endl;
+        //std::cout << "up_entry->node_id: " << (*up_entry)->node_id << std::endl;
+        uint32_t node_id;
+        memcpy(&node_id, (*up_entry)->val, sizeof(uint32_t));
+        std::cout << "up_entry->node_id: " << node_id << std::endl;
+
+        if (node->h->free_size >= (*up_entry)->size + sizeof(slot_t)) {
+          //put_entry_in_nonleaf(node, entry);
+        }
 
         // up_entry is not NULL, then continues
         // [TODO] entry copied (or pushed) up
@@ -371,17 +387,23 @@ namespace LibMap {
       node_header_t *h = node->h;
       node_body_t *b = node->b;
 
-      char *data_p, *slot_p;
-      find_result_t res = find_entry_in_leaf(node, entry, &data_p, &slot_p);
-      if (res == KEY_FOUND) {
+      //char *data_p, *slot_p;
+      //find_result_t res = find_entry_in_leaf(node, entry, &data_p, &slot_p);
+      find_res_t *r = find_key(node, entry->key, entry->key_size);
+      if (r->type == KEY_FOUND) {
         // update the value
-        memcpy((char *) data_p + entry->key_size, entry->val, entry->val_size);
+        memcpy((char *) r->data_p + entry->key_size, entry->val, entry->val_size);
       } else {
-        _put_entry_in_leaf(node, entry, slot_p, res);
+        //_put_entry_in_leaf(node, entry, slot_p, res);
+        _put_entry_in_leaf(node, entry, r);
       }
     }
-  
-    void _put_entry_in_leaf(node_t *node, entry_t *entry, char *slot_p, find_result_t res)
+ 
+    // put_entry ?
+    // identify if it's a leaf or not
+    // if it's a up_entry, size of the value is sizeof(uint32_t) otherwise sizeof(uint32_t) + sizeof(uint16_t)
+    //void _put_entry_in_leaf(node_t *node, entry_t *entry, char *slot_p, find_result_t res)
+    void _put_entry_in_leaf(node_t *node, entry_t *entry, find_res_t *r)
     {
       // append entry
       char *data_p = (char *) node->b + node->h->data_off;
@@ -389,19 +411,21 @@ namespace LibMap {
       memcpy(data_p, entry->key, entry->key_size);
       memcpy(data_p + entry->key_size, entry->val, entry->val_size);
 
+      // organize slots
       slot_t slot = { node->h->data_off, entry->key_size };
-      if (res == KEY_LESSER) {
+      if (r->type == KEY_LESSER) {
         // insert
-        int shift_size = slot_p - free_p + sizeof(slot_t);
+        int shift_size = r->slot_p - free_p + sizeof(slot_t);
         std::cout << "shift_size: " << shift_size << std::endl;
         memmove(free_p - sizeof(slot_t), free_p, shift_size);
-        memcpy(slot_p, &slot, sizeof(slot_t));
+        memcpy(r->slot_p, &slot, sizeof(slot_t));
       } else {
         // prepend
         std::cout << "PREPEND" << std::endl;
         memcpy(free_p - sizeof(slot_t), &slot, sizeof(slot_t));
       }
 
+      // update metadata
       node->h->data_off += entry->size;
       node->h->free_off -= sizeof(slot_t);
       node->h->free_size -= entry->size + sizeof(slot_t);
@@ -409,11 +433,46 @@ namespace LibMap {
       ++(node->h->key_num);
     }
 
+    // find_key ?
+    find_res_t *find_key(node_t *node, const void *key, uint32_t key_size)
+    {
+      char *data_p, *slot_p;
+      find_res_t *r = new find_res_t;
+      // [TODO] must be binar search, but linear search for now
+      char *b = (char *) node->b;
+      r->slot_p = (char *) node->b + dh_->init_data_size;
+      for (int i = 1; i <= node->h->key_num; ++i) {
+        r->slot_p -= sizeof(slot_t);
+        slot_t *slot = (slot_t *) r->slot_p;
+
+        char *key_buf = new char[slot->size + 1];   
+        memset(key_buf, 0, slot->size + 1);
+        memcpy(key_buf, b + slot->off, slot->size); 
+        key_buf[slot->size] = '\0';
+
+        // [TODO] key is regarded as a string
+        int res = strcmp(key_buf, (char *) key);
+        delete [] key_buf;
+
+        if (res == 0) {
+          r->data_p = b + slot->off;
+          r->type = KEY_FOUND;
+          return r;
+        } else if (res > 0) {
+          r->type = KEY_LESSER;
+          return r;
+        }
+      }
+      r->type = KEY_BIGGER;
+      return r;
+    }
+/*
     find_result_t find_entry_in_leaf(node_t *node, entry_t *entry, char **data_p, char **slot_p)
     {
       // [TODO] must be binar search, but linear search for now
       char *b = (char *) node->b;
-      *slot_p = (char *) node->h + dh_->node_size;
+      //*slot_p = (char *) node->h + dh_->node_size;
+      *slot_p = (char *) node->b + dh_->init_data_size;
       for (int i = 1; i <= node->h->key_num; ++i) {
         *slot_p -= sizeof(slot_t);
         slot_t *slot = (slot_t *) *slot_p;
@@ -436,6 +495,7 @@ namespace LibMap {
       }
       return KEY_BIGGER;
     }
+    */
 
     bool alloc_page(void)
     {
@@ -541,20 +601,26 @@ namespace LibMap {
       }
     }
 
-    up_entry_t *get_up_entry(node_t *node)
+    up_entry_t *get_up_entry(node_t *left, node_t *right)
     {
       up_entry_t *up_entry = new up_entry_t;
-      char *slot_p = (char *) node->b + dh_->init_data_size - sizeof(slot_t);
+
+      char *slot_p = (char *) right->b + dh_->init_data_size - sizeof(slot_t);
       slot_t *slot = (slot_t *) slot_p;
       up_entry->key = new char[slot->size];
-      if (node->h->is_leaf) {
-        memcpy(up_entry->key, (char *) node->b, slot->size);
+      if (right->h->is_leaf) {
+        memcpy((char *) up_entry->key, (char *) right->b, slot->size);
       } else {
         // there is a pointer before data
-        memcpy(up_entry->key, (char *) node->b + sizeof(uint32_t), slot->size);
+        memcpy((char *) up_entry->key, (char *) right->b + sizeof(uint32_t), slot->size);
       }
       up_entry->key_size = slot->size;
-      up_entry->node_id = node->h->node_id;
+      up_entry->val_size = sizeof(uint32_t);
+      up_entry->val = new char[sizeof(uint32_t)];
+      // a value in up_entry is node id
+      memcpy((char *) up_entry->val, &(right->h->node_id), up_entry->val_size);
+      up_entry->size = up_entry->key_size + up_entry->val_size;
+      //up_entry->node_id = right->h->node_id;
       return up_entry;
     }
 
