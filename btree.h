@@ -76,7 +76,7 @@ namespace LibMap {
   } entry_t;
 
   typedef struct {
-    const void *key;
+    void *key;
     uint16_t key_size;
     uint32_t node_id;
   } up_entry_t;
@@ -206,7 +206,7 @@ namespace LibMap {
       entry_t entry = {key, key_size, val, val_size, key_size + val_size};
       up_entry_t *up_entry = NULL;
     
-      _insert(1, &entry, up_entry);
+      _insert(1, &entry, &up_entry);
     }
 
     // debug method
@@ -285,7 +285,7 @@ namespace LibMap {
       return node;
     }
 
-    void _insert(uint32_t node_id, entry_t *entry, up_entry_t *up_entry)
+    void _insert(uint32_t node_id, entry_t *entry, up_entry_t **up_entry)
     {
       std::cerr << "insert: [" << node_id << "]" << std::endl;
       node_t *node = _alloc_node(node_id);
@@ -307,18 +307,27 @@ namespace LibMap {
           // [TODO] to do something if the entry doesn't fit in the new node
           //put_entry_in_leaf(new_node, entry);
 
-          // [TODO] take the most left entry(key) and new node's node_id
-          // set in up_entry ?
+          *up_entry = get_up_entry(new_node);
+
+          return;
         }
 
       } else {
         uint32_t next_node_id = _find_next_node(node, entry);
         _insert(next_node_id, entry, up_entry);
 
-        if (up_entry == NULL) { return; }
+        if (*up_entry == NULL) { return; }
+
+        char buf[256];
+        memcpy(buf, (*up_entry)->key, (*up_entry)->key_size);
+        buf[(*up_entry)->key_size] = '\0';
+        std::cout << "up_entry->key: " << buf << std::endl;
+        std::cout << "up_entry->node_id: " << (*up_entry)->node_id << std::endl;
 
         // up_entry is not NULL, then continues
         // [TODO] entry copied (or pushed) up
+        //
+        delete *up_entry;
       } 
     }
 
@@ -530,6 +539,23 @@ namespace LibMap {
         memcpy(slot_p, &slot, sizeof(slot_t));
         off += entry_size;
       }
+    }
+
+    up_entry_t *get_up_entry(node_t *node)
+    {
+      up_entry_t *up_entry = new up_entry_t;
+      char *slot_p = (char *) node->b + dh_->init_data_size - sizeof(slot_t);
+      slot_t *slot = (slot_t *) slot_p;
+      up_entry->key = new char[slot->size];
+      if (node->h->is_leaf) {
+        memcpy(up_entry->key, (char *) node->b, slot->size);
+      } else {
+        // there is a pointer before data
+        memcpy(up_entry->key, (char *) node->b + sizeof(uint32_t), slot->size);
+      }
+      up_entry->key_size = slot->size;
+      up_entry->node_id = node->h->node_id;
+      return up_entry;
     }
 
 /*
