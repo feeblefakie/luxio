@@ -364,9 +364,28 @@ namespace LibMap {
           if (!alloc_page()) {
             std::cerr << "alloc_page() failed" << std::endl; 
           }
+          // pointing the pushed up entry
+          entry_t *e = *up_entry;
+          up_entry_t *up_e = NULL;
+
           node_t *new_node = _init_node(dh_->node_num-1, false, false);
-          split_node(node, new_node, up_entry);
+          split_node(node, new_node, &up_e);
           // split_node(node, new_node, (entry_t **)up_entry, up_entry)
+          
+          // compare e with up_e to decide which node putting e into
+          char e_key[e->key_size+1];
+          memcpy(e_key, e->key, e->key_size);
+          e_key[e->key_size] = '\0';
+
+          char up_e_key[up_e->key_size+1];
+          memcpy(up_e_key, up_e->key, up_e->key_size);
+          up_e_key[up_e->key_size] = '\0';
+
+          if (strcmp(e_key, up_e_key) < 0) {
+            put_entry_in_nonleaf(node, e); // goes to old node
+          } else {
+            put_entry_in_nonleaf(new_node, e); // goes to new node
+          }
 
           if (node->h->is_root) {
             if (!alloc_page()) {
@@ -374,7 +393,8 @@ namespace LibMap {
             }
             node_t *new_root = _init_node(dh_->node_num-1, true, false);
             make_leftmost_ptr(new_root, (char *) &(node->h->id));
-            put_entry_in_nonleaf(new_root, *up_entry);
+            //put_entry_in_nonleaf(new_root, *up_entry);
+            put_entry_in_nonleaf(new_root, up_e);
           }
         }
 
@@ -406,8 +426,14 @@ namespace LibMap {
           key_buf[slot->size] = '\0';
           std::cout << "!!! [" << key_buf << "]" << std::endl;
 
+          // [TODO] temporary variable name
+          char *key_buf2 = new char[entry->key_size+1];
+          memcpy(key_buf2, entry->key, entry->key_size);
+          key_buf2[entry->key_size] = '\0';
+
           // compare
-          if (strcmp((char *) entry->key, key_buf) < 0) {
+          //if (strcmp((char *) entry->key, key_buf) < 0) {
+          if (strcmp(key_buf2, key_buf) < 0) {
             std::cout << "FOUND!!" << std::endl;
             is_found = true;
           } else {
@@ -415,6 +441,7 @@ namespace LibMap {
             memcpy(&next_id, data_p + slot->off + slot->size, UI32_SIZE);
           }
           delete [] key_buf;
+          delete [] key_buf2;
         }
       }
       std::cout << "next_id (last line in find_next_node): " << next_id << std::endl;
@@ -508,13 +535,20 @@ namespace LibMap {
         slot_t *slot = (slot_t *) r->slot_p;
 
         char *key_buf = new char[slot->size + 1];   
-        memset(key_buf, 0, slot->size + 1);
+        memset(key_buf, 0, slot->size + 1); // for safety. no need
         memcpy(key_buf, b + slot->off, slot->size); 
         key_buf[slot->size] = '\0';
 
+        // [TODO] temporary variable name
+        char *key_buf2 = new char[key_size+1];
+        memcpy(key_buf2, key, key_size);
+        key_buf2[key_size] = '\0';
+
         // [TODO] key is regarded as a string
-        int res = strcmp(key_buf, (char *) key);
+        //int res = strcmp(key_buf, (char *) key);
+        int res = strcmp(key_buf, key_buf2);
         delete [] key_buf;
+        delete [] key_buf2;
 
         if (res == 0) { // only comes in leaf
           r->data_p = b + slot->off;
