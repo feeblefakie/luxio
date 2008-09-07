@@ -597,8 +597,8 @@ namespace LibMap {
       slot_t *slots = (slot_t *) (b + h->free_off);
 
       // stay_num entries stay in the node, others move to the new node
-      uint32_t moves = h->key_num / 2;
-      uint32_t stays = h->key_num - moves;
+      uint32_t stays = h->key_num / 2;
+      uint32_t moves = h->key_num - stays;
 
       // [warn] slots size might 1
       // get a entry being set in the parent node  
@@ -615,8 +615,7 @@ namespace LibMap {
       uint16_t off = 0;
       // needs left most pointer in non-leaf node
       if (!node->h->is_leaf) {
-        uint16_t slot_off = moves > 2 ? (moves - 2) : 0;
-        uint16_t leftmost_off = (slots + slot_off)->off - sizeof(node_id_t);
+        uint16_t leftmost_off = (slots + moves)->off + (slots + moves)->size;
         make_leftmost_ptr(new_node, (char *) node->b + leftmost_off);
         off += sizeof(node_id_t);
       }
