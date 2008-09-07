@@ -329,6 +329,8 @@ namespace LibMap {
           // there is enough space, then just put the entry
           put_entry_in_leaf(node, entry);
         } else {
+          if (update_if_exists(node, entry)) { return; }
+
           std::cout << "SPLITTING" << std::endl;
           if (!alloc_page()) {
             std::cerr << "alloc_page() failed" << std::endl; 
@@ -417,6 +419,18 @@ namespace LibMap {
       }
       std::cout << "next_id (last line in find_next_node): " << next_id << std::endl;
       return next_id;
+    }
+
+    bool update_if_exists(node_t *node, entry_t *entry)
+    {
+      find_res_t *r = find_key(node, entry->key, entry->key_size);
+      if (r->type == KEY_FOUND) {
+        // update the value
+        memcpy((char *) r->data_p + entry->key_size, entry->val, entry->val_size);
+        delete r;
+        return true;
+      }
+      return false;
     }
 
     void put_entry_in_leaf(node_t *node, entry_t *entry)
