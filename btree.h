@@ -517,18 +517,24 @@ namespace LibMap {
 
     bool alloc_page(void)
     {
-      ++(dh_->node_num);
-      if (ftruncate(fd_, dh_->node_size * dh_->node_num) < 0) {
+      uint32_t node_num = dh_->node_num;
+      uint16_t node_size = dh_->node_size;
+
+      if (munmap(map_, node_size * node_num) < 0) {
+        std::cerr << "munmap failed" << std::endl;
         return false;
       }
-      // required ?
-      //munmap(map_);
-      map_ = (char *) mmap(0, dh_->node_size * dh_->node_num, 
+
+      if (ftruncate(fd_, node_size * (++node_num)) < 0) {
+        return false;
+      }
+      map_ = (char *) mmap(0, node_size * node_num, 
                            PROT_READ | PROT_WRITE, MAP_SHARED, fd_, 0);  
       if (map_ == MAP_FAILED) {
         return false;
       }
       dh_ = (db_header_t *) map_;
+      dh_->node_num = node_num;
       return true;
     }
 
