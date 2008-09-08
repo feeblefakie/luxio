@@ -125,8 +125,8 @@ namespace LibMap {
         dh.key_num = 0;
         // one for db_header, one for root node and one for leaf node
         dh.node_num = 3;
-        //dh.node_size = getpagesize();
-        dh.node_size = 64;
+        dh.node_size = getpagesize();
+        //dh.node_size = 64;
         dh.init_data_size = dh.node_size - sizeof(node_header_t);
         dh.root_id = 1;
 
@@ -178,13 +178,16 @@ namespace LibMap {
       oflags_ = oflags;
       dh_ = (db_header_t *) map_;
 
+      /*
       std::cout << "key_num: " << dh_->key_num << std::endl;
       std::cout << "node_size: " << dh_->node_size << std::endl;
       std::cout << "node_num: " << dh_->node_num << std::endl;
       std::cout << "init_data_size: " << dh_->init_data_size << std::endl;
       std::cout << std::endl;
+      */
 
       node_t *root = _alloc_node(1);
+      /*
       std::cout << "is_root: " << root->h->is_root << std::endl;
       std::cout << "is_leaf: " << root->h->is_leaf << std::endl;
       std::cout << "id: " << root->h->id << std::endl;
@@ -192,24 +195,29 @@ namespace LibMap {
       std::cout << "data_off: " << root->h->data_off << std::endl;
       std::cout << "free_off: " << root->h->free_off << std::endl;
       std::cout << std::endl;
+      */
 
       node_t *leaf = _alloc_node(2);
+      /*
       std::cout << "is_root: " << leaf->h->is_root << std::endl;
       std::cout << "is_leaf: " << leaf->h->is_leaf << std::endl;
       std::cout << "id: " << leaf->h->id << std::endl;
       std::cout << "key_num: " << leaf->h->key_num << std::endl;
       std::cout << "data_off: " << leaf->h->data_off << std::endl;
       std::cout << "free_off: " << leaf->h->free_off << std::endl;
+      */
       delete leaf;
     }
 
     bool put(const void *key, uint32_t key_size, 
              const void *val, uint32_t val_size)
     {
+      /*
       std::cout << "key: " << key << std::endl;
       std::cout << "key_size: " << key_size << std::endl;
       std::cout << "val: " << val << std::endl;
       std::cout << "val_size: " << val_size << std::endl;
+      */
       entry_t entry = {(char *) key, key_size, (char *) val, val_size, key_size + val_size};
       up_entry_t *up_entry = NULL;
     
@@ -224,7 +232,7 @@ namespace LibMap {
       _insert(dh_->root_id, entry, up_entry, is_split);
 
       if (is_split) {
-        std::cout << "entry is not inserted" << std::endl;
+        //std::cout << "entry is not inserted" << std::endl;
         up_entry_t *e = NULL;
         bool is_split = false;
         _insert(dh_->root_id, entry, &e, is_split);
@@ -350,7 +358,7 @@ namespace LibMap {
 
     void _insert(uint32_t id, entry_t *entry, up_entry_t **up_entry, bool &is_split)
     {
-      std::cerr << "_insert: [" << id << "]" << std::endl;
+      //std::cerr << "_insert: [" << id << "]" << std::endl;
       node_t *node = _alloc_node(id);
       if (node->h->is_leaf) {
         if (node->h->free_size >= entry->size + sizeof(slot_t)) {
@@ -359,7 +367,7 @@ namespace LibMap {
         } else {
           if (update_if_exists(node, entry)) { return; }
 
-          std::cout << "SPLITTING" << std::endl;
+          //std::cout << "SPLITTING" << std::endl;
           if (!alloc_page()) {
             std::cerr << "alloc_page() failed" << std::endl; 
           }
@@ -379,13 +387,13 @@ namespace LibMap {
         }
       } else {
         uint32_t next_id = _find_next_node(node, entry);
-        std::cout << "next_id : " << next_id << std::endl;
+        //std::cout << "next_id : " << next_id << std::endl;
         _insert(next_id, entry, up_entry, is_split);
 
         if (*up_entry == NULL) { return; }
 
         if (node->h->free_size >= (*up_entry)->size + sizeof(slot_t)) {
-          std::cout << "putting up_entry in nodeid: " << node->h->id << std::endl;
+          //std::cout << "putting up_entry in nodeid: " << node->h->id << std::endl;
           put_entry_in_nonleaf(node, *up_entry);
           delete [] (char *) (*up_entry)->key;
           delete [] (char *) (*up_entry)->val;
@@ -394,7 +402,7 @@ namespace LibMap {
           //up_entry_t *e = NULL;
           //_insert(node->h->id, entry, &e);
         } else {
-          std::cout << "non-leaf split" << std::endl;
+          //std::cout << "non-leaf split" << std::endl;
           if (!alloc_page()) {
             std::cerr << "alloc_page() failed" << std::endl; 
           }
@@ -416,7 +424,7 @@ namespace LibMap {
           memcpy(up_e_key, (*up_entry)->key, (*up_entry)->key_size);
           up_e_key[(*up_entry)->key_size] = '\0';
 
-          std::cout << "putting entry in non-leaf: " << e_key << std::endl;
+          //std::cout << "putting entry in non-leaf: " << e_key << std::endl;
           if (strcmp(e_key, up_e_key) < 0) {
             put_entry_in_nonleaf(node, e); // goes to old node
           } else {
@@ -545,13 +553,13 @@ namespace LibMap {
       slot_t slot = { node->h->data_off, entry->key_size };
       if (r->type == KEY_LESSER) {
         // insert
-        std::cout << "INSERT" << std::endl;
+        //std::cout << "INSERT" << std::endl;
         int shift_size = r->slot_p - free_p + sizeof(slot_t);
         memmove(free_p - sizeof(slot_t), free_p, shift_size);
         memcpy(r->slot_p, &slot, sizeof(slot_t));
       } else {
         // prepend
-        std::cout << "PREPEND" << std::endl;
+        //std::cout << "PREPEND" << std::endl;
         memcpy(free_p - sizeof(slot_t), &slot, sizeof(slot_t));
       }
 
