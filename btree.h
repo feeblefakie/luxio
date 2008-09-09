@@ -125,7 +125,8 @@ namespace LibMap {
         dh.key_num = 0;
         // one for db_header, one for root node and one for leaf node
         dh.node_num = 3;
-        dh.node_size = getpagesize();
+        //dh.node_size = getpagesize();
+        dh.node_size = 64;
         dh.init_data_size = dh.node_size - sizeof(node_header_t);
         dh.root_id = 1;
 
@@ -382,7 +383,8 @@ namespace LibMap {
           return;
         }
       } else {
-        uint32_t next_id = _find_next_node(node, entry);
+        //uint32_t next_id = _find_next_node(node, entry);
+        uint32_t next_id = _find_next(node, entry);
         _insert(next_id, entry, up_entry, is_split);
 
         if (*up_entry == NULL) { return; }
@@ -450,6 +452,26 @@ namespace LibMap {
       }
     }
 
+    uint32_t _find_next(node_t *node, entry_t *entry)
+    {
+      node_id_t id;
+      find_res_t *r = find_key(node, entry->key, entry->key_size);
+      if (r->type == KEY_LESSER) {
+        char *slot_last_p = (char *) node->b + dh_->init_data_size;
+        char *slot_p = r->slot_p + sizeof(slot_t);
+        if (slot_p == slot_last_p) { // if less than smallest
+          memcpy(&id, (char *) node->b, sizeof(node_id_t));
+        } else {
+          slot_t *slot = (slot_t *) slot_p;
+          memcpy(&id, (char *) node->b + slot->off + slot->size, sizeof(node_id_t));
+        }
+      } else {
+        slot_t *slot = (slot_t *) r->slot_p;
+        memcpy(&id, r->data_p + slot->size, sizeof(node_id_t));
+      }
+      return id;
+    }
+
     uint32_t _find_next_node(node_t *node, entry_t *entry)
     {
       bool is_found = false;
@@ -473,7 +495,6 @@ namespace LibMap {
           key_buf2[entry->key_size] = '\0';
 
           // compare
-          //if (strcmp((char *) entry->key, key_buf) < 0) {
           if (strcmp(key_buf2, key_buf) < 0) {
             is_found = true;
           } else {
@@ -564,14 +585,21 @@ namespace LibMap {
       ++(node->h->key_num);
     }
 
+    // [TODO] must be binar search, but linear search for now
     find_res_t *find_key(node_t *node, const void *key, uint32_t key_size)
     {
-      char *data_p, *slot_p;
-      find_res_t *r = new find_res_t;
-      // [TODO] must be binar search, but linear search for now
       char *b = (char *) node->b;
-      r->slot_p = (char *) node->b + dh_->init_data_size;
-      for (int i = 1; i <= node->h->key_num; ++i) {
+
+      find_res_t *r = new find_res_t;
+      r->data_p = b; 
+      r->slot_p = b + dh_->init_data_size;
+
+      // [TODO] temporary variable name
+      char *key_buf2 = new char[key_size+1];
+      memcpy(key_buf2, key, key_size);
+      key_buf2[key_size] = '\0';
+
+      for (int i = 0; i < node->h->key_num; ++i) {
         r->slot_p -= sizeof(slot_t);
         slot_t *slot = (slot_t *) r->slot_p;
 
@@ -580,19 +608,13 @@ namespace LibMap {
         memcpy(key_buf, b + slot->off, slot->size); 
         key_buf[slot->size] = '\0';
 
-        // [TODO] temporary variable name
-        char *key_buf2 = new char[key_size+1];
-        memcpy(key_buf2, key, key_size);
-        key_buf2[key_size] = '\0';
-
         // [TODO] key is regarded as a string
         //int res = strcmp(key_buf, (char *) key);
         int res = strcmp(key_buf, key_buf2);
         delete [] key_buf;
-        delete [] key_buf2;
 
+        r->data_p = b + slot->off;
         if (res == 0) { // only comes in leaf
-          r->data_p = b + slot->off;
           r->type = KEY_FOUND;
           return r;
         } else if (res > 0) {
@@ -601,6 +623,7 @@ namespace LibMap {
         }
       }
       r->type = KEY_BIGGER;
+      delete [] key_buf2;
       return r;
     }
 
