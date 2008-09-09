@@ -128,8 +128,8 @@ namespace LibMap {
         dh.key_num = 0;
         // one for db_header, one for root node and one for leaf node
         dh.node_num = 3;
-        //dh.node_size = getpagesize();
-        dh.node_size = 64;
+        dh.node_size = getpagesize();
+        //dh.node_size = 64;
         dh.init_data_size = dh.node_size - sizeof(node_header_t);
         dh.root_id = 1;
 
@@ -231,7 +231,7 @@ namespace LibMap {
       _insert(dh_->root_id, entry, up_entry, is_split);
 
       if (is_split) {
-        std::cout << "entry is not inserted" << std::endl;
+        //std::cout << "entry is not inserted" << std::endl;
         up_entry_t *e = NULL;
         bool is_split = false;
         _insert(dh_->root_id, entry, &e, is_split);
@@ -728,6 +728,7 @@ namespace LibMap {
         if (res == 0) {
           // found
           is_found = true;
+          r->data_p = (char *) node->b + slot->off;
           break;
         } else if (res < 0) {
           // entry key is smaller (going to upper offset)
