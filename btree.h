@@ -128,8 +128,8 @@ namespace LibMap {
         dh.key_num = 0;
         // one for db_header, one for root node and one for leaf node
         dh.node_num = 3;
-        //dh.node_size = getpagesize();
-        dh.node_size = 64;
+        dh.node_size = getpagesize();
+        //dh.node_size = 64;
         dh.init_data_size = dh.node_size - sizeof(node_header_t);
         dh.root_id = 1;
 
@@ -214,9 +214,16 @@ namespace LibMap {
       delete leaf;
     }
 
+    bool close()
+    {
+      //msync(map_, dh_->node_size * dh_->node_num, MS_ASYNC);
+      munmap(map_, dh_->node_size * dh_->node_num);
+      ::close(fd_);
+    }
+
     bool get(const void *key, uint32_t key_size)
     {
-      entry_t entry = {(char *) key, key_size, NULL, NULL, 0};
+      entry_t entry = {(char *) key, key_size, NULL, 0, 0};
       find(dh_->root_id, &entry);
     }
     bool find(node_id_t id, entry_t *entry)
@@ -228,12 +235,15 @@ namespace LibMap {
         if (r->type == KEY_FOUND) {
           slot_t *slot = (slot_t *) r->slot_p;
           uint32_t val;
-          memcpy(&val, r->data_p, slot->size);
+          memcpy(&val, r->data_p + slot->size, sizeof(uint32_t));
           std::cout << "MATCH: " << val << std::endl;
-          delete r;
+        } else {
+          std::cout << "NOT FOUND" << std::endl;
         }
+        delete r;
       } else {
         uint32_t next_id = _find_next2(node, entry);
+        std::cout << "nextid: " << next_id << std::endl;
         find(next_id, entry);
       }
       delete node;
@@ -387,7 +397,7 @@ namespace LibMap {
     void _insert(uint32_t id, entry_t *entry, up_entry_t **up_entry, bool &is_split)
     {
 #ifdef DEBUG
-      std::cout << "_insert: [" << id << "]" << std::endl;
+      //std::cout << "_insert: [" << id << "]" << std::endl;
 #endif
       node_t *node = _alloc_node(id);
       if (node->h->is_leaf) {
@@ -444,9 +454,6 @@ namespace LibMap {
           up_entry_t *e = *up_entry;
           *up_entry = NULL;
 
-#ifdef DEBUG
-          std::cout << "SPLITTING NON-LEAF" << std::endl;
-#endif
           node_t *new_node = _init_node(dh_->node_num-1, false, false);
           split_node(node, new_node, up_entry);
           
@@ -466,9 +473,13 @@ namespace LibMap {
           }
 
           if (node->h->is_root) {
+            std::cout << "ROOT SPLIT" << std::endl;
             if (!alloc_page()) {
               std::cerr << "alloc_page() failed" << std::endl; 
             }
+            delete node;
+            node = _alloc_node(id);
+            
             node_t *new_root = _init_node(dh_->node_num-1, true, false);
             make_leftmost_ptr(new_root, (char *) &(node->h->id));
             put_entry_in_nonleaf(new_root, *up_entry);
