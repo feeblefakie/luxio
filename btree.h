@@ -128,8 +128,8 @@ namespace LibMap {
         dh.key_num = 0;
         // one for db_header, one for root node and one for leaf node
         dh.node_num = 3;
-        dh.node_size = getpagesize();
-        //dh.node_size = 64;
+        //dh.node_size = getpagesize();
+        dh.node_size = 64;
         dh.init_data_size = dh.node_size - sizeof(node_header_t);
         dh.root_id = 1;
 
@@ -212,6 +212,31 @@ namespace LibMap {
       std::cout << "free_off: " << leaf->h->free_off << std::endl;
 #endif
       delete leaf;
+    }
+
+    bool get(const void *key, uint32_t key_size)
+    {
+      entry_t entry = {(char *) key, key_size, NULL, NULL, 0};
+      find(dh_->root_id, &entry);
+    }
+    bool find(node_id_t id, entry_t *entry)
+    {
+      node_t *node = _alloc_node(id);
+
+      if (node->h->is_leaf) {
+        find_res_t *r = find_key2(node, entry->key, entry->key_size);
+        if (r->type == KEY_FOUND) {
+          slot_t *slot = (slot_t *) r->slot_p;
+          uint32_t val;
+          memcpy(&val, r->data_p, slot->size);
+          std::cout << "MATCH: " << val << std::endl;
+          delete r;
+        }
+      } else {
+        uint32_t next_id = _find_next2(node, entry);
+        find(next_id, entry);
+      }
+      delete node;
     }
 
     bool put(const void *key, uint32_t key_size, 
