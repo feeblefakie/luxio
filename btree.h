@@ -87,7 +87,9 @@ namespace LibMap {
   typedef enum {
     KEY_FOUND,
     KEY_BIGGER,
-    KEY_LESSER
+    KEY_LESSER,
+    KEY_SMALLEST,
+    KEY_BIGGEST
   } find_key_t;
 
   typedef struct {
@@ -229,10 +231,14 @@ namespace LibMap {
       _insert(dh_->root_id, entry, up_entry, is_split);
 
       if (is_split) {
-        //std::cout << "entry is not inserted" << std::endl;
+        std::cout << "entry is not inserted" << std::endl;
         up_entry_t *e = NULL;
         bool is_split = false;
         _insert(dh_->root_id, entry, &e, is_split);
+        if (is_split) {
+          std::cout << "entry is not inserted AGAIN!!!" << std::endl;
+          // try couple of times (not forever)
+        }
       }
     }
 
@@ -385,7 +391,8 @@ namespace LibMap {
         }
       } else {
         //uint32_t next_id = _find_next_node(node, entry);
-        uint32_t next_id = _find_next(node, entry);
+        uint32_t next_id = _find_next2(node, entry);
+        //uint32_t next_id = _find_next(node, entry);
         _insert(next_id, entry, up_entry, is_split);
 
         if (*up_entry == NULL) { return; }
@@ -473,6 +480,19 @@ namespace LibMap {
       return id;
     }
 
+    uint32_t _find_next2(node_t *node, entry_t *entry)
+    {
+      node_id_t id;
+      find_res_t *r = find_key2(node, entry->key, entry->key_size);
+      if (r->type == KEY_SMALLEST) {
+          memcpy(&id, (char *) node->b, sizeof(node_id_t));
+      } else {
+        slot_t *slot = (slot_t *) r->slot_p;
+        memcpy(&id, (char *) node->b + slot->off + slot->size, sizeof(node_id_t));
+      }
+      return id;
+    }
+
     uint32_t _find_next_node(node_t *node, entry_t *entry)
     {
       bool is_found = false;
@@ -528,14 +548,16 @@ namespace LibMap {
 
       //char *data_p, *slot_p;
       //find_result_t res = find_entry_in_leaf(node, entry, &data_p, &slot_p);
-      find_res_t *r = find_key(node, entry->key, entry->key_size);
+      find_res_t *r = find_key2(node, entry->key, entry->key_size);
+      //find_res_t *r = find_key(node, entry->key, entry->key_size);
       if (r->type == KEY_FOUND) {
         // update the value
         memcpy((char *) r->data_p + entry->key_size, entry->val, entry->val_size);
       } else {
         //_put_entry_in_leaf(node, entry, slot_p, res);
         //_put_entry_in_leaf(node, entry, r);
-        put_entry(node, entry, r);
+        put_entry2(node, entry, r);
+        //put_entry(node, entry, r);
       }
       delete r;
     }
@@ -545,8 +567,10 @@ namespace LibMap {
       node_header_t *h = node->h;
       node_body_t *b = node->b;
 
-      find_res_t *r = find_key(node, entry->key, entry->key_size);
-      put_entry(node, entry, r);
+      //find_res_t *r = find_key(node, entry->key, entry->key_size);
+      find_res_t *r = find_key2(node, entry->key, entry->key_size);
+      //put_entry(node, entry, r);
+      put_entry2(node, entry, r);
       delete r;
     }
  
@@ -576,6 +600,42 @@ namespace LibMap {
         //std::cout << "PREPEND" << std::endl;
 #endif
         memcpy(free_p - sizeof(slot_t), &slot, sizeof(slot_t));
+      }
+
+      // update metadata
+      node->h->data_off += entry->size;
+      node->h->free_off -= sizeof(slot_t);
+      node->h->free_size -= entry->size + sizeof(slot_t);
+      ++(dh_->key_num);
+      ++(node->h->key_num);
+    }
+
+    void put_entry2(node_t *node, entry_t *entry, find_res_t *r)
+    {
+      // append entry
+      char *data_p = (char *) node->b + node->h->data_off;
+      char *free_p = (char *) node->b + node->h->free_off;
+      memcpy(data_p, entry->key, entry->key_size);
+      memcpy(data_p + entry->key_size, entry->val, entry->val_size);
+
+      // organize ordered slots
+      slot_t slot = { node->h->data_off, entry->key_size };
+
+      if (r->type == KEY_BIGGEST ||
+          (r->type == KEY_SMALLEST && node->h->key_num == 0)) {
+        // prepend
+        memcpy(free_p - sizeof(slot_t), &slot, sizeof(slot_t));
+      } else if (r->type == KEY_SMALLEST) {
+        // insert:KEY_SMALLEST (shifting all the slots)
+        char *tail_p = (char *) node->b + dh_->init_data_size;
+        int shift_size = tail_p - free_p;
+        memmove(free_p - sizeof(slot_t), free_p, shift_size);
+        memcpy(tail_p - sizeof(slot_t), &slot, sizeof(slot_t));
+      } else {
+        // insert:KEY_BIGGER (shifting some of the slots)
+        int shift_size = r->slot_p - free_p;
+        memmove(free_p - sizeof(slot_t), free_p, shift_size);
+        memcpy(r->slot_p - sizeof(slot_t), &slot, sizeof(slot_t));
       }
 
       // update metadata
@@ -628,11 +688,16 @@ namespace LibMap {
       return r;
     }
 
-    // binary search version
     find_res_t *find_key2(node_t *node, const void *key, uint32_t key_size)
     {
+      find_res_t *r = new find_res_t;
       char *slot_p = (char *) node->b + node->h->free_off;
-      slot_t *slots = (slot_t **) slot_p;
+      slot_t *slots = (slot_t *) slot_p;
+
+      if (node->h->key_num == 0) {
+        r->type = KEY_SMALLEST;
+        return r;
+      }
 
       // [TODO] regard the key as a string
       char entry_key[key_size+1];
@@ -642,10 +707,13 @@ namespace LibMap {
       char checked[node->h->key_num];
       memset(checked, 0, node->h->key_num);
 
+      // binary search
       int low_bound = 0;
       int up_bound = node->h->key_num - 1;
       int middle = node->h->key_num / 2;
       bool is_found = false;
+      bool is_going_upper = false;
+      int last_middle = -1;
       while (1) {
         // the key is not found if it's already checked
         if (checked[middle]) { break; }
@@ -662,36 +730,41 @@ namespace LibMap {
           is_found = true;
           break;
         } else if (res < 0) {
-          // entry key is smaller
+          // entry key is smaller (going to upper offset)
           low_bound = middle;
+          last_middle = middle;
           div_t d = div(up_bound - middle, 2);
           middle = d.rem > 0 ? middle + d.quot + 1 : middle + d.quot;
+          is_going_upper = true;
         } else {
-          // entry key is bigger
+          // entry key is bigger (going to lower offset)
           up_bound = middle;
+          last_middle = middle;
           middle = low_bound + (middle - low_bound) / 2;
+          is_going_upper = false;
         }
       }
 
       slot_t *slot = slots + middle;
-      find_res_t *r = new find_res_t;
       r->slot_p = (char *) slot;
 
       if (is_found) {
         r->type = KEY_FOUND;
       } else {
-        if (up_bound == 0 && low_bound == 0) {
-          r->type = KEY_BIGGEST;
-        } else if (up_bound == node->h->key_num - 1 && 
-                   low_bound == node->h->key_num - 1) {
-          r->type = KEY_SMALLEST;
-        } else {
-          if (low_bound == middle) {
-            ++middle;
-            slot = slots + middle;
+        if (is_going_upper) {
+          if (middle == last_middle) {
+            r->type = KEY_SMALLEST;
+          } else {
+            r->type = KEY_BIGGER;
           }
-          r->slot_p = (char *) slot;
-          r->type = KEY_BIGGER;
+        } else {
+          if (middle == last_middle) {
+            r->type = KEY_BIGGEST;
+          } else {
+            slot = slots + (++middle);
+            r->slot_p = (char *) slot;
+            r->type = KEY_BIGGER;
+          }
         }
       }
       return r;
