@@ -25,6 +25,7 @@
 #include <sys/mman.h>
 #include <errno.h>
 #include <string.h>
+#include <stdlib.h>
 #include <iostream>
 #include <string>
 
@@ -624,6 +625,75 @@ namespace LibMap {
       }
       r->type = KEY_BIGGER;
       delete [] key_buf2;
+      return r;
+    }
+
+    // binary search version
+    find_res_t *find_key2(node_t *node, const void *key, uint32_t key_size)
+    {
+      char *slot_p = (char *) node->b + node->h->free_off;
+      slot_t *slots = (slot_t **) slot_p;
+
+      // [TODO] regard the key as a string
+      char entry_key[key_size+1];
+      memcpy(entry_key, key, key_size);
+      entry_key[key_size] = '\0';
+
+      char checked[node->h->key_num];
+      memset(checked, 0, node->h->key_num);
+
+      int low_bound = 0;
+      int up_bound = node->h->key_num - 1;
+      int middle = node->h->key_num / 2;
+      bool is_found = false;
+      while (1) {
+        // the key is not found if it's already checked
+        if (checked[middle]) { break; }
+        checked[middle] = 1;
+
+        slot_t *slot = slots + middle;
+        char stored_key[slot->size+1];
+        memcpy(stored_key, (char *) node->b + slot->off, slot->size);
+        stored_key[slot->size] = '\0';
+
+        int res = strcmp(entry_key, stored_key);
+        if (res == 0) {
+          // found
+          is_found = true;
+          break;
+        } else if (res < 0) {
+          // entry key is smaller
+          low_bound = middle;
+          div_t d = div(up_bound - middle, 2);
+          middle = d.rem > 0 ? middle + d.quot + 1 : middle + d.quot;
+        } else {
+          // entry key is bigger
+          up_bound = middle;
+          middle = low_bound + (middle - low_bound) / 2;
+        }
+      }
+
+      slot_t *slot = slots + middle;
+      find_res_t *r = new find_res_t;
+      r->slot_p = (char *) slot;
+
+      if (is_found) {
+        r->type = KEY_FOUND;
+      } else {
+        if (up_bound == 0 && low_bound == 0) {
+          r->type = KEY_BIGGEST;
+        } else if (up_bound == node->h->key_num - 1 && 
+                   low_bound == node->h->key_num - 1) {
+          r->type = KEY_SMALLEST;
+        } else {
+          if (low_bound == middle) {
+            ++middle;
+            slot = slots + middle;
+          }
+          r->slot_p = (char *) slot;
+          r->type = KEY_BIGGER;
+        }
+      }
       return r;
     }
 
