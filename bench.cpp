@@ -13,8 +13,8 @@ double gettimeofday_sec()
 
 int main(int argc, char *argv[])
 {
-  if (argc != 2) {
-    std::cerr << "Usage: " << argv[0] << " record_num" << std::endl; 
+  if (argc < 2) {
+    std::cerr << "Usage: " << argv[0] << " record_num select?" << std::endl; 
     exit(1);
   }
 
@@ -35,7 +35,12 @@ int main(int argc, char *argv[])
   }
   t2 = gettimeofday_sec();
   std::cout << "put time: " << t2 - t1 << std::endl;
-  
+ 
+  bt->show_db_header();
+  if (argc != 3) {
+    return 0;
+  }
+
   int select_num = rnum / 10;
   t1 = gettimeofday_sec();
   for (int i = 0; i < rnum; ++i) {
@@ -58,7 +63,7 @@ int main(int argc, char *argv[])
     } 
   }
   t2 = gettimeofday_sec();
-  std::cout << "put time: " << t2 - t1 << std::endl;
+  std::cout << "get time: " << t2 - t1 << std::endl;
 
   return 0;
 }
