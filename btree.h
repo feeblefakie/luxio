@@ -234,6 +234,12 @@ namespace LibMap {
       return val_data;
     }
 
+    bool clean_data(data_t *d)
+    {
+      delete [] (char *) (d->data);
+      delete d;
+    }
+
     bool find(node_id_t id, data_t *key_data, data_t **val_data)
     {
       entry_t entry = {key_data->data, key_data->size, NULL, 0, 0};
