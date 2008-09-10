@@ -114,14 +114,13 @@ namespace LibMap {
     }
     bool open(std::string db_name, db_flags_t oflags)
     {
-      int fd = -1;
-      fd = _open(db_name.c_str(), oflags, 00644);
-      if (fd < 0) {
+      fd_ = _open(db_name.c_str(), oflags, 00644);
+      if (fd_ < 0) {
         return false;
       }
 
       struct stat stat_buf;
-      if (fstat(fd, &stat_buf) == -1 || !S_ISREG(stat_buf.st_mode)) {
+      if (fstat(fd_, &stat_buf) == -1 || !S_ISREG(stat_buf.st_mode)) {
         return false;
       }
 
@@ -137,20 +136,12 @@ namespace LibMap {
         dh.init_data_size = dh.node_size - sizeof(node_header_t);
         dh.root_id = 1;
 
-        if (_write(fd, &dh, sizeof(db_header_t)) < 0) {
+        if (_write(fd_, &dh, sizeof(db_header_t)) < 0) {
           return false;
         }
-        // [TODO] should replace with alloc_page
-        // [TODO] should fix because it might not work in BSD 4.3 ?
-        if (ftruncate(fd, dh.node_size * dh.node_num) < 0) {
-          return false;
+        if (!alloc_page(dh.node_num, dh.node_size)) {
+          std::cerr << "alloc_page failed in open" << std::endl;    
         }
-        map_ = (char *) mmap(0, dh.node_size * dh.node_num, 
-                            PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);  
-        if (map_ == MAP_FAILED) {
-          return false;
-        }
-        dh_ = (db_header_t *) map_;
 
         // root node and the first leaf node
         node_t *root = _init_node(1, true, false);
@@ -165,7 +156,7 @@ namespace LibMap {
         delete leaf;
 
       } else {
-        if (_read(fd, &dh, sizeof(db_header_t)) < 0) {
+        if (_read(fd_, &dh, sizeof(db_header_t)) < 0) {
           std::cerr << "read failed" << std::endl;
           return false;
         }
@@ -174,14 +165,13 @@ namespace LibMap {
         // if they differ, gives alert and trust the filesize ?
         
         map_ = (char *) mmap(0, dh.node_size * dh.node_num,
-                            PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);  
+                            PROT_READ | PROT_WRITE, MAP_SHARED, fd_, 0);  
         if (map_ == MAP_FAILED) {
           std::cerr << "map failed" << std::endl;
           return false;
         }
       }
 
-      fd_ = fd;
       oflags_ = oflags;
       dh_ = (db_header_t *) map_;
     }
@@ -372,7 +362,7 @@ namespace LibMap {
 #ifdef DEBUG
           std::cout << "SPLITTING LEAF" << std::endl;
 #endif
-          if (!alloc_page()) {
+          if (!append_page()) {
             std::cerr << "alloc_page() failed" << std::endl; 
           }
           // must reallocate after remapped
@@ -405,7 +395,7 @@ namespace LibMap {
           delete *up_entry;
           *up_entry = NULL;
         } else {
-          if (!alloc_page()) {
+          if (!append_page()) {
             std::cerr << "alloc_page() failed" << std::endl; 
           }
           // must reallocate after remapped
@@ -436,7 +426,7 @@ namespace LibMap {
 
           if (node->h->is_root) {
             std::cout << "ROOT SPLIT" << std::endl;
-            if (!alloc_page()) {
+            if (!append_page()) {
               std::cerr << "alloc_page() failed" << std::endl; 
             }
             delete node;
@@ -635,7 +625,7 @@ namespace LibMap {
       return r;
     }
 
-    bool alloc_page(void)
+    bool append_page(void)
     {
       uint32_t node_num = dh_->node_num;
       uint16_t node_size = dh_->node_size;
@@ -644,8 +634,13 @@ namespace LibMap {
         std::cerr << "munmap failed" << std::endl;
         return false;
       }
+      ++node_num; // one page appendiing
+      return alloc_page(node_num, node_size);
+    }
 
-      if (ftruncate(fd_, node_size * (++node_num)) < 0) {
+    bool alloc_page(uint32_t node_num, uint16_t node_size)
+    {
+      if (ftruncate(fd_, node_size * node_num) < 0) {
         std::cout << "ftruncate failed" << std::endl;
         return false;
       }
@@ -659,7 +654,7 @@ namespace LibMap {
       dh_->node_num = node_num;
       return true;
     }
-
+    
     void split_node(node_t *node, node_t *new_node, up_entry_t **up_entry)
     {
 #ifdef DEBUG
