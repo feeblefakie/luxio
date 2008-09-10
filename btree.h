@@ -87,7 +87,6 @@ namespace LibMap {
   typedef enum {
     KEY_FOUND,
     KEY_BIGGER,
-    KEY_LESSER,
     KEY_SMALLEST,
     KEY_BIGGEST
   } find_key_t;
@@ -141,7 +140,7 @@ namespace LibMap {
         if (_write(fd, &dh, sizeof(db_header_t)) < 0) {
           return false;
         }
-        // should replace with alloc_page
+        // [TODO] should replace with alloc_page
         // [TODO] should fix because it might not work in BSD 4.3 ?
         if (ftruncate(fd, dh.node_size * dh.node_num) < 0) {
           return false;
@@ -185,38 +184,6 @@ namespace LibMap {
       fd_ = fd;
       oflags_ = oflags;
       dh_ = (db_header_t *) map_;
-
-#ifdef DEBUG
-      std::cout << "key_num: " << dh_->key_num << std::endl;
-      std::cout << "node_size: " << dh_->node_size << std::endl;
-      std::cout << "node_num: " << dh_->node_num << std::endl;
-      std::cout << "init_data_size: " << dh_->init_data_size << std::endl;
-      std::cout << std::endl;
-#endif
-
-      node_t *root = _alloc_node(1);
-#ifdef DEBUG
-      std::cout << "key_num: " << dh_->key_num << std::endl;
-      std::cout << "is_root: " << root->h->is_root << std::endl;
-      std::cout << "is_leaf: " << root->h->is_leaf << std::endl;
-      std::cout << "id: " << root->h->id << std::endl;
-      std::cout << "key_num: " << root->h->key_num << std::endl;
-      std::cout << "data_off: " << root->h->data_off << std::endl;
-      std::cout << "free_off: " << root->h->free_off << std::endl;
-      std::cout << std::endl;
-#endif
-
-      node_t *leaf = _alloc_node(2);
-#ifdef DEBUG
-      std::cout << "key_num: " << dh_->key_num << std::endl;
-      std::cout << "is_root: " << leaf->h->is_root << std::endl;
-      std::cout << "is_leaf: " << leaf->h->is_leaf << std::endl;
-      std::cout << "id: " << leaf->h->id << std::endl;
-      std::cout << "key_num: " << leaf->h->key_num << std::endl;
-      std::cout << "data_off: " << leaf->h->data_off << std::endl;
-      std::cout << "free_off: " << leaf->h->free_off << std::endl;
-#endif
-      delete leaf;
     }
 
     bool close()
@@ -376,27 +343,6 @@ namespace LibMap {
       node->b = node_body_p;
       return node;
     }
-    /*
-    node_t *_init_node(char *map, uint32_t id, bool is_root, bool is_leaf)
-    {
-      //char *node_p = (char *) &(map_[node_size * id]);
-      char *node_p = (char *) &(map[dh_->node_size * id]);
-      node_header_t *node_hdr_p = (node_header_t *) node_p;
-      node_hdr_p->is_root = is_root;
-      node_hdr_p->is_leaf = is_leaf;
-      node_hdr_p->id = id;
-      node_hdr_p->key_num = 0;
-      node_hdr_p->data_off = 0;
-      node_hdr_p->free_off = dh_.node_size - sizeof(node_header_t);;
-      node_hdr_p->free_size = node_hdr_p->free_off;
-      node_body_t *node_body_p = (node_body_t *) (node_p + sizeof(node_header_t));
-
-      node_t *node = new node_t;
-      node->h = node_hdr_p;
-      node->b = node_body_p;
-      return node;
-    }
-    */
 
     node_t *_alloc_node(uint32_t id)
     {
@@ -512,26 +458,6 @@ namespace LibMap {
       }
     }
 
-    uint32_t _find_next(node_t *node, entry_t *entry)
-    {
-      node_id_t id;
-      find_res_t *r = find_key(node, entry->key, entry->key_size);
-      if (r->type == KEY_LESSER) {
-        char *slot_last_p = (char *) node->b + dh_->init_data_size;
-        char *slot_p = r->slot_p + sizeof(slot_t);
-        if (slot_p == slot_last_p) { // if less than smallest
-          memcpy(&id, (char *) node->b, sizeof(node_id_t));
-        } else {
-          slot_t *slot = (slot_t *) slot_p;
-          memcpy(&id, (char *) node->b + slot->off + slot->size, sizeof(node_id_t));
-        }
-      } else {
-        slot_t *slot = (slot_t *) r->slot_p;
-        memcpy(&id, r->data_p + slot->size, sizeof(node_id_t));
-      }
-      return id;
-    }
-
     uint32_t _find_next2(node_t *node, entry_t *entry)
     {
       node_id_t id;
@@ -545,45 +471,9 @@ namespace LibMap {
       return id;
     }
 
-    uint32_t _find_next_node(node_t *node, entry_t *entry)
-    {
-      bool is_found = false;
-      uint32_t next_id;
-      char *data_p = (char *) node->b;
-      char *slot_p = data_p + dh_->init_data_size;
-      // [TODO] should specify ptr size by name
-      memcpy(&next_id, (char *) node->b, UI32_SIZE);
-
-      if (node->h->key_num > 0) {
-        for (int i = 0; i < node->h->key_num && !is_found; ++i) {
-          slot_p -= sizeof(slot_t);
-          slot_t *slot = (slot_t *) slot_p;
-          char *key_buf = new char[slot->size+1];
-          memcpy(key_buf, data_p + slot->off, slot->size);
-          key_buf[slot->size] = '\0';
-
-          // [TODO] temporary variable name
-          char *key_buf2 = new char[entry->key_size+1];
-          memcpy(key_buf2, entry->key, entry->key_size);
-          key_buf2[entry->key_size] = '\0';
-
-          // compare
-          if (strcmp(key_buf2, key_buf) < 0) {
-            is_found = true;
-          } else {
-            // [TODO] 
-            memcpy(&next_id, data_p + slot->off + slot->size, UI32_SIZE);
-          }
-          delete [] key_buf;
-          delete [] key_buf2;
-        }
-      }
-      return next_id;
-    }
-
     bool update_if_exists(node_t *node, entry_t *entry)
     {
-      find_res_t *r = find_key(node, entry->key, entry->key_size);
+      find_res_t *r = find_key2(node, entry->key, entry->key_size);
       if (r->type == KEY_FOUND) {
         // update the value
         memcpy((char *) r->data_p + entry->key_size, entry->val, entry->val_size);
@@ -626,42 +516,6 @@ namespace LibMap {
       delete r;
     }
  
-    // put_entry ?
-    // identify if it's a leaf or not
-    // if it's a up_entry, size of the value is sizeof(uint32_t) otherwise sizeof(uint32_t) + sizeof(uint16_t)
-    //void _put_entry_in_leaf(node_t *node, entry_t *entry, char *slot_p, find_result_t res)
-    void put_entry(node_t *node, entry_t *entry, find_res_t *r)
-    {
-      // append entry
-      char *data_p = (char *) node->b + node->h->data_off;
-      char *free_p = (char *) node->b + node->h->free_off;
-      memcpy(data_p, entry->key, entry->key_size);
-      memcpy(data_p + entry->key_size, entry->val, entry->val_size);
-
-      // organize slots
-      slot_t slot = { node->h->data_off, entry->key_size };
-      if (r->type == KEY_LESSER) {
-#ifdef DEBUG
-        //std::cout << "INSERT" << std::endl;
-#endif
-        int shift_size = r->slot_p - free_p + sizeof(slot_t);
-        memmove(free_p - sizeof(slot_t), free_p, shift_size);
-        memcpy(r->slot_p, &slot, sizeof(slot_t));
-      } else {
-#ifdef DEBUG
-        //std::cout << "PREPEND" << std::endl;
-#endif
-        memcpy(free_p - sizeof(slot_t), &slot, sizeof(slot_t));
-      }
-
-      // update metadata
-      node->h->data_off += entry->size;
-      node->h->free_off -= sizeof(slot_t);
-      node->h->free_size -= entry->size + sizeof(slot_t);
-      if (node->h->is_leaf) { ++(dh_->key_num); }
-      ++(node->h->key_num);
-    }
-
     void put_entry2(node_t *node, entry_t *entry, find_res_t *r)
     {
       // append entry
@@ -696,48 +550,6 @@ namespace LibMap {
       node->h->free_size -= entry->size + sizeof(slot_t);
       if (node->h->is_leaf) { ++(dh_->key_num); }
       ++(node->h->key_num);
-    }
-
-    // [TODO] must be binar search, but linear search for now
-    find_res_t *find_key(node_t *node, const void *key, uint32_t key_size)
-    {
-      char *b = (char *) node->b;
-
-      find_res_t *r = new find_res_t;
-      r->data_p = b; 
-      r->slot_p = b + dh_->init_data_size;
-
-      // [TODO] temporary variable name
-      char *key_buf2 = new char[key_size+1];
-      memcpy(key_buf2, key, key_size);
-      key_buf2[key_size] = '\0';
-
-      for (int i = 0; i < node->h->key_num; ++i) {
-        r->slot_p -= sizeof(slot_t);
-        slot_t *slot = (slot_t *) r->slot_p;
-
-        char *key_buf = new char[slot->size + 1];   
-        memset(key_buf, 0, slot->size + 1); // for safety. no need
-        memcpy(key_buf, b + slot->off, slot->size); 
-        key_buf[slot->size] = '\0';
-
-        // [TODO] key is regarded as a string
-        //int res = strcmp(key_buf, (char *) key);
-        int res = strcmp(key_buf, key_buf2);
-        delete [] key_buf;
-
-        r->data_p = b + slot->off;
-        if (res == 0) { // only comes in leaf
-          r->type = KEY_FOUND;
-          return r;
-        } else if (res > 0) {
-          r->type = KEY_LESSER;
-          return r;
-        }
-      }
-      r->type = KEY_BIGGER;
-      delete [] key_buf2;
-      return r;
     }
 
     find_res_t *find_key2(node_t *node, const void *key, uint32_t key_size)
@@ -959,66 +771,6 @@ namespace LibMap {
        node->h->free_size -= sizeof(node_id_t);
     }
 
-/*
-    void split_leaf_node(node_t *node, node_t *new_node)
-    {
-      char *b = (char *) node->b;
-      char *nb = (char *) new_node->b;
-      node_header_t *h = node->h;
-      node_header_t *nh = new_node->h;
-
-      // current node slots
-      slot_t *slots = (slot_t *) (b + h->free_off);
-
-      // stay_num entries stay in the node, others move to the new node
-      uint32_t moves = h->key_num / 2;
-      uint32_t stays = h->key_num - moves;
-
-      // copy the bigger entries to the new node
-      uint16_t off = 0;
-      char *slot_p = (char *) new_node->b + dh_->init_data_size;
-      for (int i = moves - 1; i >= 0; --i) {
-        // copy entry to the new node's data area
-        // [TODO] value size is sizeof(uint32_t) for now
-        uint32_t entry_size = (slots+i)->size + UI32_SIZE;
-        memcpy(nb, b + (slots+i)->off, entry_size);
-        nb += entry_size;
-        // new slot for the entry above
-        slot_t slot = { off, (slots+i)->size };
-        slot_p -= sizeof(slot_t);
-        memcpy(slot_p, &slot, sizeof(slot_t));
-        off += entry_size;
-      }
-      set_node_header(nh, off, moves);
-      
-      // copy staying entries into the buffers
-      char dbuf[dh_->node_size], sbuf[dh_->node_size];
-      char *dp = dbuf;
-      char *sp = sbuf + dh_->node_size; // pointing the tail
-      off = 0;
-      for (int i = h->key_num - 1; i >= moves; --i) {
-        // copy entry to the data buffer
-        // [TODO] value size is sizeof(uint32_t) for now
-        uint32_t entry_size = (slots+i)->size + UI32_SIZE;
-        memcpy(dp, b + (slots+i)->off, entry_size);
-        dp += entry_size;
-        // new slot for the entry above
-        slot_t slot = { off, (slots+i)->size };
-        sp -= sizeof(slot_t);
-        memcpy(sp, &slot, sizeof(slot_t));
-        off += entry_size;
-      }
-
-      // copy the buffers to the node
-      slot_p = (char *) node->b + dh_->init_data_size;
-      uint16_t slots_size = sizeof(slot_t) * stays;
-      memcpy(b, dbuf, off); 
-      memcpy(slot_p - slots_size, sp, slots_size);
-
-      set_node_header(h, off, stays);
-    }
-*/
-
     void set_node_header(node_header_t *h, uint16_t off, uint16_t nkeys)
     {
       h->data_off = off;
@@ -1028,6 +780,7 @@ namespace LibMap {
     }
 
     /*
+     * [TODO] decide if to use
      * copy entries and slots from a specified node to a buffer specified by dp and sp.
      * offsets in slots are modified along with entry move.
      */
@@ -1062,29 +815,6 @@ namespace LibMap {
 
       return up_entry;
     } 
-
-    up_entry_t *get_up_entry(node_t *left, node_t *right)
-    {
-      up_entry_t *up_entry = new up_entry_t;
-
-      char *slot_p = (char *) right->b + dh_->init_data_size - sizeof(slot_t);
-      slot_t *slot = (slot_t *) slot_p;
-      up_entry->key = new char[slot->size];
-      if (right->h->is_leaf) {
-        memcpy((char *) up_entry->key, (char *) right->b, slot->size);
-      } else {
-        // there is a pointer before data
-        memcpy((char *) up_entry->key, (char *) right->b + sizeof(uint32_t), slot->size);
-      }
-      up_entry->key_size = slot->size;
-      up_entry->val_size = sizeof(uint32_t);
-      up_entry->val = new char[sizeof(uint32_t)];
-      // a value in up_entry is node id
-      memcpy((char *) up_entry->val, &(right->h->id), up_entry->val_size);
-      up_entry->size = up_entry->key_size + up_entry->val_size;
-      //up_entry->id = right->h->id;
-      return up_entry;
-    }
 
     int _open(const char *pathname, int flags, mode_t mode)
     {
