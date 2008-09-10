@@ -273,7 +273,7 @@ namespace LibMap {
       insert(dh_->root_id, &entry, &up_entry);
     }
 
-    void insert(uint32_t id, entry_t *entry, up_entry_t **up_entry)
+    bool insert(uint32_t id, entry_t *entry, up_entry_t **up_entry)
     {
       bool is_split = false;
 
@@ -287,8 +287,10 @@ namespace LibMap {
         if (is_split) {
           std::cout << "entry is not inserted AGAIN!!!" << std::endl;
           // try couple of times (not forever)
+          return false;
         }
       }
+      return true;
     }
 
     void show_node(void)
@@ -656,7 +658,7 @@ namespace LibMap {
       node->h->data_off += entry->size;
       node->h->free_off -= sizeof(slot_t);
       node->h->free_size -= entry->size + sizeof(slot_t);
-      ++(dh_->key_num);
+      if (node->h->is_leaf) { ++(dh_->key_num); }
       ++(node->h->key_num);
     }
 
@@ -692,7 +694,7 @@ namespace LibMap {
       node->h->data_off += entry->size;
       node->h->free_off -= sizeof(slot_t);
       node->h->free_size -= entry->size + sizeof(slot_t);
-      ++(dh_->key_num);
+      if (node->h->is_leaf) { ++(dh_->key_num); }
       ++(node->h->key_num);
     }
 
