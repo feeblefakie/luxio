@@ -71,9 +71,9 @@ namespace LibMap {
   } node_t;
 
   typedef struct {
-    void *key;
+    const void *key;
     uint16_t key_size;
-    void *val;
+    const void *val;
     uint32_t val_size;
     uint32_t size;
   } entry_t;
@@ -97,6 +97,11 @@ namespace LibMap {
     char *slot_p;
     find_key_t type;
   } find_res_t;
+
+  typedef struct {
+    const void *data;
+    uint32_t size;
+  } data_t;
 
   class Btree {
   public:
@@ -221,30 +226,33 @@ namespace LibMap {
       ::close(fd_);
     }
 
-    bool get(const void *key, uint32_t key_size)
+    data_t *get(const void *key, uint32_t key_size)
     {
-      entry_t entry = {(char *) key, key_size, NULL, 0, 0};
-      find(dh_->root_id, &entry);
+      data_t key_data = {key, key_size};
+      data_t *val_data = NULL;
+      find(dh_->root_id, &key_data, &val_data);
+      return val_data;
     }
-    bool find(node_id_t id, entry_t *entry)
-    {
-      node_t *node = _alloc_node(id);
 
+    bool find(node_id_t id, data_t *key_data, data_t **val_data)
+    {
+      entry_t entry = {key_data->data, key_data->size, NULL, 0, 0};
+      entry_t *e = &entry;
+
+      node_t *node = _alloc_node(id);
       if (node->h->is_leaf) {
-        find_res_t *r = find_key2(node, entry->key, entry->key_size);
+        find_res_t *r = find_key2(node, entry.key, entry.key_size);
         if (r->type == KEY_FOUND) {
           slot_t *slot = (slot_t *) r->slot_p;
-          uint32_t val;
-          memcpy(&val, r->data_p + slot->size, sizeof(uint32_t));
-          std::cout << "MATCH: " << val << std::endl;
-        } else {
-          std::cout << "NOT FOUND" << std::endl;
+          *val_data = new data_t;
+          (*val_data)->data = (char *) new char[slot->size+1];
+          (*val_data)->size = sizeof(uint32_t);
+          memcpy((void *) (*val_data)->data, (const char *) r->data_p + slot->size, sizeof(uint32_t));
         }
         delete r;
       } else {
-        uint32_t next_id = _find_next2(node, entry);
-        std::cout << "nextid: " << next_id << std::endl;
-        find(next_id, entry);
+        uint32_t next_id = _find_next2(node, &entry);
+        find(next_id, key_data, val_data);
       }
       delete node;
     }
