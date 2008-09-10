@@ -214,7 +214,7 @@ namespace LibMap {
 
       node_t *node = _alloc_node(id);
       if (node->h->is_leaf) {
-        find_res_t *r = find_key2(node, entry.key, entry.key_size);
+        find_res_t *r = find_key(node, entry.key, entry.key_size);
         if (r->type == KEY_FOUND) {
           slot_t *slot = (slot_t *) r->slot_p;
           *val_data = new data_t;
@@ -224,7 +224,7 @@ namespace LibMap {
         }
         delete r;
       } else {
-        uint32_t next_id = _find_next2(node, &entry);
+        uint32_t next_id = _find_next(node, &entry);
         find(next_id, key_data, val_data);
       }
       delete node;
@@ -388,7 +388,7 @@ namespace LibMap {
         }
       } else {
         //uint32_t next_id = _find_next_node(node, entry);
-        uint32_t next_id = _find_next2(node, entry);
+        uint32_t next_id = _find_next(node, entry);
         //uint32_t next_id = _find_next(node, entry);
         _insert(next_id, entry, up_entry, is_split);
 
@@ -458,10 +458,10 @@ namespace LibMap {
       }
     }
 
-    uint32_t _find_next2(node_t *node, entry_t *entry)
+    uint32_t _find_next(node_t *node, entry_t *entry)
     {
       node_id_t id;
-      find_res_t *r = find_key2(node, entry->key, entry->key_size);
+      find_res_t *r = find_key(node, entry->key, entry->key_size);
       if (r->type == KEY_SMALLEST) {
           memcpy(&id, (char *) node->b, sizeof(node_id_t));
       } else {
@@ -473,7 +473,7 @@ namespace LibMap {
 
     bool update_if_exists(node_t *node, entry_t *entry)
     {
-      find_res_t *r = find_key2(node, entry->key, entry->key_size);
+      find_res_t *r = find_key(node, entry->key, entry->key_size);
       if (r->type == KEY_FOUND) {
         // update the value
         memcpy((char *) r->data_p + entry->key_size, entry->val, entry->val_size);
@@ -490,7 +490,7 @@ namespace LibMap {
 
       //char *data_p, *slot_p;
       //find_result_t res = find_entry_in_leaf(node, entry, &data_p, &slot_p);
-      find_res_t *r = find_key2(node, entry->key, entry->key_size);
+      find_res_t *r = find_key(node, entry->key, entry->key_size);
       //find_res_t *r = find_key(node, entry->key, entry->key_size);
       if (r->type == KEY_FOUND) {
         // update the value
@@ -498,7 +498,7 @@ namespace LibMap {
       } else {
         //_put_entry_in_leaf(node, entry, slot_p, res);
         //_put_entry_in_leaf(node, entry, r);
-        put_entry2(node, entry, r);
+        put_entry(node, entry, r);
         //put_entry(node, entry, r);
       }
       delete r;
@@ -510,13 +510,13 @@ namespace LibMap {
       node_body_t *b = node->b;
 
       //find_res_t *r = find_key(node, entry->key, entry->key_size);
-      find_res_t *r = find_key2(node, entry->key, entry->key_size);
+      find_res_t *r = find_key(node, entry->key, entry->key_size);
       //put_entry(node, entry, r);
-      put_entry2(node, entry, r);
+      put_entry(node, entry, r);
       delete r;
     }
  
-    void put_entry2(node_t *node, entry_t *entry, find_res_t *r)
+    void put_entry(node_t *node, entry_t *entry, find_res_t *r)
     {
       // append entry
       char *data_p = (char *) node->b + node->h->data_off;
@@ -552,7 +552,7 @@ namespace LibMap {
       ++(node->h->key_num);
     }
 
-    find_res_t *find_key2(node_t *node, const void *key, uint32_t key_size)
+    find_res_t *find_key(node_t *node, const void *key, uint32_t key_size)
     {
       find_res_t *r = new find_res_t;
       char *slot_p = (char *) node->b + node->h->free_off;
@@ -682,7 +682,7 @@ namespace LibMap {
 
       // [warn] slots size might 1
       // get a entry being set in the parent node  
-      *up_entry = get_up_entry2(node, slots + moves - 1, nh->id);
+      *up_entry = get_up_entry(node, slots + moves - 1, nh->id);
       if (!h->is_leaf) {
         if (moves == 1) {
           // error
@@ -801,7 +801,7 @@ namespace LibMap {
       }
     }
 
-    up_entry_t *get_up_entry2(node_t *node, slot_t *slot, uint32_t up_node_id)
+    up_entry_t *get_up_entry(node_t *node, slot_t *slot, uint32_t up_node_id)
     {
       char *b = (char *) node->b;
       up_entry_t *up_entry = new up_entry_t;
