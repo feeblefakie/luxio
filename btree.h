@@ -701,7 +701,6 @@ namespace LibMap {
     }
 
     /*
-     * [TODO] decide if to use
      * copy entries and slots from a specified node to a buffer specified by dp and sp.
      * offsets in slots are updated in each entry move.
      */
