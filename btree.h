@@ -29,6 +29,11 @@
 #include <iostream>
 #include <string>
 
+#define ALLOC_AND_COPY(s1, s2, size) \
+  char s1[size+1]; \
+  memcpy(s1, s2, size); \
+  s1[size] = '\0';
+
 namespace LibMap {
 
   const char *MAGIC = "LMBT0001";
@@ -377,10 +382,7 @@ namespace LibMap {
 
         if (node->h->free_size >= (*up_entry)->size + sizeof(slot_t)) {
           put_entry_in_nonleaf(node, *up_entry);
-          delete [] (char *) (*up_entry)->key;
-          delete [] (char *) (*up_entry)->val;
-          delete *up_entry;
-          *up_entry = NULL;
+          clean_up_entry(up_entry);
         } else {
           if (!append_page()) {
             std::cerr << "alloc_page() failed" << std::endl; 
@@ -395,15 +397,10 @@ namespace LibMap {
 
           node_t *new_node = _init_node(dh_->num_nodes-1, false, false);
           split_node(node, new_node, up_entry);
-          
-          // compare e with up_e to decide which node putting e into
-          char e_key[e->key_size+1]; // came up from a child node
-          memcpy(e_key, e->key, e->key_size);
-          e_key[e->key_size] = '\0';
 
-          char up_e_key[(*up_entry)->key_size+1]; // coming up to a parent node
-          memcpy(up_e_key, (*up_entry)->key, (*up_entry)->key_size);
-          up_e_key[(*up_entry)->key_size] = '\0';
+          // compare e with up_e to decide which node putting e into
+          ALLOC_AND_COPY(e_key, e->key, e->key_size);
+          ALLOC_AND_COPY(up_e_key, (*up_entry)->key, (*up_entry)->key_size);
 
           if (strcmp(e_key, up_e_key) < 0) {
             put_entry_in_nonleaf(node, e); // goes to old node
@@ -425,10 +422,7 @@ namespace LibMap {
             dh_->root_id = new_root->h->id;
             node->h->is_root = false;
           }
-
-          delete [] (char *) e->key;
-          delete [] (char *) e->val;
-          delete e;
+          clean_up_entry(&e);
         }
       }
       delete node;
@@ -520,6 +514,7 @@ namespace LibMap {
       ++(node->h->num_keys);
     }
 
+    // [TODO] key might not be a string
     find_res_t *find_key(node_t *node, const void *key, uint32_t key_size)
     {
       find_res_t *r = new find_res_t;
@@ -532,9 +527,7 @@ namespace LibMap {
       }
 
       // [TODO] regard the key as a string
-      char entry_key[key_size+1];
-      memcpy(entry_key, key, key_size);
-      entry_key[key_size] = '\0';
+      ALLOC_AND_COPY(entry_key, key, key_size);
 
       char checked[node->h->num_keys];
       memset(checked, 0, node->h->num_keys);
@@ -552,9 +545,7 @@ namespace LibMap {
         checked[middle] = 1;
 
         slot_t *slot = slots + middle;
-        char stored_key[slot->size+1];
-        memcpy(stored_key, (char *) node->b + slot->off, slot->size);
-        stored_key[slot->size] = '\0';
+        ALLOC_AND_COPY(stored_key, (char *) node->b + slot->off, slot->size);
 
         int res = strcmp(entry_key, stored_key);
         if (res == 0) {
@@ -770,6 +761,14 @@ namespace LibMap {
 
       return up_entry;
     } 
+
+    void clean_up_entry(up_entry_t **up_entry)
+    {
+        delete [] (char *) (*up_entry)->key;
+        delete [] (char *) (*up_entry)->val;
+        delete *up_entry;
+        *up_entry = NULL;
+    }
 
     int _open(const char *pathname, int flags, mode_t mode)
     {
