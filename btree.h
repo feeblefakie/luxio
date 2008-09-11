@@ -627,22 +627,17 @@ namespace LibMap {
     
     bool split_node(node_t *node, node_t *new_node, up_entry_t **up_entry)
     {
-      char *b = (char *) node->b;
-      char *new_b = (char *) new_node->b;
-      node_header_t *h = node->h;
-      node_header_t *new_h = new_node->h;
-
       // current node slots
-      slot_t *slots = (slot_t *) (b + h->free_off);
+      slot_t *slots = (slot_t *) ((char *) node->b + node->h->free_off);
 
       // stay_num entries stay in the node, others move to the new node
-      uint32_t num_stays = h->num_keys / 2;
-      uint32_t num_moves = h->num_keys - num_stays;
+      uint32_t num_stays = node->h->num_keys / 2;
+      uint32_t num_moves = node->h->num_keys - num_stays;
 
       // [warn] slots size might 1
       // get a entry being set in the parent node  
-      *up_entry = get_up_entry(node, slots + num_moves - 1, new_h->id);
-      if (!h->is_leaf) {
+      *up_entry = get_up_entry(node, slots + num_moves - 1, new_node->h->id);
+      if (!node->h->is_leaf) {
         if (num_moves == 1) {
           std::cerr << "[error] shoud set enough page size for a node" << std::endl;
           return false;
@@ -661,8 +656,8 @@ namespace LibMap {
 
       // copy the bigger entries to the new node
       char *slot_p = (char *) new_node->b + dh_->init_data_size;
-      copy_entries(new_b, slot_p, node, slots, off, num_moves-1, 0);
-      set_node_header(new_h, off, num_moves);
+      copy_entries((char *) new_node->b, slot_p, node, slots, off, num_moves-1, 0);
+      set_node_header(new_node->h, off, num_moves);
       
       // copy staying entries into the buffers
       char tmp_node[dh_->node_size];
@@ -673,18 +668,18 @@ namespace LibMap {
 
       // needs left most pointer in non-leaf node
       if (!node->h->is_leaf) {
-        // it's workaround
         memcpy((char *) np->b, (char *) node->b, sizeof(node_id_t));
         off += sizeof(node_id_t);
       }
 
       // copy entry to the data buffer
       slot_p = (char *) np->b + dh_->init_data_size;
-      copy_entries((char *) np->b, slot_p, node, slots, off, h->num_keys-1, h->num_keys-num_stays);
+      copy_entries((char *) np->b, slot_p, node, slots, off,
+                   node->h->num_keys-1, node->h->num_keys-num_stays);
 
       // copy the buffers to the node and update the header
       memcpy((char *) node->b, (char *) np->b, dh_->init_data_size);
-      set_node_header(h, off, num_stays);
+      set_node_header(node->h, off, num_stays);
 
       return true;
     }
