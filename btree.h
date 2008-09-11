@@ -29,9 +29,6 @@
 #include <iostream>
 #include <string>
 
-#define UI16_SIZE sizeof(uint16_t)
-#define UI32_SIZE sizeof(uint32_t)
-
 namespace LibMap {
 
   const char *MAGIC = "LMBT0001";
@@ -148,9 +145,9 @@ namespace LibMap {
         node_t *leaf = _init_node(2, false, true);
 
         // make a link from root to the first leaf node
-        memcpy(root->b, &(leaf->h->id), UI32_SIZE);
-        root->h->data_off += UI32_SIZE;
-        root->h->free_size -= UI32_SIZE;
+        memcpy(root->b, &(leaf->h->id), sizeof(node_id_t));
+        root->h->data_off += sizeof(node_id_t);
+        root->h->free_size -= sizeof(node_id_t);
 
         delete root;
         delete leaf;
@@ -199,10 +196,10 @@ namespace LibMap {
 
     bool put(const void *key, uint32_t key_size, const void *val, uint32_t val_size)
     {
-      entry_t entry = {(char *) key, key_size, (char *) val, val_size, key_size + val_size};
+      entry_t entry = {(char *) key, key_size,
+                       (char *) val, val_size, key_size + val_size};
       up_entry_t *up_entry = NULL;
     
-      //_insert(dh_->root_id, &entry, &up_entry);
       insert(dh_->root_id, &entry, &up_entry);
     }
 
@@ -259,7 +256,7 @@ namespace LibMap {
         uint32_t val;
         memset(key_buf, 0, 256);
         memcpy(key_buf, body_p + slot->off, slot->size);
-        memcpy(&val, body_p + slot->off + slot->size, UI32_SIZE);
+        memcpy(&val, body_p + slot->off + slot->size, sizeof(node_id_t));
         std::cout << "key[" << key_buf << "]" << std::endl;
         std::cout << "val[" << val << "]" << std::endl;
       }
@@ -333,12 +330,10 @@ namespace LibMap {
       _insert(dh_->root_id, entry, up_entry, is_split);
 
       if (is_split) {
-        //std::cout << "entry is not inserted" << std::endl;
         up_entry_t *e = NULL;
         bool is_split = false;
         _insert(dh_->root_id, entry, &e, is_split);
         if (is_split) {
-          std::cout << "entry is not inserted AGAIN!!!" << std::endl;
           // try couple of times (not forever)
           return false;
         }
@@ -677,7 +672,7 @@ namespace LibMap {
       for (int i = moves - 1; i >= 0; --i) {
         // copy entry to the new node's data area
         // [TODO] value size is sizeof(uint32_t) for now
-        uint32_t entry_size = (slots+i)->size + UI32_SIZE;
+        uint32_t entry_size = (slots+i)->size + sizeof(uint32_t);
         memcpy(nb + off, b + (slots+i)->off, entry_size);
         //nb += entry_size;
         // new slot for the entry above
@@ -705,7 +700,7 @@ namespace LibMap {
       for (int i = h->key_num - 1; i >= h->key_num - stays; --i) {
         // copy entry to the data buffer
         // [TODO] value size is sizeof(uint32_t) for now
-        uint32_t entry_size = (slots+i)->size + UI32_SIZE;
+        uint32_t entry_size = (slots+i)->size + sizeof(uint32_t);
         memcpy(dp + off, b + (slots+i)->off, entry_size);
         // new slot for the entry above
         slot_t slot = { off, (slots+i)->size };
@@ -750,7 +745,7 @@ namespace LibMap {
       char *slot_p = (char *) node->b + dh_->init_data_size;
       for (int i = slot_from; i >= slot_to; --i) {
         // [TODO] value size is sizeof(uint32_t) for now
-        uint32_t entry_size = (slots+i)->size + UI32_SIZE;
+        uint32_t entry_size = (slots+i)->size + sizeof(uint32_t);
         memcpy(dp, (char *) node->b + (slots+i)->off, entry_size);
         dp += entry_size;
         // new slot for the entry above
@@ -761,16 +756,16 @@ namespace LibMap {
       }
     }
 
-    up_entry_t *get_up_entry(node_t *node, slot_t *slot, uint32_t up_node_id)
+    up_entry_t *get_up_entry(node_t *node, slot_t *slot, node_id_t up_node_id)
     {
       char *b = (char *) node->b;
       up_entry_t *up_entry = new up_entry_t;
       up_entry->key = new char[slot->size];
       memcpy((char *) up_entry->key, b + slot->off, slot->size);
       up_entry->key_size = slot->size;
-      up_entry->val = new char[sizeof(uint32_t)];
-      memcpy((char *) up_entry->val, &up_node_id, sizeof(uint32_t));
-      up_entry->val_size = sizeof(uint32_t);
+      up_entry->val = new char[sizeof(node_id_t)];
+      memcpy((char *) up_entry->val, &up_node_id, sizeof(node_id_t));
+      up_entry->val_size = sizeof(node_id_t);
       up_entry->size = up_entry->key_size + up_entry->val_size;
 
       return up_entry;
