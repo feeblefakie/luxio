@@ -430,8 +430,8 @@ namespace LibMap {
           delete [] (char *) e->val;
           delete e;
         }
-        return;
       }
+      delete node;
     }
 
     node_id_t _find_next(node_t *node, entry_t *entry)
