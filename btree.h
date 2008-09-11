@@ -625,7 +625,7 @@ namespace LibMap {
       return true;
     }
     
-    void split_node(node_t *node, node_t *new_node, up_entry_t **up_entry)
+    bool split_node(node_t *node, node_t *new_node, up_entry_t **up_entry)
     {
       char *b = (char *) node->b;
       char *new_b = (char *) new_node->b;
@@ -644,8 +644,8 @@ namespace LibMap {
       *up_entry = get_up_entry(node, slots + num_moves - 1, new_h->id);
       if (!h->is_leaf) {
         if (num_moves == 1) {
-          // error
           std::cerr << "[error] shoud set enough page size for a node" << std::endl;
+          return false;
         } else {
           --num_moves; // the entry is pushed up in non-leaf node
         }
@@ -668,7 +668,7 @@ namespace LibMap {
         memcpy(new_b + off, b + (slots+i)->off, entry_size);
         // new slot for the entry above
         slot_t slot = { off, (slots+i)->size };
-      slot_p -= sizeof(slot_t);
+        slot_p -= sizeof(slot_t);
         memcpy(slot_p, &slot, sizeof(slot_t));
         off += entry_size;
       }
@@ -707,6 +707,8 @@ namespace LibMap {
       memcpy(slot_p - slots_size, sp, slots_size);
 
       set_node_header(h, off, num_stays);
+
+      return true;
     }
 
     // make a left most pointer in non-leaf node
