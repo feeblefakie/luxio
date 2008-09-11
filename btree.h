@@ -418,10 +418,10 @@ namespace LibMap {
             node_t *new_root = _init_node(dh_->num_nodes-1, true, false);
             make_leftmost_ptr(new_root, (char *) &(node->h->id));
             put_entry_in_nonleaf(new_root, *up_entry);
-            delete new_root;
             // change root 
             dh_->root_id = new_root->h->id;
             node->h->is_root = false;
+            delete new_root;
           }
           clean_up_entry(&e);
         }
