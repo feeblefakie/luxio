@@ -41,8 +41,8 @@ namespace LibMap {
 
   // global header
   typedef struct {
-    uint32_t key_num;
-    uint32_t node_num;
+    uint32_t num_keys;
+    uint32_t num_nodes;
     uint16_t node_size;
     uint16_t init_data_size;
     uint32_t root_id;
@@ -53,7 +53,7 @@ namespace LibMap {
     bool is_root;
     bool is_leaf;
     uint32_t id;
-    uint16_t key_num;
+    uint16_t num_keys;
     uint16_t data_off;
     uint16_t free_off;
     uint16_t free_size;
@@ -125,9 +125,9 @@ namespace LibMap {
       if (stat_buf.st_size == 0 && oflags & DB_CREAT) {
         // initialize the header for the newly created file
         //strncpy(h.magic, MAGIC, strlen(MAGIC));
-        dh.key_num = 0;
+        dh.num_keys = 0;
         // one for db_header, one for root node and one for leaf node
-        dh.node_num = 3;
+        dh.num_nodes = 3;
         dh.node_size = getpagesize();
         //dh.node_size = 64;
         dh.init_data_size = dh.node_size - sizeof(node_header_t);
@@ -136,7 +136,7 @@ namespace LibMap {
         if (_write(fd_, &dh, sizeof(db_header_t)) < 0) {
           return false;
         }
-        if (!alloc_page(dh.node_num, dh.node_size)) {
+        if (!alloc_page(dh.num_nodes, dh.node_size)) {
           std::cerr << "alloc_page failed in open" << std::endl;    
         }
 
@@ -158,10 +158,10 @@ namespace LibMap {
           return false;
         }
 
-        // [TODO] read filesize and compare with node_num * node_size
+        // [TODO] read filesize and compare with num_nodes * node_size
         // if they differ, gives alert and trust the filesize ?
         
-        map_ = (char *) mmap(0, dh.node_size * dh.node_num,
+        map_ = (char *) mmap(0, dh.node_size * dh.num_nodes,
                             PROT_READ | PROT_WRITE, MAP_SHARED, fd_, 0);  
         if (map_ == MAP_FAILED) {
           std::cerr << "map failed" << std::endl;
@@ -175,8 +175,8 @@ namespace LibMap {
 
     bool close()
     {
-      //msync(map_, dh_->node_size * dh_->node_num, MS_ASYNC);
-      munmap(map_, dh_->node_size * dh_->node_num);
+      //msync(map_, dh_->node_size * dh_->num_nodes, MS_ASYNC);
+      munmap(map_, dh_->node_size * dh_->num_nodes);
       ::close(fd_);
     }
 
@@ -206,7 +206,7 @@ namespace LibMap {
     void show_node(void)
     {
       show_db_header();
-      for (int i = 1; i < dh_->node_num; ++i) {
+      for (int i = 1; i < dh_->num_nodes; ++i) {
         show_node(i);
       }
     }
@@ -214,8 +214,8 @@ namespace LibMap {
     void show_db_header()
     {
       std::cout << "========= SHOW ROOT ==========" << std::endl;
-      std::cout << "key_num: " << dh_->key_num << std::endl;
-      std::cout << "node_num: " << dh_->node_num << std::endl;
+      std::cout << "num_keys: " << dh_->num_keys << std::endl;
+      std::cout << "num_nodes: " << dh_->num_nodes << std::endl;
       std::cout << "node_size: " << dh_->node_size << std::endl;
       std::cout << "init_data_size: " << dh_->init_data_size << std::endl;
       std::cout << "root_id: " << dh_->root_id << std::endl;
@@ -234,7 +234,7 @@ namespace LibMap {
       std::cout << "is_root: " << node->h->is_root << std::endl;
       std::cout << "is_leaf: " << node->h->is_leaf << std::endl;
       std::cout << "id: " << node->h->id << std::endl;
-      std::cout << "key_num: " << node->h->key_num << std::endl;
+      std::cout << "num_keys: " << node->h->num_keys << std::endl;
       std::cout << "data_off: "<< node->h->data_off << std::endl;
       std::cout << "free_off: " << node->h->free_off << std::endl;
       std::cout << "free_size: " << node->h->free_size << std::endl;
@@ -247,7 +247,7 @@ namespace LibMap {
 
       char *slot_p = (char *) node->h + dh_->node_size; // point to the tail of the node
       char *body_p = (char *) node->b;
-      for (int i = 1; i <= node->h->key_num; ++i) {
+      for (int i = 1; i <= node->h->num_keys; ++i) {
         slot_p -= sizeof(slot_t);
         slot_t *slot = (slot_t *) slot_p;
         std::cout << "off[" << slot->off << "], size[" << slot->size << "]" << std::endl;
@@ -275,7 +275,7 @@ namespace LibMap {
       node_hdr_p->is_root = is_root;
       node_hdr_p->is_leaf = is_leaf;
       node_hdr_p->id = id;
-      node_hdr_p->key_num = 0;
+      node_hdr_p->num_keys = 0;
       node_hdr_p->data_off = 0;
       node_hdr_p->free_off = dh_->node_size - sizeof(node_header_t);;
       node_hdr_p->free_size = node_hdr_p->free_off;
@@ -289,7 +289,7 @@ namespace LibMap {
 
     node_t *_alloc_node(uint32_t id)
     {
-      if (id > dh_->node_num - 1) {
+      if (id > dh_->num_nodes - 1) {
         return NULL;
       }
       char *node_p = (char *) &(map_[dh_->node_size * id]);
@@ -359,7 +359,7 @@ namespace LibMap {
           node = _alloc_node(id);
 
           // create new leaf node
-          node_t *new_node = _init_node(dh_->node_num-1, false, true);
+          node_t *new_node = _init_node(dh_->num_nodes-1, false, true);
           split_node(node, new_node, up_entry);
           is_split = true;
 
@@ -393,7 +393,7 @@ namespace LibMap {
           up_entry_t *e = *up_entry;
           *up_entry = NULL;
 
-          node_t *new_node = _init_node(dh_->node_num-1, false, false);
+          node_t *new_node = _init_node(dh_->num_nodes-1, false, false);
           split_node(node, new_node, up_entry);
           
           // compare e with up_e to decide which node putting e into
@@ -418,7 +418,7 @@ namespace LibMap {
             delete node;
             node = _alloc_node(id);
             
-            node_t *new_root = _init_node(dh_->node_num-1, true, false);
+            node_t *new_root = _init_node(dh_->num_nodes-1, true, false);
             make_leftmost_ptr(new_root, (char *) &(node->h->id));
             put_entry_in_nonleaf(new_root, *up_entry);
             // change root 
@@ -496,7 +496,7 @@ namespace LibMap {
       slot_t slot = { node->h->data_off, entry->key_size };
 
       if (r->type == KEY_BIGGEST ||
-          (r->type == KEY_SMALLEST && node->h->key_num == 0)) {
+          (r->type == KEY_SMALLEST && node->h->num_keys == 0)) {
         // prepend
         memcpy(free_p - sizeof(slot_t), &slot, sizeof(slot_t));
       } else if (r->type == KEY_SMALLEST) {
@@ -516,8 +516,8 @@ namespace LibMap {
       node->h->data_off += entry->size;
       node->h->free_off -= sizeof(slot_t);
       node->h->free_size -= entry->size + sizeof(slot_t);
-      if (node->h->is_leaf) { ++(dh_->key_num); }
-      ++(node->h->key_num);
+      if (node->h->is_leaf) { ++(dh_->num_keys); }
+      ++(node->h->num_keys);
     }
 
     find_res_t *find_key(node_t *node, const void *key, uint32_t key_size)
@@ -526,7 +526,7 @@ namespace LibMap {
       char *slot_p = (char *) node->b + node->h->free_off;
       slot_t *slots = (slot_t *) slot_p;
 
-      if (node->h->key_num == 0) {
+      if (node->h->num_keys == 0) {
         r->type = KEY_SMALLEST;
         return r;
       }
@@ -536,13 +536,13 @@ namespace LibMap {
       memcpy(entry_key, key, key_size);
       entry_key[key_size] = '\0';
 
-      char checked[node->h->key_num];
-      memset(checked, 0, node->h->key_num);
+      char checked[node->h->num_keys];
+      memset(checked, 0, node->h->num_keys);
 
       // binary search
       int low_bound = 0;
-      int up_bound = node->h->key_num - 1;
-      int middle = node->h->key_num / 2;
+      int up_bound = node->h->num_keys - 1;
+      int middle = node->h->num_keys / 2;
       bool is_found = false;
       bool is_going_upper = false;
       int last_middle = -1;
@@ -605,31 +605,31 @@ namespace LibMap {
 
     bool append_page(void)
     {
-      uint32_t node_num = dh_->node_num;
+      uint32_t num_nodes = dh_->num_nodes;
       uint16_t node_size = dh_->node_size;
 
-      if (munmap(map_, node_size * node_num) < 0) {
+      if (munmap(map_, node_size * num_nodes) < 0) {
         std::cerr << "munmap failed" << std::endl;
         return false;
       }
-      ++node_num; // one page appendiing
-      return alloc_page(node_num, node_size);
+      ++num_nodes; // one page appendiing
+      return alloc_page(num_nodes, node_size);
     }
 
-    bool alloc_page(uint32_t node_num, uint16_t node_size)
+    bool alloc_page(uint32_t num_nodes, uint16_t node_size)
     {
-      if (ftruncate(fd_, node_size * node_num) < 0) {
+      if (ftruncate(fd_, node_size * num_nodes) < 0) {
         std::cout << "ftruncate failed" << std::endl;
         return false;
       }
-      map_ = (char *) mmap(0, node_size * node_num, 
+      map_ = (char *) mmap(0, node_size * num_nodes, 
                            PROT_READ | PROT_WRITE, MAP_SHARED, fd_, 0);  
       if (map_ == MAP_FAILED) {
         std::cout << "map failed" << std::endl;
         return false;
       }
       dh_ = (db_header_t *) map_;
-      dh_->node_num = node_num;
+      dh_->num_nodes = num_nodes;
       return true;
     }
     
@@ -644,8 +644,8 @@ namespace LibMap {
       slot_t *slots = (slot_t *) (b + h->free_off);
 
       // stay_num entries stay in the node, others move to the new node
-      uint32_t stays = h->key_num / 2;
-      uint32_t moves = h->key_num - stays;
+      uint32_t stays = h->num_keys / 2;
+      uint32_t moves = h->num_keys - stays;
 
       // [warn] slots size might 1
       // get a entry being set in the parent node  
@@ -697,7 +697,7 @@ namespace LibMap {
         off += sizeof(node_id_t);
       }
 
-      for (int i = h->key_num - 1; i >= h->key_num - stays; --i) {
+      for (int i = h->num_keys - 1; i >= h->num_keys - stays; --i) {
         // copy entry to the data buffer
         // [TODO] value size is sizeof(uint32_t) for now
         uint32_t entry_size = (slots+i)->size + sizeof(uint32_t);
@@ -726,12 +726,12 @@ namespace LibMap {
        node->h->free_size -= sizeof(node_id_t);
     }
 
-    void set_node_header(node_header_t *h, uint16_t off, uint16_t nkeys)
+    void set_node_header(node_header_t *h, uint16_t off, uint16_t num_keys)
     {
       h->data_off = off;
-      h->free_off = dh_->init_data_size - nkeys * sizeof(slot_t);
+      h->free_off = dh_->init_data_size - num_keys * sizeof(slot_t);
       h->free_size = h->free_off - h->data_off;
-      h->key_num = nkeys;
+      h->num_keys = num_keys;
     }
 
     /*
