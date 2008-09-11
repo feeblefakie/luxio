@@ -323,7 +323,7 @@ namespace LibMap {
       delete node;
     }
 
-    bool insert(uint32_t id, entry_t *entry, up_entry_t **up_entry)
+    bool insert(node_id_t id, entry_t *entry, up_entry_t **up_entry)
     {
       bool is_split = false;
 
@@ -341,7 +341,7 @@ namespace LibMap {
       return true;
     }
 
-    void _insert(uint32_t id, entry_t *entry, up_entry_t **up_entry, bool &is_split)
+    void _insert(node_id_t id, entry_t *entry, up_entry_t **up_entry, bool &is_split)
     {
       node_t *node = _alloc_node(id);
       if (node->h->is_leaf) {
@@ -366,7 +366,7 @@ namespace LibMap {
           return;
         }
       } else {
-        uint32_t next_id = _find_next(node, entry);
+        node_id_t next_id = _find_next(node, entry);
         _insert(next_id, entry, up_entry, is_split);
 
         if (*up_entry == NULL) { return; }
@@ -434,7 +434,7 @@ namespace LibMap {
       }
     }
 
-    uint32_t _find_next(node_t *node, entry_t *entry)
+    node_id_t _find_next(node_t *node, entry_t *entry)
     {
       node_id_t id;
       find_res_t *r = find_key(node, entry->key, entry->key_size);
