@@ -84,7 +84,7 @@ namespace LibMap {
     uint16_t key_size;
     const void *val;
     uint32_t val_size;
-    uint32_t size;
+    uint32_t size; // entry size stored in pages
   } entry_t;
   typedef entry_t up_entry_t;
 
@@ -217,7 +217,7 @@ namespace LibMap {
     bool put(const void *key, uint32_t key_size, const void *val, uint32_t val_size)
     {
       entry_t entry = {(char *) key, key_size,
-                       (char *) val, val_size, key_size + val_size};
+                       (char *) val, val_size, key_size + dh_->data_size};
       up_entry_t *up_entry = NULL;
     
       insert(dh_->root_id, &entry, &up_entry);
@@ -522,6 +522,7 @@ namespace LibMap {
       _entry.key_size = entry->key_size;
       _entry.val = val;
       _entry.val_size = dh_->data_size;
+      _entry.size = entry->size;
 
       if (r->type == KEY_FOUND) {
         // update the value
@@ -530,7 +531,6 @@ namespace LibMap {
         put_entry(node, &_entry, r);
       }
       delete r;
-      delete [] (char *) (_entry.val);
     }
 
     void put_entry_in_nonleaf(node_t *node, entry_t *entry)
