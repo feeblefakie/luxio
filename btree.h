@@ -628,52 +628,51 @@ namespace LibMap {
     void split_node(node_t *node, node_t *new_node, up_entry_t **up_entry)
     {
       char *b = (char *) node->b;
-      char *nb = (char *) new_node->b;
+      char *new_b = (char *) new_node->b;
       node_header_t *h = node->h;
-      node_header_t *nh = new_node->h;
+      node_header_t *new_h = new_node->h;
 
       // current node slots
       slot_t *slots = (slot_t *) (b + h->free_off);
 
       // stay_num entries stay in the node, others move to the new node
-      uint32_t stays = h->num_keys / 2;
-      uint32_t moves = h->num_keys - stays;
+      uint32_t num_stays = h->num_keys / 2;
+      uint32_t num_moves = h->num_keys - num_stays;
 
       // [warn] slots size might 1
       // get a entry being set in the parent node  
-      *up_entry = get_up_entry(node, slots + moves - 1, nh->id);
+      *up_entry = get_up_entry(node, slots + num_moves - 1, new_h->id);
       if (!h->is_leaf) {
-        if (moves == 1) {
+        if (num_moves == 1) {
           // error
           std::cerr << "[error] shoud set enough page size for a node" << std::endl;
         } else {
-          --moves; // the entry is pushed up in non-leaf node
+          --num_moves; // the entry is pushed up in non-leaf node
         }
       }
 
       uint16_t off = 0;
       // needs left most pointer in non-leaf node
       if (!node->h->is_leaf) {
-        uint16_t leftmost_off = (slots + moves)->off + (slots + moves)->size;
+        uint16_t leftmost_off = (slots + num_moves)->off + (slots + num_moves)->size;
         make_leftmost_ptr(new_node, (char *) node->b + leftmost_off);
         off += sizeof(node_id_t);
       }
 
       // copy the bigger entries to the new node
       char *slot_p = (char *) new_node->b + dh_->init_data_size;
-      for (int i = moves - 1; i >= 0; --i) {
+      for (int i = num_moves - 1; i >= 0; --i) {
         // copy entry to the new node's data area
         // [TODO] value size is sizeof(uint32_t) for now
         uint32_t entry_size = (slots+i)->size + sizeof(uint32_t);
-        memcpy(nb + off, b + (slots+i)->off, entry_size);
-        //nb += entry_size;
+        memcpy(new_b + off, b + (slots+i)->off, entry_size);
         // new slot for the entry above
         slot_t slot = { off, (slots+i)->size };
-        slot_p -= sizeof(slot_t);
+      slot_p -= sizeof(slot_t);
         memcpy(slot_p, &slot, sizeof(slot_t));
         off += entry_size;
       }
-      set_node_header(nh, off, moves);
+      set_node_header(new_h, off, num_moves);
       
       // copy staying entries into the buffers
       char dbuf[dh_->node_size], sbuf[dh_->node_size];
@@ -689,8 +688,8 @@ namespace LibMap {
         off += sizeof(node_id_t);
       }
 
-      for (int i = h->num_keys - 1; i >= h->num_keys - stays; --i) {
-        // copy entry to the data buffer
+      // copy entry to the data buffer
+      for (int i = h->num_keys - 1; i >= h->num_keys - num_stays; --i) {
         // [TODO] value size is sizeof(uint32_t) for now
         uint32_t entry_size = (slots+i)->size + sizeof(uint32_t);
         memcpy(dp + off, b + (slots+i)->off, entry_size);
@@ -703,11 +702,11 @@ namespace LibMap {
 
       // copy the buffers to the node
       slot_p = (char *) node->b + dh_->init_data_size;
-      uint16_t slots_size = sizeof(slot_t) * stays;
+      uint16_t slots_size = sizeof(slot_t) * num_stays;
       memcpy(b, dbuf, off); 
       memcpy(slot_p - slots_size, sp, slots_size);
 
-      set_node_header(h, off, stays);
+      set_node_header(h, off, num_stays);
     }
 
     // make a left most pointer in non-leaf node
