@@ -366,9 +366,8 @@ namespace LibMap {
           // create new leaf node
           node_t *new_node = _init_node(dh_->num_nodes-1, false, true);
           split_node(node, new_node, up_entry);
+          delete new_node;
           is_split = true;
-
-          return;
         }
       } else {
         node_id_t next_id = _find_next(node, entry);
@@ -407,6 +406,7 @@ namespace LibMap {
           } else {
             put_entry_in_nonleaf(new_node, e); // goes to new node
           }
+          delete new_node;
 
           if (node->h->is_root) {
             if (!append_page()) {
@@ -418,6 +418,7 @@ namespace LibMap {
             node_t *new_root = _init_node(dh_->num_nodes-1, true, false);
             make_leftmost_ptr(new_root, (char *) &(node->h->id));
             put_entry_in_nonleaf(new_root, *up_entry);
+            delete new_root;
             // change root 
             dh_->root_id = new_root->h->id;
             node->h->is_root = false;
