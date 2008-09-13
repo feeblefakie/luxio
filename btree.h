@@ -354,7 +354,10 @@ namespace LibMap {
           // there is enough space, then just put the entry
           put_entry_in_leaf(node, entry);
         } else {
-          if (update_if_exists(node, entry)) { return; }
+          if (update_if_exists(node, entry)) {
+            delete node;
+            return;
+          }
 
           if (!append_page()) {
             std::cerr << "alloc_page() failed" << std::endl; 
@@ -373,10 +376,10 @@ namespace LibMap {
         node_id_t next_id = _find_next(node, entry);
         _insert(next_id, entry, up_entry, is_split);
 
+        delete node;
         if (*up_entry == NULL) { return; }
 
         // must reallocate after remapped
-        delete node;
         node = _alloc_node(id);
 
         if (node->h->free_size >= (*up_entry)->size + sizeof(slot_t)) {
@@ -439,19 +442,21 @@ namespace LibMap {
         slot_t *slot = (slot_t *) r->slot_p;
         memcpy(&id, (char *) node->b + slot->off + slot->size, sizeof(node_id_t));
       }
+      delete r;
       return id;
     }
 
     bool update_if_exists(node_t *node, entry_t *entry)
     {
+      bool is_found = false;
       find_res_t *r = find_key(node, entry->key, entry->key_size);
       if (r->type == KEY_FOUND) {
         // update the value
         memcpy((char *) r->data_p + entry->key_size, entry->val, entry->val_size);
-        delete r;
-        return true;
+        is_found = true;
       }
-      return false;
+      delete r;
+      return is_found;
     }
 
     void put_entry_in_leaf(node_t *node, entry_t *entry)
