@@ -49,6 +49,12 @@ namespace LibMap {
     CLUSTER
   } db_index_t;
 
+  typedef enum {
+    OVERWRITE,
+    NOOVERWRITE,
+    APPEND // it's only supported in non-cluster index
+  } insert_mode_t;
+
   // global header
   typedef struct {
     uint32_t num_keys;
@@ -85,6 +91,7 @@ namespace LibMap {
     const void *val;
     uint32_t val_size;
     uint32_t size; // entry size stored in pages
+    insert_mode_t mode;
   } entry_t;
   typedef entry_t up_entry_t;
 
@@ -217,10 +224,13 @@ namespace LibMap {
       delete d;
     }
 
-    bool put(const void *key, uint32_t key_size, const void *val, uint32_t val_size)
+    bool put(const void *key, uint32_t key_size,
+             const void *val, uint32_t val_size, insert_mode_t flags = OVERWRITE)
     {
       entry_t entry = {(char *) key, key_size,
-                       (char *) val, val_size, key_size + dh_->data_size};
+                       (char *) val, val_size,
+                       key_size + dh_->data_size,
+                       flags};
       up_entry_t *up_entry = NULL;
     
       insert(dh_->root_id, &entry, &up_entry);
@@ -512,10 +522,14 @@ namespace LibMap {
 
       find_res_t *r = find_key(node, entry->key, entry->key_size);
 
+      if (r->type == KEY_FOUND && entry->mode == NOOVERWRITE) {
+        delete r;
+        return;
+      }
+
       char val[dh_->data_size];
       if (dh_->index_type == CLUSTER) {
-        // [TODO] append
-        // get data from r->data_p and append ?
+        // [NOTICE] APPEND is not supported in cluster index
         memcpy(val, entry->val, dh_->data_size);
       } else {
         // get data ptr
@@ -525,13 +539,10 @@ namespace LibMap {
         memcpy(val, &data_ptr, dh_->data_size);
       }
 
-      // entry for the index page
-      entry_t _entry;
-      _entry.key = entry->key;
-      _entry.key_size = entry->key_size;
-      _entry.val = val;
-      _entry.val_size = dh_->data_size;
-      _entry.size = entry->size;
+      // entry for leaf pages
+      entry_t _entry = {entry->key, entry->key_size,
+                        val, dh_->data_size,
+                        entry->size, entry->mode};
 
       if (r->type == KEY_FOUND) {
         // update the value
