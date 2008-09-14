@@ -75,8 +75,8 @@ namespace LibMap {
     uint16_t data_off;
     uint16_t free_off;
     uint16_t free_size;
-    //uint32_t prev_id;
-    //uint32_t next_id;
+    uint32_t prev_id; // used only in leaf
+    uint32_t next_id; // used only in leaf
   } node_header_t;
   typedef char * node_body_t;
 
@@ -314,6 +314,8 @@ namespace LibMap {
       node_hdr_p->data_off = 0;
       node_hdr_p->free_off = dh_->node_size - sizeof(node_header_t);;
       node_hdr_p->free_size = node_hdr_p->free_off;
+      node_hdr_p->prev_id = 0; // 0 means no link
+      node_hdr_p->next_id = 0; // 0 means no link
       node_body_t *node_body_p = (node_body_t *) (node_p + sizeof(node_header_t));
 
       node_t *node = new node_t;
@@ -742,6 +744,8 @@ namespace LibMap {
       char *slot_p = (char *) new_node->b + dh_->init_data_size;
       copy_entries((char *) new_node->b, slot_p, node, slots, off, num_moves-1, 0);
       set_node_header(new_node->h, off, num_moves);
+      // make a link
+      new_node->h->prev_id = node->h->id;
       
       // copy staying entries into the buffers
       char tmp_node[dh_->node_size];
@@ -764,6 +768,8 @@ namespace LibMap {
       // copy the buffers to the node and update the header
       memcpy((char *) node->b, (char *) np->b, dh_->init_data_size);
       set_node_header(node->h, off, num_stays);
+      // make a link
+      node->h->next_id = new_node->h->id;
 
       return true;
     }
