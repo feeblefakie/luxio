@@ -697,6 +697,7 @@ namespace LibMap {
       return r;
     }
 
+    // [TODO] append_node is better naming ?
     bool append_page(void)
     {
       uint32_t num_nodes = dh_->num_nodes;
@@ -710,6 +711,7 @@ namespace LibMap {
       return alloc_page(num_nodes, node_size);
     }
 
+    // [TODO] alloc_node is better naming ?
     bool alloc_page(uint32_t num_nodes, uint16_t node_size)
     {
       if (ftruncate(fd_, node_size * num_nodes) < 0) {
