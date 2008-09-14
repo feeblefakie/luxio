@@ -142,6 +142,7 @@ namespace LibMap {
       }
 
       db_header_t dh;
+      memset(&dh, 0, sizeof(db_header_t));
       if (stat_buf.st_size == 0 && oflags & DB_CREAT) {
         // initialize the header for the newly created file
         //strncpy(h.magic, MAGIC, strlen(MAGIC));
