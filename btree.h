@@ -27,7 +27,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <iostream>
-#include <string>
+#include <stdexcept>
 
 #define ALLOC_AND_COPY(s1, s2, size) \
   char s1[size+1]; \
@@ -111,10 +111,12 @@ namespace LibMap {
     uint32_t size;
   } data_t;
 
+#pragma pack(2)
   typedef struct {
     uint32_t id;
     uint16_t off;
   } data_ptr_t;
+#pragma pack()
 
   class Btree {
   public:
@@ -146,8 +148,8 @@ namespace LibMap {
         dh.num_keys = 0;
         // one for db_header, one for root node and one for leaf node
         dh.num_nodes = 3;
-        dh.node_size = getpagesize();
-        //dh.node_size = 64;
+        //dh.node_size = getpagesize();
+        dh.node_size = 64;
         dh.init_data_size = dh.node_size - sizeof(node_header_t);
         dh.root_id = 1;
         dh.index_type = index_type_;
@@ -407,6 +409,7 @@ namespace LibMap {
           // create new leaf node
           node_t *new_node = _init_node(dh_->num_nodes-1, false, true);
           split_node(node, new_node, up_entry);
+
           delete new_node;
           is_split = true;
         }
@@ -703,8 +706,8 @@ namespace LibMap {
       *up_entry = get_up_entry(node, slots + num_moves - 1, new_node->h->id);
       if (!node->h->is_leaf) {
         if (num_moves == 1) {
-          std::cerr << "[error] shoud set enough page size for a node" << std::endl;
-          return false;
+          // [TODO] throwing error for now
+          throw std::runtime_error("something bad happened. never comes here usully.");
         } else {
           --num_moves; // the entry is pushed up in non-leaf node
         }
