@@ -240,6 +240,37 @@ namespace LibMap {
       insert(dh_->root_id, &entry, &up_entry);
     }
 
+    bool del(const void *key, uint32_t key_size)
+    {
+      entry_t entry = {key, key_size, NULL, 0, 0};
+
+      _del(dh_->root_id, &entry);
+    }
+
+    bool _del(node_id_t id, entry_t *entry)
+    {
+      node_t *node = _alloc_node(id);
+      if (node->h->is_leaf) {
+        find_res_t *r = find_key(node, entry->key, entry->key_size);
+        if (r->type == KEY_FOUND) {
+          // remove a slot
+          char *p = (char *) node->b + node->h->free_off;
+          if (p != r->slot_p) {
+            memmove(p + sizeof(slot_t), p, r->slot_p - p);
+          }
+          node->h->free_off += sizeof(slot_t);
+          node->h->free_size += sizeof(slot_t);
+          --(node->h->num_keys);
+          --(dh_->num_keys);
+        }
+        delete r;
+      } else {
+        node_id_t next_id = _find_next(node, entry);
+        _del(next_id, entry);
+      }
+      delete node;
+    }
+
     void show_node(void)
     {
       show_db_header();
