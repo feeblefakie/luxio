@@ -8,7 +8,7 @@ int main(int argc, char *argv[])
     exit(1);
   }
 
-  LibMap::Btree *bt = new LibMap::Btree;
+  LibMap::Btree *bt = new LibMap::Btree(LibMap::CLUSTER);
   bt->open(argv[1], LibMap::DB_CREAT);
 
   char key[256];

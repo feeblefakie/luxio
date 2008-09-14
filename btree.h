@@ -209,7 +209,7 @@ namespace LibMap {
 
     bool close()
     {
-      //msync(map_, dh_->node_size * dh_->num_nodes, MS_ASYNC);
+      msync(map_, dh_->node_size * dh_->num_nodes, MS_SYNC);
       munmap(map_, dh_->node_size * dh_->num_nodes);
       ::close(fd_);
     }

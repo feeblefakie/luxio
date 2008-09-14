@@ -60,6 +60,7 @@ int main(int argc, char **argv){
   t2 = gettimeofday_sec();
   std::cout << "put time: " << t2 - t1 << std::endl;
   
+  /*
   int select_num = rnum / 10;
   t1 = gettimeofday_sec();
   for (int i = 0; i < rnum; ++i) {
@@ -84,6 +85,7 @@ int main(int argc, char **argv){
   }
   t2 = gettimeofday_sec();
   std::cout << "get time: " << t2 - t1 << std::endl;
+  */
 
   /* データベースを閉じる */
   if(!tcbdbclose(bdb)){
