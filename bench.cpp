@@ -22,7 +22,7 @@ int main(int argc, char *argv[])
     mode = atoi(argv[2]);
   }
 
-  LibMap::Btree *bt = new LibMap::Btree;
+  LibMap::Btree *bt = new LibMap::Btree(LibMap::CLUSTER);
   bt->open("benchdb", LibMap::DB_CREAT);
 
   int rnum = atoi(argv[1]);
