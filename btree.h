@@ -63,7 +63,7 @@ namespace LibMap {
     uint16_t init_data_size;
     uint32_t root_id;
     uint8_t index_type;
-    uint8_t data_size;
+    uint8_t data_size; // for fixed length value in cluster index
   } db_header_t;
 
   typedef uint32_t node_id_t;
