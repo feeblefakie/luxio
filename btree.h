@@ -62,6 +62,8 @@ namespace LibMap {
     uint16_t node_size;
     uint16_t init_data_size;
     uint32_t root_id;
+    uint32_t num_leaves;
+    uint32_t num_nonleaves;
     uint8_t index_type;
     uint8_t data_size; // for fixed length value in cluster index
   } db_header_t;
@@ -160,6 +162,8 @@ namespace LibMap {
         //dh.node_size = 64;
         dh.init_data_size = dh.node_size - sizeof(node_header_t);
         dh.root_id = 1;
+        dh.num_leaves = 0;
+        dh.num_nonleaves = 0; // root node
         dh.index_type = index_type_;
         dh.data_size = data_size_;
 
@@ -252,6 +256,10 @@ namespace LibMap {
       std::cout << "node_size: " << dh_->node_size << std::endl;
       std::cout << "init_data_size: " << dh_->init_data_size << std::endl;
       std::cout << "root_id: " << dh_->root_id << std::endl;
+      std::cout << "num_leaves: " << dh_->num_leaves << std::endl;
+      std::cout << "num_nonleaves: " << dh_->num_nonleaves << std::endl;
+      std::cout << "index_type: " << (int) dh_->index_type << std::endl;
+      std::cout << "data_size: " << (int) dh_->data_size << std::endl;
     }
 
     // debug method
@@ -306,6 +314,7 @@ namespace LibMap {
     node_t *_init_node(uint32_t id, bool is_root, bool is_leaf)
     {
       char *node_p = (char *) &(map_[dh_->node_size * id]);
+
       node_header_t *node_hdr_p = (node_header_t *) node_p;
       node_hdr_p->is_root = is_root;
       node_hdr_p->is_leaf = is_leaf;
@@ -321,6 +330,13 @@ namespace LibMap {
       node_t *node = new node_t;
       node->h = node_hdr_p;
       node->b = node_body_p;
+
+      if (is_leaf) {
+        ++(dh_->num_leaves);
+      } else {
+        ++(dh_->num_nonleaves);
+      }
+
       return node;
     }
 
