@@ -538,12 +538,9 @@ namespace LibMap {
           split_node(node, new_node, up_entry);
 
           // compare e with up_e to decide which node putting e into
-          //ALLOC_AND_COPY(e_key, e->key, e->key_size);
-          //ALLOC_AND_COPY(up_e_key, (*up_entry)->key, (*up_entry)->key_size);
           data_t e_data = {e->key, e->key_size};
           data_t up_e_data = {(*up_entry)->key, (*up_entry)->key_size};
 
-          //if (strcmp(e_key, up_e_key) < 0) {
           if (cmp_(e_data, up_e_data) < 0) {
             put_entry_in_nonleaf(node, e); // goes to old node
           } else {
@@ -685,7 +682,6 @@ namespace LibMap {
     }
 
     // [TODO] API should change : take data_t instead of key and key_size
-    // [TODO] key might not be a string
     find_res_t *find_key(node_t *node, const void *key, uint32_t key_size)
     {
       find_res_t *r = new find_res_t;
@@ -697,8 +693,7 @@ namespace LibMap {
         return r;
       }
 
-      // [TODO] regard the key as a string
-      //ALLOC_AND_COPY(entry_key, key, key_size);
+      // [TODO] API should change : take data_t instead of key and key_size
       data_t key_data = {key, key_size};
 
       char checked[node->h->num_keys];
@@ -720,7 +715,6 @@ namespace LibMap {
         ALLOC_AND_COPY(stored_key, (char *) node->b + slot->off, slot->size);
         data_t stored_data = {stored_key, slot->size};
 
-        //int res = strcmp(entry_key, stored_key);
         int res = cmp_(key_data, stored_data);
         if (res == 0) {
           // found
