@@ -186,7 +186,7 @@ namespace LibMap {
         // one for db_header, one for root node and one for leaf node
         dh.num_nodes = 3;
         dh.node_size = getpagesize();
-        //dh.node_size = 64;
+        //dh.node_size = 128;
         dh.init_data_size = dh.node_size - sizeof(node_header_t);
         dh.root_id = 1;
         dh.num_leaves = 0;
@@ -309,6 +309,11 @@ namespace LibMap {
       for (int i = 1; i < dh_->num_nodes; ++i) {
         show_node(i);
       }
+    }
+
+    void show_root(void)
+    {
+      show_node(dh_->root_id);
     }
 
     void show_db_header()
@@ -800,16 +805,23 @@ namespace LibMap {
       slot_t *slots = (slot_t *) ((char *) node->b + node->h->free_off);
 
       // stay_num entries stay in the node, others move to the new node
-      uint32_t num_stays = node->h->num_keys / 2;
-      uint32_t num_moves = node->h->num_keys - num_stays;
+      uint16_t num_stays = node->h->num_keys / 2;
+      uint16_t num_moves = node->h->num_keys - num_stays;
+
+      // [SPEC] a node must contain at least 4 entries
+      if (num_stays <= 2 || num_moves <= 2) {
+        std::cerr << "[error] the number of entries in a node is too small." << std::endl;
+        return false;
+      }
 
       // [warn] slots size might 1
       // get a entry being set in the parent node  
-      *up_entry = get_up_entry(node, slots + num_moves - 1, new_node->h->id);
+      *up_entry = get_up_entry2(node, slots, num_moves, new_node->h->id);
+      //*up_entry = get_up_entry(node, slots + num_moves - 1, new_node->h->id);
       if (!node->h->is_leaf) {
         if (num_moves == 1) {
           // [TODO] throwing error for now
-          throw std::runtime_error("something bad happened. never comes here usully.");
+          throw std::runtime_error("something bad happened. never comes here usually.");
         } else {
           --num_moves; // the entry is pushed up in non-leaf node
         }
@@ -892,6 +904,53 @@ namespace LibMap {
         memcpy(sp, &slot, sizeof(slot_t));
         data_off += entry_size;
       }
+    }
+
+    // get prefix between a big key and a small key
+    char *get_prefix_key(char *big, char *small)
+    {
+      size_t len = strlen(big) > strlen(small) ? strlen(small) : strlen(big);
+      char *prefix = new char[len+2];
+      memset(prefix, 0, len+2);
+
+      int prefix_off = 0;
+      for (int i = 0; i < len; ++i, ++prefix_off) {
+        if (big[i] != small[i]) {
+          break;
+        }
+      }
+      memcpy(prefix, big, prefix_off+1);
+      std::cout << "#################################" << std::endl;
+      std::cout << "big [" << big << "], small [" << small << "], prefix [" << prefix << "]" << std::endl;
+      std::cout << "#################################" << std::endl;
+      return prefix;
+    }
+
+    up_entry_t *get_up_entry2(node_t *node, slot_t *slots, 
+                              uint16_t boundary_off, node_id_t up_node_id)
+    {
+      up_entry_t *up_entry = new up_entry_t;
+
+      if (cmp_ == str_cmp_func) {
+        slot_t *slot_r = slots + boundary_off; // right slot (bigger)
+        slot_t *slot_l = slots + boundary_off - 1; // left slot (smaller)
+        ALLOC_AND_COPY(key_small, (char *) node->b + slot_r->off, slot_r->size);
+        ALLOC_AND_COPY(key_big, (char *) node->b + slot_l->off, slot_l->size);
+        // get prefix key for prefix key compression
+        up_entry->key = get_prefix_key(key_big, key_small);
+        up_entry->key_size = strlen((char *) up_entry->key);
+      } else {
+        slot_t *slot = slots + boundary_off - 1;
+        up_entry->key = new char[slot->size];
+        memcpy((char *) up_entry->key, (char *) node->b + slot->off, slot->size);
+        up_entry->key_size = slot->size;
+      }
+      up_entry->val = new char[sizeof(node_id_t)];
+      memcpy((char *) up_entry->val, &up_node_id, sizeof(node_id_t));
+      up_entry->val_size = sizeof(node_id_t);
+      up_entry->size = up_entry->key_size + up_entry->val_size;
+
+      return up_entry;
     }
 
     up_entry_t *get_up_entry(node_t *node, slot_t *slot, node_id_t up_node_id)
