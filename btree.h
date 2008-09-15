@@ -920,9 +920,6 @@ namespace LibMap {
         }
       }
       memcpy(prefix, big, prefix_off+1);
-      std::cout << "#################################" << std::endl;
-      std::cout << "big [" << big << "], small [" << small << "], prefix [" << prefix << "]" << std::endl;
-      std::cout << "#################################" << std::endl;
       return prefix;
     }
 
@@ -931,7 +928,7 @@ namespace LibMap {
     {
       up_entry_t *up_entry = new up_entry_t;
 
-      if (cmp_ == str_cmp_func) {
+      if (cmp_ == str_cmp_func && node->h->is_leaf) {
         slot_t *slot_r = slots + boundary_off; // right slot (bigger)
         slot_t *slot_l = slots + boundary_off - 1; // left slot (smaller)
         ALLOC_AND_COPY(key_small, (char *) node->b + slot_r->off, slot_r->size);
