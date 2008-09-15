@@ -127,12 +127,30 @@ namespace LibMap {
   } data_ptr_t;
 #pragma pack()
 
+  // comparison functions
+  int str_cmp_func(data_t &d1, data_t &d2)
+  {
+    return strcmp((char *) d1.data, (char *) d2.data);
+  }
+  int int32_cmp_func(data_t &d1, data_t &d2)
+  {
+    int32_t i1, i2;
+    memcpy(&i1, d1.data, sizeof(int32_t));
+    memcpy(&i2, d2.data, sizeof(int32_t));
+    return (i1 - i2); 
+  };
+  typedef int (*CMP)(data_t &d1, data_t &d2);
+
+  /*
+   * Class Btree
+   */
   class Btree {
   public:
     Btree(db_index_t index_type = NONCLUSTER,
           uint8_t data_size = sizeof(uint32_t))
     : index_type_(index_type),
-      data_size_(index_type == NONCLUSTER ? sizeof(data_ptr_t) : data_size)
+      data_size_(index_type == NONCLUSTER ? sizeof(data_ptr_t) : data_size),
+      cmp_(str_cmp_func)
     {}
 
     ~Btree()
@@ -271,6 +289,11 @@ namespace LibMap {
       delete node;
     }
 
+    bool set_cmp_func(CMP cmp)
+    {
+      cmp_ = cmp;
+    }
+
     void show_node(void)
     {
       show_db_header();
@@ -341,6 +364,7 @@ namespace LibMap {
     db_header_t *dh_;
     db_index_t index_type_;
     uint8_t data_size_;
+    CMP cmp_;
 
     node_t *_init_node(uint32_t id, bool is_root, bool is_leaf)
     {
@@ -505,10 +529,13 @@ namespace LibMap {
           split_node(node, new_node, up_entry);
 
           // compare e with up_e to decide which node putting e into
-          ALLOC_AND_COPY(e_key, e->key, e->key_size);
-          ALLOC_AND_COPY(up_e_key, (*up_entry)->key, (*up_entry)->key_size);
+          //ALLOC_AND_COPY(e_key, e->key, e->key_size);
+          //ALLOC_AND_COPY(up_e_key, (*up_entry)->key, (*up_entry)->key_size);
+          data_t e_data = {e->key, e->key_size};
+          data_t up_e_data = {(*up_entry)->key, (*up_entry)->key_size};
 
-          if (strcmp(e_key, up_e_key) < 0) {
+          //if (strcmp(e_key, up_e_key) < 0) {
+          if (cmp_(e_data, up_e_data) < 0) {
             put_entry_in_nonleaf(node, e); // goes to old node
           } else {
             put_entry_in_nonleaf(new_node, e); // goes to new node
@@ -648,6 +675,7 @@ namespace LibMap {
       ++(node->h->num_keys);
     }
 
+    // [TODO] API should change : take data_t instead of key and key_size
     // [TODO] key might not be a string
     find_res_t *find_key(node_t *node, const void *key, uint32_t key_size)
     {
@@ -661,7 +689,8 @@ namespace LibMap {
       }
 
       // [TODO] regard the key as a string
-      ALLOC_AND_COPY(entry_key, key, key_size);
+      //ALLOC_AND_COPY(entry_key, key, key_size);
+      data_t key_data = {key, key_size};
 
       char checked[node->h->num_keys];
       memset(checked, 0, node->h->num_keys);
@@ -680,8 +709,10 @@ namespace LibMap {
 
         slot_t *slot = slots + middle;
         ALLOC_AND_COPY(stored_key, (char *) node->b + slot->off, slot->size);
+        data_t stored_data = {stored_key, slot->size};
 
-        int res = strcmp(entry_key, stored_key);
+        //int res = strcmp(entry_key, stored_key);
+        int res = cmp_(key_data, stored_data);
         if (res == 0) {
           // found
           is_found = true;
