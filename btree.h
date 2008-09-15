@@ -27,7 +27,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <iostream>
-#include <string>
+#include <stdexcept>
 
 #define ALLOC_AND_COPY(s1, s2, size) \
   char s1[size+1]; \
@@ -44,6 +44,17 @@ namespace LibMap {
   const db_flags_t DB_CREAT = 0x0200;
   const db_flags_t DB_TRUNC = 0x0400;
 
+  typedef enum {
+    NONCLUSTER,
+    CLUSTER
+  } db_index_t;
+
+  typedef enum {
+    OVERWRITE,
+    NOOVERWRITE,
+    APPEND // it's only supported in non-cluster index
+  } insert_mode_t;
+
   // global header
   typedef struct {
     uint32_t num_keys;
@@ -51,6 +62,10 @@ namespace LibMap {
     uint16_t node_size;
     uint16_t init_data_size;
     uint32_t root_id;
+    uint32_t num_leaves;
+    uint32_t num_nonleaves;
+    uint8_t index_type;
+    uint8_t data_size; // for fixed length value in cluster index
   } db_header_t;
 
   typedef uint32_t node_id_t;
@@ -62,8 +77,8 @@ namespace LibMap {
     uint16_t data_off;
     uint16_t free_off;
     uint16_t free_size;
-    //uint32_t prev_id;
-    //uint32_t next_id;
+    uint32_t prev_id; // used only in leaf
+    uint32_t next_id; // used only in leaf
   } node_header_t;
   typedef char * node_body_t;
 
@@ -77,7 +92,8 @@ namespace LibMap {
     uint16_t key_size;
     const void *val;
     uint32_t val_size;
-    uint32_t size;
+    uint32_t size; // entry size stored in pages
+    insert_mode_t mode;
   } entry_t;
   typedef entry_t up_entry_t;
 
@@ -104,16 +120,24 @@ namespace LibMap {
     uint32_t size;
   } data_t;
 
+#pragma pack(2)
+  typedef struct {
+    uint32_t id;
+    uint16_t off;
+  } data_ptr_t;
+#pragma pack()
+
   class Btree {
   public:
-    Btree()
-    {
+    Btree(db_index_t index_type = NONCLUSTER,
+          uint8_t data_size = sizeof(uint32_t))
+    : index_type_(index_type),
+      data_size_(index_type == NONCLUSTER ? sizeof(data_ptr_t) : data_size)
+    {}
 
-    }
     ~Btree()
-    {
+    {}
 
-    }
     bool open(std::string db_name, db_flags_t oflags)
     {
       fd_ = _open(db_name.c_str(), oflags, 00644);
@@ -127,6 +151,7 @@ namespace LibMap {
       }
 
       db_header_t dh;
+      memset(&dh, 0, sizeof(db_header_t));
       if (stat_buf.st_size == 0 && oflags & DB_CREAT) {
         // initialize the header for the newly created file
         //strncpy(h.magic, MAGIC, strlen(MAGIC));
@@ -137,6 +162,10 @@ namespace LibMap {
         //dh.node_size = 64;
         dh.init_data_size = dh.node_size - sizeof(node_header_t);
         dh.root_id = 1;
+        dh.num_leaves = 0;
+        dh.num_nonleaves = 0; // root node
+        dh.index_type = index_type_;
+        dh.data_size = data_size_;
 
         if (_write(fd_, &dh, sizeof(db_header_t)) < 0) {
           return false;
@@ -180,7 +209,7 @@ namespace LibMap {
 
     bool close()
     {
-      //msync(map_, dh_->node_size * dh_->num_nodes, MS_ASYNC);
+      msync(map_, dh_->node_size * dh_->num_nodes, MS_SYNC);
       munmap(map_, dh_->node_size * dh_->num_nodes);
       ::close(fd_);
     }
@@ -199,13 +228,47 @@ namespace LibMap {
       delete d;
     }
 
-    bool put(const void *key, uint32_t key_size, const void *val, uint32_t val_size)
+    bool put(const void *key, uint32_t key_size,
+             const void *val, uint32_t val_size, insert_mode_t flags = OVERWRITE)
     {
       entry_t entry = {(char *) key, key_size,
-                       (char *) val, val_size, key_size + val_size};
+                       (char *) val, val_size,
+                       key_size + dh_->data_size,
+                       flags};
       up_entry_t *up_entry = NULL;
     
       insert(dh_->root_id, &entry, &up_entry);
+    }
+
+    bool del(const void *key, uint32_t key_size)
+    {
+      entry_t entry = {key, key_size, NULL, 0, 0};
+
+      _del(dh_->root_id, &entry);
+    }
+
+    bool _del(node_id_t id, entry_t *entry)
+    {
+      node_t *node = _alloc_node(id);
+      if (node->h->is_leaf) {
+        find_res_t *r = find_key(node, entry->key, entry->key_size);
+        if (r->type == KEY_FOUND) {
+          // remove a slot
+          char *p = (char *) node->b + node->h->free_off;
+          if (p != r->slot_p) {
+            memmove(p + sizeof(slot_t), p, r->slot_p - p);
+          }
+          node->h->free_off += sizeof(slot_t);
+          node->h->free_size += sizeof(slot_t);
+          --(node->h->num_keys);
+          --(dh_->num_keys);
+        }
+        delete r;
+      } else {
+        node_id_t next_id = _find_next(node, entry);
+        _del(next_id, entry);
+      }
+      delete node;
     }
 
     void show_node(void)
@@ -224,6 +287,10 @@ namespace LibMap {
       std::cout << "node_size: " << dh_->node_size << std::endl;
       std::cout << "init_data_size: " << dh_->init_data_size << std::endl;
       std::cout << "root_id: " << dh_->root_id << std::endl;
+      std::cout << "num_leaves: " << dh_->num_leaves << std::endl;
+      std::cout << "num_nonleaves: " << dh_->num_nonleaves << std::endl;
+      std::cout << "index_type: " << (int) dh_->index_type << std::endl;
+      std::cout << "data_size: " << (int) dh_->data_size << std::endl;
     }
 
     // debug method
@@ -272,10 +339,13 @@ namespace LibMap {
     db_flags_t oflags_;
     char *map_;
     db_header_t *dh_;
+    db_index_t index_type_;
+    uint8_t data_size_;
 
     node_t *_init_node(uint32_t id, bool is_root, bool is_leaf)
     {
       char *node_p = (char *) &(map_[dh_->node_size * id]);
+
       node_header_t *node_hdr_p = (node_header_t *) node_p;
       node_hdr_p->is_root = is_root;
       node_hdr_p->is_leaf = is_leaf;
@@ -284,11 +354,20 @@ namespace LibMap {
       node_hdr_p->data_off = 0;
       node_hdr_p->free_off = dh_->node_size - sizeof(node_header_t);;
       node_hdr_p->free_size = node_hdr_p->free_off;
+      node_hdr_p->prev_id = 0; // 0 means no link
+      node_hdr_p->next_id = 0; // 0 means no link
       node_body_t *node_body_p = (node_body_t *) (node_p + sizeof(node_header_t));
 
       node_t *node = new node_t;
       node->h = node_hdr_p;
       node->b = node_body_p;
+
+      if (is_leaf) {
+        ++(dh_->num_leaves);
+      } else {
+        ++(dh_->num_nonleaves);
+      }
+
       return node;
     }
 
@@ -313,19 +392,43 @@ namespace LibMap {
       if (node->h->is_leaf) {
         find_res_t *r = find_key(node, entry.key, entry.key_size);
         if (r->type == KEY_FOUND) {
+          // [TODO] get_data
+          /*
           slot_t *slot = (slot_t *) r->slot_p;
           *val_data = new data_t;
           (*val_data)->data = (char *) new char[slot->size+1];
           // [TODO] data size is sizeof(uint32_t) for now 
           (*val_data)->size = sizeof(uint32_t);
           memcpy((void *) (*val_data)->data, (const char *) r->data_p + slot->size, sizeof(uint32_t));
+          */
+          *val_data = get_data(r);
         }
         delete r;
       } else {
-        uint32_t next_id = _find_next(node, &entry);
+        node_id_t next_id = _find_next(node, &entry);
         find(next_id, key_data, val_data);
       }
       delete node;
+    }
+
+    data_t *get_data(find_res_t *r)
+    {
+      slot_t *slot = (slot_t *) r->slot_p;
+      data_t *val_data = new data_t;
+      if (dh_->index_type == CLUSTER) {
+        val_data->data = (char *) new char[dh_->data_size];
+        val_data->size = dh_->data_size;
+        memcpy((void *) val_data->data, 
+               (const char *) r->data_p + slot->size, dh_->data_size);
+      } else {
+        std::cout << "non-cluster index is not supported yet. "
+                  << "returning page-id and offset." << std::endl;
+        val_data->data = (char *) new char[dh_->data_size];
+        val_data->size = dh_->data_size;
+        memcpy((void *) val_data->data,
+               (const char *) r->data_p + slot->size, dh_->data_size);
+      }
+      return val_data;
     }
 
     bool insert(node_id_t id, entry_t *entry, up_entry_t **up_entry)
@@ -369,6 +472,7 @@ namespace LibMap {
           // create new leaf node
           node_t *new_node = _init_node(dh_->num_nodes-1, false, true);
           split_node(node, new_node, up_entry);
+
           delete new_node;
           is_split = true;
         }
@@ -452,6 +556,7 @@ namespace LibMap {
       find_res_t *r = find_key(node, entry->key, entry->key_size);
       if (r->type == KEY_FOUND) {
         // update the value
+        // [TODO] append
         memcpy((char *) r->data_p + entry->key_size, entry->val, entry->val_size);
         is_found = true;
       }
@@ -465,11 +570,34 @@ namespace LibMap {
       node_body_t *b = node->b;
 
       find_res_t *r = find_key(node, entry->key, entry->key_size);
+
+      if (r->type == KEY_FOUND && entry->mode == NOOVERWRITE) {
+        delete r;
+        return;
+      }
+
+      char val[dh_->data_size];
+      if (dh_->index_type == CLUSTER) {
+        // [NOTICE] APPEND is not supported in cluster index
+        memcpy(val, entry->val, dh_->data_size);
+      } else {
+        // get data ptr
+        // [TODO] append
+        // specify if it's update or append (append in inverted index usually)
+        data_ptr_t data_ptr = { 10, 64 }; // temporary
+        memcpy(val, &data_ptr, dh_->data_size);
+      }
+
+      // entry for leaf pages
+      entry_t _entry = {entry->key, entry->key_size,
+                        val, dh_->data_size,
+                        entry->size, entry->mode};
+
       if (r->type == KEY_FOUND) {
         // update the value
-        memcpy((char *) r->data_p + entry->key_size, entry->val, entry->val_size);
+        memcpy((char *) r->data_p + _entry.key_size, _entry.val, _entry.val_size);
       } else {
-        put_entry(node, entry, r);
+        put_entry(node, &_entry, r);
       }
       delete r;
     }
@@ -600,6 +728,7 @@ namespace LibMap {
       return r;
     }
 
+    // [TODO] append_node is better naming ?
     bool append_page(void)
     {
       uint32_t num_nodes = dh_->num_nodes;
@@ -613,6 +742,7 @@ namespace LibMap {
       return alloc_page(num_nodes, node_size);
     }
 
+    // [TODO] alloc_node is better naming ?
     bool alloc_page(uint32_t num_nodes, uint16_t node_size)
     {
       if (ftruncate(fd_, node_size * num_nodes) < 0) {
@@ -644,8 +774,8 @@ namespace LibMap {
       *up_entry = get_up_entry(node, slots + num_moves - 1, new_node->h->id);
       if (!node->h->is_leaf) {
         if (num_moves == 1) {
-          std::cerr << "[error] shoud set enough page size for a node" << std::endl;
-          return false;
+          // [TODO] throwing error for now
+          throw std::runtime_error("something bad happened. never comes here usully.");
         } else {
           --num_moves; // the entry is pushed up in non-leaf node
         }
@@ -663,6 +793,8 @@ namespace LibMap {
       char *slot_p = (char *) new_node->b + dh_->init_data_size;
       copy_entries((char *) new_node->b, slot_p, node, slots, off, num_moves-1, 0);
       set_node_header(new_node->h, off, num_moves);
+      // make a link
+      new_node->h->prev_id = node->h->id;
       
       // copy staying entries into the buffers
       char tmp_node[dh_->node_size];
@@ -685,6 +817,8 @@ namespace LibMap {
       // copy the buffers to the node and update the header
       memcpy((char *) node->b, (char *) np->b, dh_->init_data_size);
       set_node_header(node->h, off, num_stays);
+      // make a link
+      node->h->next_id = new_node->h->id;
 
       return true;
     }
@@ -715,7 +849,7 @@ namespace LibMap {
       //sp = (char *) node->b + dh_->init_data_size;
       for (int i = slot_from; i >= slot_to; --i) {
         // [TODO] value size is sizeof(uint32_t) for now
-        uint32_t entry_size = (slots+i)->size + sizeof(uint32_t);
+        uint32_t entry_size = (slots+i)->size + dh_->data_size;
         memcpy(dp + data_off, (char *) node->b + (slots+i)->off, entry_size);
         //dp += entry_size;
         // new slot for the entry above

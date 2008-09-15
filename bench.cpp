@@ -22,7 +22,7 @@ int main(int argc, char *argv[])
     mode = atoi(argv[2]);
   }
 
-  LibMap::Btree *bt = new LibMap::Btree;
+  LibMap::Btree *bt = new LibMap::Btree(LibMap::CLUSTER);
   bt->open("benchdb", LibMap::DB_CREAT);
 
   int rnum = atoi(argv[1]);
@@ -55,10 +55,10 @@ int main(int argc, char *argv[])
     for (int i = 0; i < rnum; ++i) {
       char key[9];
       memset(key, 0, 9);
-      //sprintf(key,"%08d", i);
-      //int num = i;
-      int num = rand() % rnum;
-      sprintf(key,"%08d", num);
+      sprintf(key,"%08d", i);
+      int num = i;
+      //int num = rand() % rnum;
+      //sprintf(key,"%08d", num);
 
       LibMap::data_t *val_data = bt->get(key, strlen(key));
       if (val_data != NULL) {
