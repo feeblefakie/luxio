@@ -26,9 +26,7 @@ typedef struct {
 
 int str_cmp_func(data_t &d1, data_t &d2)
 {
-  ALLOC_AND_COPY(s1, d1.data, d1.size); 
-  ALLOC_AND_COPY(s2, d2.data, d2.size); 
-  return strcmp(s1, s2);
+  return strcmp((char *) d1.data, (char *) d2.data);
 }
 
 struct str_cmp_functor : public std::binary_function<data_t, data_t, int>
@@ -74,8 +72,8 @@ int main(void)
 {
   double t1, t2;
   t1 = gettimeofday_sec();
-  compare_all(str_cmp_functor());
-  //compare_all(str_cmp_func);
+  //compare_all(str_cmp_functor());
+  compare_all(str_cmp_func);
   t2 = gettimeofday_sec();
   std::cout << "compare time: " << t2 - t1 << std::endl;
 
