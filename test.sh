@@ -22,4 +22,18 @@ echo "bang ..."
 ./main test "bang" 1000
 echo "silversun ..."
 ./main test "silversun" 1100
+echo "donuts ..."
+./main test "donuts" 1200
+echo "industrial ..."
+./main test "industrial" 1300
+echo "postrock ..."
+./main test "postrock" 1400
+echo "metal ..."
+./main test "metal" 1500
+echo "slashmetal ..."
+./main test "slashmetal" 1600
+echo "mogwai ..."
+./main test "mogwai" 1700
+echo "pickups ..."
+./main test "pickups" 1800
 
