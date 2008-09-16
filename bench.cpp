@@ -42,7 +42,6 @@ int main(int argc, char *argv[])
     t2 = gettimeofday_sec();
     std::cout << "put time: " << t2 - t1 << std::endl;
    
-    bt->show_db_header();
     if (argc != 3) {
       return 0;
     }
@@ -69,12 +68,14 @@ int main(int argc, char *argv[])
         }
         bt->clean_data(val_data);
       } else {
-        std::cout << "[error] entry not found." << std::endl;
+        std::cout << "[error] entry not found. [" << key << "]" << std::endl;
       } 
     }
     t2 = gettimeofday_sec();
     std::cout << "get time: " << t2 - t1 << std::endl;
   }
+
+  bt->show_db_header();
 
   bt->close();
 
