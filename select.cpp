@@ -16,7 +16,15 @@ int main(int argc, char *argv[])
   memcpy(key, argv[2], 256);
 
   bt->get(key, strlen(key));
-  //bt->show_node();
+  LibMap::data_t *val_data = bt->get(key, strlen(key));
+  if (val_data != NULL) {
+    int val;
+    memcpy(&val, val_data->data, val_data->size);
+    std::cout << "value: " << val << std::endl;
+    bt->clean_data(val_data);
+  } else {
+    std::cout << "[error] entry not found. [" << key << "]" << std::endl;
+  } 
 
   return 0;
 }
