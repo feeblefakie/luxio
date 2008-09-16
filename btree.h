@@ -929,8 +929,8 @@ namespace LibMap {
       up_entry_t *up_entry = new up_entry_t;
 
       if (cmp_ == str_cmp_func && node->h->is_leaf) {
-        slot_t *slot_r = slots + boundary_off; // right slot (bigger)
-        slot_t *slot_l = slots + boundary_off - 1; // left slot (smaller)
+        slot_t *slot_r = slots + boundary_off; // right slot (smaller)
+        slot_t *slot_l = slots + boundary_off - 1; // left slot (bigger)
         ALLOC_AND_COPY(key_small, (char *) node->b + slot_r->off, slot_r->size);
         ALLOC_AND_COPY(key_big, (char *) node->b + slot_l->off, slot_l->size);
         // get prefix key for prefix key compression
