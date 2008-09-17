@@ -55,18 +55,22 @@ namespace LibMap {
 
   typedef uint32_t block_id_t;
 
+#pragma pack(1)
   typedef struct {
     block_id_t id;
     uint16_t off;
+    bool is_empty;
   } free_pool_t;
+#pragma pack()
 
   typedef struct {
     uint32_t num_blocks;
     uint32_t block_size;
     uint32_t bytes_used;
-    free_pool_t first_free_ptr[32]; // ptr to first free space having 2^0 - 2^32 bytes (2^0 - 2^4 unused)
+    block_id_t cur_block_id;
+    free_pool_t first_free_ptr[32];
     free_pool_t last_free_ptr[32];
-    off_t data_off; // points to area being allocated next
+    bool is_free_ptr_empty[32];
   } db_header_t;
 
   typedef struct {
@@ -118,6 +122,7 @@ namespace LibMap {
           dh.first_free_ptr[i].off = 0;
           dh.last_free_ptr[i].id = 0;
           dh.last_free_ptr[i].off = 0;
+          dh.is_free_ptr_empty[i] = true;
         }
 
         if (_write(fd_, &dh, sizeof(db_header_t)) < 0) {
@@ -185,25 +190,56 @@ namespace LibMap {
 
     data_ptr_t *_put(record_t *r)
     {
+      std::cout << "record_size_ceiled: " << r->size_ceiled << std::endl;
+      block_id_t block_id = dh_->num_blocks + 1; // new block
+
       // allocate blocks more than record size
       uint32_t num_blocks = ceil_size(r->h->size, 2, 12) / dh_->block_size;
       append_blocks(num_blocks);
+      std::cout << num_blocks << " appended" << std::endl;
 
-      // if data size(with record header) is less than page size
-      // allocate the size and others are divied into 2^n (n=11,10...)
-      // and append them to the free_ptr
-      
-      // write header
-      lseek(fd_, dh_->data_off, SEEK_SET);
+      // write header and data
+      off_t off = (dh_->cur_block_id-1) * dh_->block_size + DEFAULT_PAGESIZE;
+      std::cout << "write offset: " << off << std::endl;
+      lseek(fd_, off, SEEK_SET);
       _write(fd_, r->h, sizeof(record_header_t));
-      // write data
       lseek(fd_, sizeof(record_header_t), SEEK_CUR);
       _write(fd_, r->d->data, r->d->size);
 
+      /* if data size(with record header) is less than block size,
+       * the rest of a block is divied into 2^n(n=11,10...) chunks
+       * and append them to the free_ptr
+       */
       if (r->size_ceiled < dh_->block_size) {
-        // split the rest and link them to the tails of free ptr
-        // chunks = split_block;
-        // link_to_freelist(chunks);
+        uint16_t off_in_block = r->size_ceiled;
+        uint32_t rest_size = dh_->block_size - r->size_ceiled;
+        for (int i = 11; i >= 5; --i) { 
+          uint16_t chunk_size = pow(2, i);
+          if (rest_size >= chunk_size) {
+            std::cout << "chunk size: " << chunk_size
+                      << ", off: " << off_in_block << std::endl;
+            link_free_list(block_id, off_in_block, i);
+            off_in_block += chunk_size;
+            rest_size -= chunk_size;
+          }
+        }
+      }
+    }
+  
+    void link_free_list(block_id_t id, uint16_t off, int pow)
+    {
+      free_pool_t pool = {id, off, false};
+      if (dh_->is_free_ptr_empty[pow-1]) {
+        memcpy(&(dh_->first_free_ptr[pow-1]), &pool, sizeof(free_pool_t));
+        memcpy(&(dh_->last_free_ptr[pow-1]), &pool, sizeof(free_pool_t));
+        dh_->is_free_ptr_empty[pow-1] = false;
+      } else {
+        free_pool_t last_pool;
+        memcpy(&last_pool, &(dh_->last_free_ptr[pow-1]), sizeof(free_pool_t));
+        memcpy(&(dh_->last_free_ptr[pow-1]), &pool, sizeof(free_pool_t));
+        off_t off = (last_pool.id-1) * dh_->block_size + last_pool.off;
+        lseek(fd_, off, SEEK_SET);
+        _write(fd_, &pool, sizeof(free_pool_t));
       }
     }
 
@@ -226,7 +262,7 @@ namespace LibMap {
 
     bool append_blocks(uint32_t append_num_blocks)
     {
-      dh_->data_off = DEFAULT_PAGESIZE + dh_->block_size * dh_->num_blocks;
+      dh_->cur_block_id = dh_->num_blocks + 1;
       dh_->num_blocks += append_num_blocks;
       if (ftruncate(fd_, DEFAULT_PAGESIZE + dh_->block_size * dh_->num_blocks) < 0) {
         std::cout << "ftruncate failed" << std::endl;
