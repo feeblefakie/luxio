@@ -55,12 +55,19 @@ namespace LibMap {
 
   typedef uint32_t block_id_t;
 
+#pragma pack(2)
+  typedef struct {
+    block_id_t id;
+    uint16_t off;
+  } free_chunk_ptr_t;
+#pragma pack()
+
 #pragma pack(1)
   typedef struct {
     block_id_t id;
     uint16_t off;
-    bool is_empty;
-  } free_pool_t;
+    bool is_last;
+  } free_chunk_header_t;
 #pragma pack()
 
   typedef struct {
@@ -68,9 +75,9 @@ namespace LibMap {
     uint32_t block_size;
     uint32_t bytes_used;
     block_id_t cur_block_id;
-    free_pool_t first_free_ptr[32];
-    free_pool_t last_free_ptr[32];
-    bool is_free_ptr_empty[32];
+    free_chunk_ptr_t first_free_chunk_ptr[32];
+    free_chunk_ptr_t last_free_chunk_ptr[32];
+    bool is_free_chunk_ptr_empty[32];
   } db_header_t;
 
   typedef struct {
@@ -118,11 +125,11 @@ namespace LibMap {
         dh.block_size = getpagesize();
         dh.bytes_used = 0;
         for (int i = 0; i < 32; ++i) {
-          dh.first_free_ptr[i].id = 0;
-          dh.first_free_ptr[i].off = 0;
-          dh.last_free_ptr[i].id = 0;
-          dh.last_free_ptr[i].off = 0;
-          dh.is_free_ptr_empty[i] = true;
+          dh.first_free_chunk_ptr[i].id = 0;
+          dh.first_free_chunk_ptr[i].off = 0;
+          dh.last_free_chunk_ptr[i].id = 0;
+          dh.last_free_chunk_ptr[i].off = 0;
+          dh.is_free_chunk_ptr_empty[i] = true;
         }
 
         if (_write(fd_, &dh, sizeof(db_header_t)) < 0) {
@@ -157,6 +164,17 @@ namespace LibMap {
       msync(map_, DEFAULT_PAGESIZE, MS_SYNC);
       munmap(map_, DEFAULT_PAGESIZE);
       ::close(fd_);
+    }
+
+    void show_freearea(void)
+    {
+      for (int i = 0; i < 32; ++i) {
+        if (!dh_->is_free_chunk_ptr_empty[i]) {
+          free_chunk_ptr_t free_ptr = dh_->first_free_chunk_ptr[i];
+
+        }
+      }
+
     }
 
     // put new data
@@ -226,21 +244,25 @@ namespace LibMap {
       }
     }
   
-    void link_free_list(block_id_t id, uint16_t off, int pow)
+    void link_free_list(block_id_t id, uint16_t off_in_block, int pow)
     {
-      free_pool_t pool = {id, off, false};
-      if (dh_->is_free_ptr_empty[pow-1]) {
-        memcpy(&(dh_->first_free_ptr[pow-1]), &pool, sizeof(free_pool_t));
-        memcpy(&(dh_->last_free_ptr[pow-1]), &pool, sizeof(free_pool_t));
-        dh_->is_free_ptr_empty[pow-1] = false;
+      free_chunk_ptr_t ptr = {id, off_in_block};
+      if (dh_->is_free_chunk_ptr_empty[pow-1]) {
+        memcpy(&(dh_->first_free_chunk_ptr[pow-1]), &ptr, sizeof(free_chunk_ptr_t));
+        memcpy(&(dh_->last_free_chunk_ptr[pow-1]), &ptr, sizeof(free_chunk_ptr_t));
+        dh_->is_free_chunk_ptr_empty[pow-1] = false;
       } else {
-        free_pool_t last_pool;
-        memcpy(&last_pool, &(dh_->last_free_ptr[pow-1]), sizeof(free_pool_t));
-        memcpy(&(dh_->last_free_ptr[pow-1]), &pool, sizeof(free_pool_t));
-        off_t off = (last_pool.id-1) * dh_->block_size + last_pool.off;
+        free_chunk_ptr_t last_ptr;
+        memcpy(&last_ptr, &(dh_->last_free_chunk_ptr[pow-1]), sizeof(free_chunk_ptr_t));
+        memcpy(&(dh_->last_free_chunk_ptr[pow-1]), &ptr, sizeof(free_chunk_ptr_t));
+        off_t off = (last_ptr.id-1) * dh_->block_size + last_ptr.off;
         lseek(fd_, off, SEEK_SET);
-        _write(fd_, &pool, sizeof(free_pool_t));
+        _write(fd_, &last_ptr, sizeof(free_chunk_ptr_t));
       }
+      free_chunk_header_t header = {id, off_in_block, true};
+      off_t off = (id - 1) * dh_->block_size + off_in_block;
+      lseek(fd_, off, SEEK_SET);
+      _write(fd_, &header, sizeof(free_chunk_header_t));
     }
 
     uint32_t ceil_size(uint32_t size, int base, int start_pow)
