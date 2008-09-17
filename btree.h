@@ -814,10 +814,8 @@ namespace LibMap {
         return false;
       }
 
-      // [warn] slots size might 1
       // get a entry being set in the parent node  
-      *up_entry = get_up_entry2(node, slots, num_moves, new_node->h->id);
-      //*up_entry = get_up_entry(node, slots + num_moves - 1, new_node->h->id);
+      *up_entry = get_up_entry(node, slots, num_moves, new_node->h->id);
       if (!node->h->is_leaf) {
         if (num_moves == 1) {
           // [TODO] throwing error for now
@@ -923,7 +921,7 @@ namespace LibMap {
       return prefix;
     }
 
-    up_entry_t *get_up_entry2(node_t *node, slot_t *slots, 
+    up_entry_t *get_up_entry(node_t *node, slot_t *slots, 
                               uint16_t boundary_off, node_id_t up_node_id)
     {
       up_entry_t *up_entry = new up_entry_t;
@@ -949,21 +947,6 @@ namespace LibMap {
 
       return up_entry;
     }
-
-    up_entry_t *get_up_entry(node_t *node, slot_t *slot, node_id_t up_node_id)
-    {
-      char *b = (char *) node->b;
-      up_entry_t *up_entry = new up_entry_t;
-      up_entry->key = new char[slot->size];
-      memcpy((char *) up_entry->key, b + slot->off, slot->size);
-      up_entry->key_size = slot->size;
-      up_entry->val = new char[sizeof(node_id_t)];
-      memcpy((char *) up_entry->val, &up_node_id, sizeof(node_id_t));
-      up_entry->val_size = sizeof(node_id_t);
-      up_entry->size = up_entry->key_size + up_entry->val_size;
-
-      return up_entry;
-    } 
 
     void clean_up_entry(up_entry_t **up_entry)
     {
