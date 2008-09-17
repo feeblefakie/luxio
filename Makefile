@@ -1,5 +1,5 @@
 
-all: clean main bench select ctest delete intbench
+all: clean main bench select ctest delete intbench keybench
 
 main: main.cpp btree.h
 	g++ -g $< -o $@
@@ -19,8 +19,11 @@ ctest: ctest.cpp btree.h
 intbench: intbench.cpp btree.h
 	g++ -g $< -o $@
 
+keybench: keybench.cpp btree.h
+	g++ -g $< -o $@
+
 check:
 	./main
 
 clean:
-	rm -f main test bench benchdb select ctest delete intbench intbenchdb
+	rm -f main test bench benchdb select ctest delete intbench intbenchdb keybenchdb

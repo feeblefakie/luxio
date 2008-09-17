@@ -1,0 +1,157 @@
+prefix key compression あり
+
+put time: 15.3198
+get time: 17.867
+========= SHOW ROOT ==========
+num_keys: 93179
+num_nodes: 636
+node_size: 4096
+init_data_size: 4072
+root_id: 287
+num_leaves: 631
+num_nonleaves: 4
+index_type: 1
+data_size: 4
+./keybench 3  32.34s user 0.72s system 98% cpu 33.593 total
+
+filesize: 2605056
+
+
+prefix key compression なし
+put time: 15.8863
+get time: 18.018
+========= SHOW ROOT ==========
+num_keys: 93179
+num_nodes: 643
+node_size: 4096
+init_data_size: 4072
+root_id: 237
+num_leaves: 636
+num_nonleaves: 6
+index_type: 1
+data_size: 4
+./keybench 3  33.01s user 0.77s system 99% cpu 33.962 total
+
+filesize: 2633728
+
+prefix key compression あり
+--------------------------------
+put time: 222.048
+get time: 239.948
+========= SHOW ROOT ==========
+num_keys: 391616
+num_nodes: 3517
+node_size: 4096
+init_data_size: 4072
+root_id: 287
+num_leaves: 3491
+num_nonleaves: 25
+index_type: 1
+data_size: 4
+./keybench 3  446.65s user 12.89s system 99% cpu 7:42.27 total
+
+filesize: 14405632
+
+
+put time: 227.787
+========= SHOW ROOT ==========
+num_keys: 391696
+num_nodes: 3500
+node_size: 4096
+init_data_size: 4072
+root_id: 237
+num_leaves: 3465
+num_nonleaves: 34
+index_type: 1
+data_size: 4
+./keybench 1  214.17s user 11.11s system 98% cpu 3:48.15 total
+
+filesize: 14336000
+
+
+ % time ./keybench 1
+ put time: 224.916
+ ========= SHOW ROOT ==========
+ num_keys: 391616
+ num_nodes: 3517
+ node_size: 4096
+ init_data_size: 4072
+ root_id: 287
+ num_leaves: 3491
+ num_nonleaves: 25
+ index_type: 1
+ data_size: 4
+ ./keybench 1  209.92s user 11.57s system 98% cpu 3:45.24 total
+
+
+with prefix key compression
+ put time: 30.4592
+ get time: 34.8955
+ ========= SHOW ROOT ==========
+ num_keys: 128204
+ num_nodes: 929
+ node_size: 4096
+ init_data_size: 4072
+ root_id: 287
+ num_leaves: 921
+ num_nonleaves: 7
+ index_type: 1
+ data_size: 4
+ ./keybench 3  63.36s user 1.54s system 99% cpu 1:05.42 total
+
+filesize: 3805184
+
+
+without key prefix compression
+put time: 31.2286
+get time: 34.8637
+========= SHOW ROOT ==========
+num_keys: 128204
+num_nodes: 923
+node_size: 4096
+init_data_size: 4072
+root_id: 237
+num_leaves: 915
+num_nonleaves: 7
+index_type: 1
+data_size: 4
+./keybench 3  64.14s user 1.51s system 98% cpu 1:06.52 total
+
+filesize: 3780608
+
+
+
+without prefix key compression
+ % ./keybench 3
+ put time: 3.3079
+ get time: 3.21014
+ num_splits: 1061
+ ========= SHOW DATABASE HEADER ==========
+ num_keys: 40559
+ num_nodes: 1065
+ node_size: 1024
+ init_data_size: 1000
+ root_id: 66
+ num_leaves: 1037
+ num_nonleaves: 27
+ index_type: 1
+ data_size: 4
+
+with prefix key compression
+  % ./keybench 3
+  put time: 3.26245
+  get time: 3.15619
+  num_splits: 1063
+  ========= SHOW DATABASE HEADER ==========
+  num_keys: 40559
+  num_nodes: 1067
+  node_size: 1024
+  init_data_size: 1000
+  root_id: 86
+  num_leaves: 1045
+  num_nonleaves: 21
+  index_type: 1
+  data_size: 4
+
+
+
