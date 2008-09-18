@@ -195,24 +195,25 @@ namespace LibMap {
     // put new data
     data_ptr_t *put(data_t *data)
     {
-      record_t *record = init_record(data);
+      data_ptr_t *data_ptr;
+      record_t *r = init_record(data);
 
       // search free area by data size
-      free_pool_ptr_t *pool = get_free_pool(record);
+      free_pool_ptr_t *pool = get_free_pool(r);
       if (pool != NULL) {
-        // free pool found
         std::cout << "####### pool found !!! #######" << std::endl;
-
         // put record
-        
-        // organize free pool
-        // it's the first pool so, put the poos's next id and offst into first_pool_ptr.
+        data_ptr = write_record(r, pool->id, pool->off);
+
       } else {
         // no free pool found
-        _put(record);
+        data_ptr = _put(r);
       }
       
       // update data_ptr and statistics
+      //
+
+      return data_ptr;
     }
 
     free_pool_ptr_t *get_free_pool(record_t *r)
@@ -266,7 +267,10 @@ namespace LibMap {
       std::cout << num_blocks << " appended" << std::endl;
 
       //write a record into the head of the block
-      write_record(block_id, r);
+      data_ptr_t *data_ptr = write_record(r, block_id, 0);
+      if (data_ptr == NULL) {
+        return NULL;
+      }
 
       /* 
        * if data size(with record header) is less than block size,
@@ -276,6 +280,8 @@ namespace LibMap {
       if (r->size_ceiled < dh_->block_size) {
         block_to_free_pools(block_id, r->size_ceiled);
       }
+
+      return data_ptr;
     }
 
     void block_to_free_pools(block_id_t block_id, uint16_t off_in_block)
@@ -293,12 +299,20 @@ namespace LibMap {
       }
     }
 
-    void write_record(block_id_t block_id, record_t *r)
+    data_ptr_t *write_record(record_t *r, block_id_t block_id, uint16_t off)
     {
-      off_t off = calc_off(block_id, 0);
-      std::cout << "write offset: " << off << std::endl;
-      _pwrite(fd_, r->h, sizeof(record_header_t), off);
-      _pwrite(fd_, r->d->data, r->d->size, off + sizeof(record_header_t));
+      off_t g_off = calc_off(block_id, off);
+      std::cout << "write offset: " << g_off << std::endl;
+      int nbytes = _pwrite(fd_, r->h, sizeof(record_header_t), g_off);
+      nbytes += _pwrite(fd_, r->d->data, r->d->size, off + sizeof(record_header_t));
+
+      if (nbytes != sizeof(record_header_t) + r->d->size) {
+        return NULL;
+      }
+      data_ptr_t *data_ptr = new data_ptr_t;  
+      data_ptr->id = block_id;
+      data_ptr->off = off;
+      return data_ptr;
     }
   
     void append_free_pool(block_id_t id, uint16_t off_in_block, int pow)
@@ -432,7 +446,7 @@ namespace LibMap {
     ssize_t _pwrite(int fd, const void *buf, size_t nbyte, off_t offset)
     {
       lseek(fd, offset, SEEK_SET);
-      _write(fd, buf, nbyte);
+      return _write(fd, buf, nbyte);
       // [TODO] pwrite 
     }
 
