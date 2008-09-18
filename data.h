@@ -166,15 +166,29 @@ namespace LibMap {
       ::close(fd_);
     }
 
-    void show_freearea(void)
+    void show_free_pools(void)
     {
       for (int i = 0; i < 32; ++i) {
         if (!dh_->is_pool_empty[i]) {
           free_pool_ptr_t pool_ptr = dh_->first_pool_ptr[i];
-
+          std::cout << "free pool size: " << pow(2, i+1) << std::endl;
+          while (1) {
+            off_t off = calc_off(pool_ptr.id, pool_ptr.off);
+            std::cout << "block id: " << pool_ptr.id 
+                      << ", off: " << pool_ptr.off << std::endl;
+              
+            free_pool_header_t pool_header;
+            _pread(fd_, &pool_header, sizeof(free_pool_header_t), off);
+            std::cout << "next id: " << pool_header.id 
+                      << ", next off: " << pool_header.off 
+                      << ", is_last: " << pool_header.is_last << std::endl;
+            if (pool_header.is_last) { break; }
+            // block id and offset for next free pool
+            pool_ptr.id = pool_header.id;
+            pool_ptr.off = pool_header.off;
+          }
         }
       }
-
     }
 
     // put new data
@@ -216,9 +230,7 @@ namespace LibMap {
       append_blocks(num_blocks);
       std::cout << num_blocks << " appended" << std::endl;
 
-      /*
-       * write a record into the head of the block
-       */
+      //write a record into the head of the block
       write_record(block_id, r);
 
       /* 
@@ -248,7 +260,7 @@ namespace LibMap {
 
     void write_record(block_id_t block_id, record_t *r)
     {
-      off_t off = (block_id-1) * dh_->block_size + DEFAULT_PAGESIZE;
+      off_t off = calc_off(block_id, 0);
       std::cout << "write offset: " << off << std::endl;
       _pwrite(fd_, r->h, sizeof(record_header_t), off);
       _pwrite(fd_, r->d->data, r->d->size, off + sizeof(record_header_t));
@@ -259,18 +271,25 @@ namespace LibMap {
       free_pool_ptr_t ptr = {id, off_in_block};
       if (dh_->is_pool_empty[pow-1]) {
         memcpy(&(dh_->first_pool_ptr[pow-1]), &ptr, sizeof(free_pool_ptr_t));
-        memcpy(&(dh_->last_pool_ptr[pow-1]), &ptr, sizeof(free_pool_ptr_t));
         dh_->is_pool_empty[pow-1] = false;
       } else {
         free_pool_ptr_t last_ptr;
         memcpy(&last_ptr, &(dh_->last_pool_ptr[pow-1]), sizeof(free_pool_ptr_t));
-        memcpy(&(dh_->last_pool_ptr[pow-1]), &ptr, sizeof(free_pool_ptr_t));
-        off_t off = (last_ptr.id-1) * dh_->block_size + last_ptr.off;
-        _pwrite(fd_, &last_ptr, sizeof(free_pool_ptr_t), off);
+        // put ptr to the next(last) pool
+        off_t off = calc_off(last_ptr.id, last_ptr.off);
+        free_pool_header_t header = {id, off_in_block, false};
+        _pwrite(fd_, &header, sizeof(free_pool_header_t), off);
       }
-      free_pool_header_t header = {id, off_in_block, true};
-      off_t off = (id - 1) * dh_->block_size + off_in_block;
+      // last pool
+      free_pool_header_t header = {0, 0, true};
+      off_t off = calc_off(id, off_in_block);
       _pwrite(fd_, &header, sizeof(free_pool_header_t), off);
+      memcpy(&(dh_->last_pool_ptr[pow-1]), &ptr, sizeof(free_pool_ptr_t));
+    }
+
+    off_t calc_off(block_id_t id, uint16_t off)
+    {
+      return (id-1) * dh_->block_size + DEFAULT_PAGESIZE + off;
     }
 
     uint32_t ceil_size(uint32_t size, int base, int start_pow)
@@ -372,6 +391,12 @@ namespace LibMap {
       // [TODO] pwrite 
     }
 
+    ssize_t _pread(int fd, void *buf, size_t nbyte, off_t offset)
+    {
+      lseek(fd, offset, SEEK_SET);
+      _read(fd, buf, nbyte);
+      // [TODO] pread
+    }
 
     void _mkdir(const char *str)
     {
