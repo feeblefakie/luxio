@@ -216,6 +216,22 @@ namespace LibMap {
       return data_ptr;
     }
 
+    data_t *get(data_ptr_t *data_ptr)
+    {
+      record_header_t h;
+      off_t off = calc_off(data_ptr->id, data_ptr->off);
+      _pread(fd_, &h, sizeof(record_header_t), off);
+      char buf[h.size-sizeof(record_header_t)+1];
+      memset(buf, 0, h.size-sizeof(record_header_t)+1);
+      int nbytes = _pread(fd_, buf, h.size - sizeof(record_header_t), 
+                          off + sizeof(record_header_t));
+
+      std::cout << "data size: [" << nbytes << "]" << std::endl;
+      std::cout << "GOT RECORD: [" << buf << "]" << std::endl;
+      std::cout << "record size: " << h.size << std::endl;
+      std::cout << "succeeding block id: " << h.next_block_id << std::endl;
+    }
+
     free_pool_ptr_t *get_free_pool(record_t *r)
     {
       if (dh_->is_pool_empty[r->pow_ceiled-1]) {
@@ -286,6 +302,7 @@ namespace LibMap {
 
     void block_to_free_pools(block_id_t block_id, uint16_t off_in_block)
     {
+      std::cout << "### split a block ###" << std::endl;
       uint16_t rest_size = dh_->block_size - off_in_block;
       for (int i = 11; i >= 5; --i) { 
         uint16_t chunk_size = pow(2, i);
@@ -304,7 +321,8 @@ namespace LibMap {
       off_t g_off = calc_off(block_id, off);
       std::cout << "write offset: " << g_off << std::endl;
       int nbytes = _pwrite(fd_, r->h, sizeof(record_header_t), g_off);
-      nbytes += _pwrite(fd_, r->d->data, r->d->size, off + sizeof(record_header_t));
+      nbytes += _pwrite(fd_, r->d->data, r->d->size, g_off + sizeof(record_header_t));
+      std::cout << "writing [" << (char *) r->d->data << "]" << std::endl;
 
       if (nbytes != sizeof(record_header_t) + r->d->size) {
         return NULL;
@@ -453,7 +471,7 @@ namespace LibMap {
     ssize_t _pread(int fd, void *buf, size_t nbyte, off_t offset)
     {
       lseek(fd, offset, SEEK_SET);
-      _read(fd, buf, nbyte);
+      return _read(fd, buf, nbyte);
       // [TODO] pread
     }
 
