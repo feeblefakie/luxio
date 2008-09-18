@@ -64,8 +64,8 @@ namespace LibMap {
 
 #pragma pack(1)
   typedef struct {
-    block_id_t id;
-    uint16_t off;
+    block_id_t next_id;
+    uint16_t next_off;
     bool is_last;
   } free_pool_header_t;
 #pragma pack()
@@ -89,6 +89,7 @@ namespace LibMap {
     record_header_t *h;
     data_t *d; 
     uint32_t size_ceiled;
+    uint32_t pow_ceiled;
   } record_t;
 
   typedef struct {
@@ -154,7 +155,7 @@ namespace LibMap {
       void *p = mmap(0, size, prot, MAP_SHARED, filedes, 0);  
       if (p == MAP_FAILED) {
         std::cerr << "map failed" << std::endl;
-        return NULL;
+          return NULL;
       }
       return p;
     }
@@ -179,13 +180,13 @@ namespace LibMap {
               
             free_pool_header_t pool_header;
             _pread(fd_, &pool_header, sizeof(free_pool_header_t), off);
-            std::cout << "next id: " << pool_header.id 
-                      << ", next off: " << pool_header.off 
+            std::cout << "next id: " << pool_header.next_id 
+                      << ", next off: " << pool_header.next_off 
                       << ", is_last: " << pool_header.is_last << std::endl;
             if (pool_header.is_last) { break; }
             // block id and offset for next free pool
-            pool_ptr.id = pool_header.id;
-            pool_ptr.off = pool_header.off;
+            pool_ptr.id = pool_header.next_id;
+            pool_ptr.off = pool_header.next_off;
           }
         }
       }
@@ -197,26 +198,59 @@ namespace LibMap {
       record_t *record = init_record(data);
 
       // search free area by data size
+      free_pool_ptr_t *pool = get_free_pool(record);
+      if (pool != NULL) {
+        // free pool found
+        std::cout << "####### pool found !!! #######" << std::endl;
 
-
-      // if no free area found
-      
-      _put(record);
+        // put record
+        
+        // organize free pool
+        // it's the first pool so, put the poos's next id and offst into first_pool_ptr.
+      } else {
+        // no free pool found
+        _put(record);
+      }
       
       // update data_ptr and statistics
+    }
+
+    free_pool_ptr_t *get_free_pool(record_t *r)
+    {
+      if (dh_->is_pool_empty[r->pow_ceiled-1]) {
+        // no free pool for the size
+        return NULL;
+      }
+      free_pool_ptr_t *pool = new free_pool_ptr_t;
+      free_pool_ptr_t *first_pool = &(dh_->first_pool_ptr[r->pow_ceiled-1]);
+      memcpy(pool, first_pool, sizeof(free_pool_ptr_t));
+  
+      // organize pointers
+      free_pool_header_t pool_header;
+      off_t off = calc_off(first_pool->id, first_pool->off);
+      _pread(fd_, &pool_header, sizeof(free_pool_header_t), off);
+      if (pool_header.is_last) {
+        dh_->is_pool_empty[r->pow_ceiled-1] = true;  
+      } else {
+        first_pool->id = pool_header.next_id;
+        first_pool->off = pool_header.next_off;
+      }
+
+      return pool;
     }
 
     record_t *init_record(data_t *data)
     {
       uint32_t record_size = sizeof(record_header_t) + data->size;
-      uint32_t record_size_ceiled = ceil_size(record_size, 2, 5); // 32bit minimun
+      uint32_t pow_ceiled =  get_pow_ceiled(record_size, 2, 5);
 
       record_t *r = new record_t;
       r->h = new record_header_t;
       r->h->size = record_size;
       r->h->next_block_id = 0; // no succeeding block
       r->d = data;
-      r->size_ceiled = record_size_ceiled;
+      r->size_ceiled = pow(2, pow_ceiled);
+      r->pow_ceiled = pow_ceiled;
       return r;
     }
 
@@ -226,7 +260,8 @@ namespace LibMap {
       block_id_t block_id = dh_->num_blocks + 1; // new block
 
       // allocate blocks more than record size
-      uint32_t num_blocks = ceil_size(r->h->size, 2, 12) / dh_->block_size;
+      div_t d = div(pow(2, r->pow_ceiled), dh_->block_size);
+      uint32_t num_blocks = d.rem > 0 ? d.quot + 1 : d.quot;
       append_blocks(num_blocks);
       std::cout << num_blocks << " appended" << std::endl;
 
@@ -292,10 +327,20 @@ namespace LibMap {
       return (id-1) * dh_->block_size + DEFAULT_PAGESIZE + off;
     }
 
+    uint32_t get_pow_ceiled(uint32_t size, int base, int start_pow)
+    {
+      for (int i = start_pow; i <= 32; ++i) {
+        if (size <= pow(base, i)) {
+          return i;
+        }
+      }
+      return 0;
+    }
+
     uint32_t ceil_size(uint32_t size, int base, int start_pow)
     {
       for (int i = start_pow; i <= 32; ++i) {
-        if (size < pow(base, i)) {
+        if (size <= pow(base, i)) {
           return pow(base, i);
         }
       }
