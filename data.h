@@ -59,7 +59,7 @@ namespace LibMap {
   typedef struct {
     block_id_t id;
     uint16_t off;
-  } free_chunk_ptr_t;
+  } free_pool_ptr_t;
 #pragma pack()
 
 #pragma pack(1)
@@ -67,7 +67,7 @@ namespace LibMap {
     block_id_t id;
     uint16_t off;
     bool is_last;
-  } free_chunk_header_t;
+  } free_pool_header_t;
 #pragma pack()
 
   typedef struct {
@@ -75,9 +75,9 @@ namespace LibMap {
     uint32_t block_size;
     uint32_t bytes_used;
     block_id_t cur_block_id;
-    free_chunk_ptr_t first_free_chunk_ptr[32];
-    free_chunk_ptr_t last_free_chunk_ptr[32];
-    bool is_free_chunk_ptr_empty[32];
+    free_pool_ptr_t first_pool_ptr[32];
+    free_pool_ptr_t last_pool_ptr[32];
+    bool is_pool_empty[32];
   } db_header_t;
 
   typedef struct {
@@ -125,11 +125,11 @@ namespace LibMap {
         dh.block_size = getpagesize();
         dh.bytes_used = 0;
         for (int i = 0; i < 32; ++i) {
-          dh.first_free_chunk_ptr[i].id = 0;
-          dh.first_free_chunk_ptr[i].off = 0;
-          dh.last_free_chunk_ptr[i].id = 0;
-          dh.last_free_chunk_ptr[i].off = 0;
-          dh.is_free_chunk_ptr_empty[i] = true;
+          dh.first_pool_ptr[i].id = 0;
+          dh.first_pool_ptr[i].off = 0;
+          dh.last_pool_ptr[i].id = 0;
+          dh.last_pool_ptr[i].off = 0;
+          dh.is_pool_empty[i] = true;
         }
 
         if (_write(fd_, &dh, sizeof(db_header_t)) < 0) {
@@ -169,8 +169,8 @@ namespace LibMap {
     void show_freearea(void)
     {
       for (int i = 0; i < 32; ++i) {
-        if (!dh_->is_free_chunk_ptr_empty[i]) {
-          free_chunk_ptr_t free_ptr = dh_->first_free_chunk_ptr[i];
+        if (!dh_->is_pool_empty[i]) {
+          free_pool_ptr_t pool_ptr = dh_->first_pool_ptr[i];
 
         }
       }
@@ -216,53 +216,61 @@ namespace LibMap {
       append_blocks(num_blocks);
       std::cout << num_blocks << " appended" << std::endl;
 
-      // write header and data
-      off_t off = (dh_->cur_block_id-1) * dh_->block_size + DEFAULT_PAGESIZE;
-      std::cout << "write offset: " << off << std::endl;
-      lseek(fd_, off, SEEK_SET);
-      _write(fd_, r->h, sizeof(record_header_t));
-      lseek(fd_, sizeof(record_header_t), SEEK_CUR);
-      _write(fd_, r->d->data, r->d->size);
+      /*
+       * write a record into the head of the block
+       */
+      write_record(block_id, r);
 
-      /* if data size(with record header) is less than block size,
+      /* 
+       * if data size(with record header) is less than block size,
        * the rest of a block is divied into 2^n(n=11,10...) chunks
-       * and append them to the free_ptr
+       * and append them to the free_pool_ptr
        */
       if (r->size_ceiled < dh_->block_size) {
-        uint16_t off_in_block = r->size_ceiled;
-        uint32_t rest_size = dh_->block_size - r->size_ceiled;
-        for (int i = 11; i >= 5; --i) { 
-          uint16_t chunk_size = pow(2, i);
-          if (rest_size >= chunk_size) {
-            std::cout << "chunk size: " << chunk_size
-                      << ", off: " << off_in_block << std::endl;
-            link_free_list(block_id, off_in_block, i);
-            off_in_block += chunk_size;
-            rest_size -= chunk_size;
-          }
+        block_to_free_pools(block_id, r->size_ceiled);
+      }
+    }
+
+    void block_to_free_pools(block_id_t block_id, uint16_t off_in_block)
+    {
+      uint16_t rest_size = dh_->block_size - off_in_block;
+      for (int i = 11; i >= 5; --i) { 
+        uint16_t chunk_size = pow(2, i);
+        if (rest_size >= chunk_size) {
+          std::cout << "chunk size: " << chunk_size
+                    << ", off: " << off_in_block << std::endl;
+          append_free_pool(block_id, off_in_block, i);
+          off_in_block += chunk_size;
+          rest_size -= chunk_size;
         }
       }
     }
-  
-    void link_free_list(block_id_t id, uint16_t off_in_block, int pow)
+
+    void write_record(block_id_t block_id, record_t *r)
     {
-      free_chunk_ptr_t ptr = {id, off_in_block};
-      if (dh_->is_free_chunk_ptr_empty[pow-1]) {
-        memcpy(&(dh_->first_free_chunk_ptr[pow-1]), &ptr, sizeof(free_chunk_ptr_t));
-        memcpy(&(dh_->last_free_chunk_ptr[pow-1]), &ptr, sizeof(free_chunk_ptr_t));
-        dh_->is_free_chunk_ptr_empty[pow-1] = false;
+      off_t off = (block_id-1) * dh_->block_size + DEFAULT_PAGESIZE;
+      std::cout << "write offset: " << off << std::endl;
+      _pwrite(fd_, r->h, sizeof(record_header_t), off);
+      _pwrite(fd_, r->d->data, r->d->size, off + sizeof(record_header_t));
+    }
+  
+    void append_free_pool(block_id_t id, uint16_t off_in_block, int pow)
+    {
+      free_pool_ptr_t ptr = {id, off_in_block};
+      if (dh_->is_pool_empty[pow-1]) {
+        memcpy(&(dh_->first_pool_ptr[pow-1]), &ptr, sizeof(free_pool_ptr_t));
+        memcpy(&(dh_->last_pool_ptr[pow-1]), &ptr, sizeof(free_pool_ptr_t));
+        dh_->is_pool_empty[pow-1] = false;
       } else {
-        free_chunk_ptr_t last_ptr;
-        memcpy(&last_ptr, &(dh_->last_free_chunk_ptr[pow-1]), sizeof(free_chunk_ptr_t));
-        memcpy(&(dh_->last_free_chunk_ptr[pow-1]), &ptr, sizeof(free_chunk_ptr_t));
+        free_pool_ptr_t last_ptr;
+        memcpy(&last_ptr, &(dh_->last_pool_ptr[pow-1]), sizeof(free_pool_ptr_t));
+        memcpy(&(dh_->last_pool_ptr[pow-1]), &ptr, sizeof(free_pool_ptr_t));
         off_t off = (last_ptr.id-1) * dh_->block_size + last_ptr.off;
-        lseek(fd_, off, SEEK_SET);
-        _write(fd_, &last_ptr, sizeof(free_chunk_ptr_t));
+        _pwrite(fd_, &last_ptr, sizeof(free_pool_ptr_t), off);
       }
-      free_chunk_header_t header = {id, off_in_block, true};
+      free_pool_header_t header = {id, off_in_block, true};
       off_t off = (id - 1) * dh_->block_size + off_in_block;
-      lseek(fd_, off, SEEK_SET);
-      _write(fd_, &header, sizeof(free_chunk_header_t));
+      _pwrite(fd_, &header, sizeof(free_pool_header_t), off);
     }
 
     uint32_t ceil_size(uint32_t size, int base, int start_pow)
@@ -356,6 +364,14 @@ namespace LibMap {
       }
       return count;
     }
+
+    ssize_t _pwrite(int fd, const void *buf, size_t nbyte, off_t offset)
+    {
+      lseek(fd, offset, SEEK_SET);
+      _write(fd, buf, nbyte);
+      // [TODO] pwrite 
+    }
+
 
     void _mkdir(const char *str)
     {
