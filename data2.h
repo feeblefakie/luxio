@@ -380,6 +380,11 @@ namespace LibMap {
         //std::cout << size << " bytes in block id: " << block_id << " is unused." << std::endl;
       }
     }
+
+    void prepend_free_pool(block_id_t id, uint16_t off_in_block, uint32_t size, int pow)
+    {
+      // [TODO]
+    }
   
     void _append_free_pool(block_id_t id, uint16_t off_in_block, uint32_t size, int pow)
     {
