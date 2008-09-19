@@ -221,7 +221,7 @@ namespace LibMap {
 
       // search free area by data size
       free_pool_ptr_t pool;
-      if (!search_free_pool(r, &pool)) {
+      if (search_free_pool(r, &pool)) {
         //std::cout << "####### pool found !!! #######" << std::endl;
         
         data_ptr = write_record(r, pool.id, pool.off);
