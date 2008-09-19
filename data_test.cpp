@@ -78,5 +78,7 @@ int main(int argc, char *argv[])
 
   dt->close();
 
+  delete dt;
+
   return 0;
 }
