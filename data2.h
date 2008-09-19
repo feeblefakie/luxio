@@ -184,13 +184,11 @@ namespace LibMap {
           std::cout << "free pool size: " << pow(2, i+1) << std::endl;
           while (1) {
             off_t off = calc_off(pool_ptr.id, pool_ptr.off);
-            std::cout << "block id: " << pool_ptr.id 
-                      << ", off: " << pool_ptr.off
-                      << ", size: " << pool_ptr.size << std::endl;
               
             free_pool_header_t pool_header;
             _pread(fd_, &pool_header, sizeof(free_pool_header_t), off);
-            std::cout << "next id: " << pool_header.next_block_id 
+            std::cout << "size: " << pool_header.size
+                      << ", next id: " << pool_header.next_block_id 
                       << ", next off: " << pool_header.next_off 
                       << ", next size: " << pool_header.next_size 
                       << ", is_last: " << pool_header.is_last << std::endl;
@@ -215,11 +213,10 @@ namespace LibMap {
     {
       data_ptr_t *data_ptr;
       record_t *r = init_record(data);
-/*
+
       std::cout << "data size: " << r->d->size << std::endl;  
       std::cout << "size (header+data): " << r->h->size << std::endl;  
       std::cout << "size (ceiled): " << r->size_ceiled << std::endl;  
-*/
 
       // search free area by data size
       free_pool_ptr_t *pool = get_free_pool(r);
@@ -349,6 +346,7 @@ namespace LibMap {
 
     void append_free_pool(block_id_t block_id, uint16_t off_in_block, uint16_t size)
     {
+      bool is_appended = false;
       for (int i = 11; i >= 5; --i) { 
         uint16_t chunk_size = pow(2, i);
         if (size >= chunk_size) {
@@ -360,8 +358,14 @@ namespace LibMap {
                     << ", pow: " << i << std::endl; 
                     */
           _append_free_pool(block_id, off_in_block, size, i);
+          is_appended = true;
           break;
         }
+      }
+
+      // too small chunk remains unused
+      if (!is_appended) {
+        // [TODO]
       }
     }
   
