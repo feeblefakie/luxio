@@ -192,6 +192,12 @@ namespace LibMap {
       }
     }
 
+    void show_db_header(void)
+    {
+      std::cout << "=== DATABASE HEADER ===" << std::endl;
+      std::cout << "num_blocks: " << dh_->num_blocks << std::endl;
+    }
+
     // put new data
     data_ptr_t *put(data_t *data)
     {
@@ -201,7 +207,7 @@ namespace LibMap {
       // search free area by data size
       free_pool_ptr_t *pool = get_free_pool(r);
       if (pool != NULL) {
-        std::cout << "####### pool found !!! #######" << std::endl;
+        //std::cout << "####### pool found !!! #######" << std::endl;
         // put record
         data_ptr = write_record(r, pool->id, pool->off);
 
@@ -221,15 +227,22 @@ namespace LibMap {
       record_header_t h;
       off_t off = calc_off(data_ptr->id, data_ptr->off);
       _pread(fd_, &h, sizeof(record_header_t), off);
-      char buf[h.size-sizeof(record_header_t)+1];
-      memset(buf, 0, h.size-sizeof(record_header_t)+1);
-      int nbytes = _pread(fd_, buf, h.size - sizeof(record_header_t), 
+
+      data_t *data = new data_t;
+      data->data = new char[h.size - sizeof(record_header_t)];
+      data->size = h.size - sizeof(record_header_t);
+      int nbytes = _pread(fd_, (char *) data->data, data->size, 
                           off + sizeof(record_header_t));
 
+      if (nbytes != data->size) {
+        return NULL;
+      }
+      /*
       std::cout << "data size: [" << nbytes << "]" << std::endl;
-      std::cout << "GOT RECORD: [" << buf << "]" << std::endl;
       std::cout << "record size: " << h.size << std::endl;
       std::cout << "succeeding block id: " << h.next_block_id << std::endl;
+      */
+      return data;
     }
 
     free_pool_ptr_t *get_free_pool(record_t *r)
@@ -273,14 +286,12 @@ namespace LibMap {
 
     data_ptr_t *_put(record_t *r)
     {
-      std::cout << "record_size_ceiled: " << r->size_ceiled << std::endl;
       block_id_t block_id = dh_->num_blocks + 1; // new block
 
       // allocate blocks more than record size
       div_t d = div(pow(2, r->pow_ceiled), dh_->block_size);
       uint32_t num_blocks = d.rem > 0 ? d.quot + 1 : d.quot;
       append_blocks(num_blocks);
-      std::cout << num_blocks << " appended" << std::endl;
 
       //write a record into the head of the block
       data_ptr_t *data_ptr = write_record(r, block_id, 0);
@@ -302,16 +313,19 @@ namespace LibMap {
 
     void block_to_free_pools(block_id_t block_id, uint16_t off_in_block)
     {
-      std::cout << "### split a block ###" << std::endl;
+      //std::cout << "### split a block ###" << std::endl;
       uint16_t rest_size = dh_->block_size - off_in_block;
       for (int i = 11; i >= 5; --i) { 
         uint16_t chunk_size = pow(2, i);
         if (rest_size >= chunk_size) {
-          std::cout << "chunk size: " << chunk_size
-                    << ", off: " << off_in_block << std::endl;
           append_free_pool(block_id, off_in_block, i);
           off_in_block += chunk_size;
           rest_size -= chunk_size;
+
+          // [TEST]
+          if (rest_size > chunk_size) {
+            ++i;
+          }
         }
       }
     }
@@ -319,10 +333,8 @@ namespace LibMap {
     data_ptr_t *write_record(record_t *r, block_id_t block_id, uint16_t off)
     {
       off_t g_off = calc_off(block_id, off);
-      std::cout << "write offset: " << g_off << std::endl;
       int nbytes = _pwrite(fd_, r->h, sizeof(record_header_t), g_off);
       nbytes += _pwrite(fd_, r->d->data, r->d->size, g_off + sizeof(record_header_t));
-      std::cout << "writing [" << (char *) r->d->data << "]" << std::endl;
 
       if (nbytes != sizeof(record_header_t) + r->d->size) {
         return NULL;
@@ -394,9 +406,6 @@ namespace LibMap {
         std::cout << "ftruncate failed" << std::endl;
         return false;
       }
-      std::cout << "DEFAULT_PAGESIZE: " << DEFAULT_PAGESIZE << std::endl;
-      std::cout << "block_size: " << dh_->block_size << std::endl;
-      std::cout << "num_blocks: " << dh_->num_blocks << std::endl;
       return true;
     }
 
