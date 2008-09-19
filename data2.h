@@ -40,6 +40,14 @@ namespace LibMap {
   const db_flags_t DB_TRUNC = 0x0400;
   const uint8_t AREA_FREE = 0;
   const uint8_t AREA_ALLOCATED = 1;
+  const uint32_t DEFAULT_PADDING = 20; // depends on the context
+
+  typedef enum {
+    NOPADDING,
+    FIXEDLEN,
+    RATIO,
+    PO2 // power of 2
+  } padding_mode_t;
 
 // these should move to a shared header file
 #pragma pack(2)
@@ -90,6 +98,8 @@ namespace LibMap {
     uint32_t block_size;
     uint32_t bytes_used;
     block_id_t cur_block_id;
+    padding_mode_t pmode;
+    uint32_t padding;
     free_pool_ptr_t first_pool_ptr[32]; // by size
     free_pool_ptr_t last_pool_ptr[32];
     bool is_pool_empty[32];
@@ -110,7 +120,8 @@ namespace LibMap {
    */
   class Data {
   public:
-    Data()
+    Data(padding_mode_t pmode = PO2, uint32_t padding = DEFAULT_PADDING)
+    : pmode_(pmode), padding_(padding)
     {}
 
     ~Data()
@@ -134,6 +145,9 @@ namespace LibMap {
         dh.num_blocks = 0;
         dh.block_size = getpagesize();
         dh.bytes_used = 0;
+        dh.cur_block_id = 0;
+        dh.pmode = pmode_;
+        dh.padding = padding_;
         for (int i = 0; i < 32; ++i) {
           dh.first_pool_ptr[i].id = 0;
           dh.first_pool_ptr[i].off = 0;
@@ -159,6 +173,19 @@ namespace LibMap {
       dh_ = (db_header_t *) map_;
     }
 
+    bool close()
+    {
+      msync(map_, DEFAULT_PAGESIZE, MS_SYNC);
+      munmap(map_, DEFAULT_PAGESIZE);
+      ::close(fd_);
+    }
+
+    void set_padding(padding_mode_t pmode, uint32_t padding)
+    {
+      pmode_ = pmode;
+      padding_ = padding;
+    }
+
     void *_mmap(int filedes, size_t size, int prot = PROT_READ | PROT_WRITE)
     {
       void *p = mmap(0, size, prot, MAP_SHARED, filedes, 0);  
@@ -167,13 +194,6 @@ namespace LibMap {
           return NULL;
       }
       return p;
-    }
-
-    bool close()
-    {
-      msync(map_, DEFAULT_PAGESIZE, MS_SYNC);
-      munmap(map_, DEFAULT_PAGESIZE);
-      ::close(fd_);
     }
 
     void show_free_pools(void)
@@ -313,7 +333,6 @@ namespace LibMap {
     record_t *init_record(data_t *data)
     {
       uint32_t record_size = sizeof(record_header_t) + data->size;
-      uint32_t pow_ceiled =  get_pow_ceiled(record_size, 2, 5);
 
       record_t *r = new record_t;
       r->h = new record_header_t;
@@ -321,11 +340,23 @@ namespace LibMap {
       r->h->size = record_size;
       r->h->next_block_id = 0; // no succeeding block
       r->d = data;
-      // [TODO] ceiling is done in two ways (2^n or with padding)
+
       // [TODO] if the size is more than block size, size_ceiled is selected in two ways.
       // (block*n or the rest is going to pool)
-      //r->size_ceiled = pow(2, pow_ceiled);
-      r->size_ceiled = record_size;
+      switch (dh_->pmode) {
+        case NOPADDING:
+          r->size_ceiled = record_size;
+          break;
+        case FIXEDLEN:
+          r->size_ceiled = record_size + dh_->padding;
+          break;
+        case RATIO:
+          r->size_ceiled = record_size + record_size * dh_->padding / 100;
+          break;
+        default: // PO2
+          r->size_ceiled = pow(2, get_pow_ceiled(record_size, 2, 5));
+          break;
+      }
       return r;
     }
 
@@ -464,6 +495,8 @@ namespace LibMap {
     db_flags_t oflags_;
     char *map_;
     db_header_t *dh_;
+    padding_mode_t pmode_;
+    uint32_t padding_;
 
     bool append_blocks(uint32_t append_num_blocks)
     {
