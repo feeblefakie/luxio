@@ -38,6 +38,8 @@ namespace LibMap {
   const db_flags_t DB_RDWR = 0x0002;
   const db_flags_t DB_CREAT = 0x0200;
   const db_flags_t DB_TRUNC = 0x0400;
+  const uint8_t AREA_FREE = 0;
+  const uint8_t AREA_ALLOCATED = 1;
 
 // these should move to a shared header file
 #pragma pack(2)
@@ -59,37 +61,44 @@ namespace LibMap {
   typedef struct {
     block_id_t id;
     uint16_t off;
+    uint32_t size;
   } free_pool_ptr_t;
 #pragma pack()
 
 #pragma pack(1)
   typedef struct {
-    block_id_t next_id;
+    uint8_t type; // allocated or free
+    uint32_t size;
+    block_id_t next_block_id;
     uint16_t next_off;
+    uint32_t next_size;
     bool is_last;
   } free_pool_header_t;
+
+  typedef struct {
+    uint8_t type; // allocated or free
+    uint32_t size;
+    block_id_t next_block_id;
+    // key ?
+  } record_header_t;
 #pragma pack()
+
+  typedef record_header_t common_header_t;
 
   typedef struct {
     uint32_t num_blocks;
     uint32_t block_size;
     uint32_t bytes_used;
     block_id_t cur_block_id;
-    free_pool_ptr_t first_pool_ptr[32];
+    free_pool_ptr_t first_pool_ptr[32]; // by size
     free_pool_ptr_t last_pool_ptr[32];
     bool is_pool_empty[32];
   } db_header_t;
 
   typedef struct {
-    uint32_t size;
-    block_id_t next_block_id;
-  } record_header_t;
-
-  typedef struct {
     record_header_t *h;
     data_t *d; 
     uint32_t size_ceiled;
-    uint32_t pow_ceiled;
   } record_t;
 
   typedef struct {
@@ -176,16 +185,18 @@ namespace LibMap {
           while (1) {
             off_t off = calc_off(pool_ptr.id, pool_ptr.off);
             std::cout << "block id: " << pool_ptr.id 
-                      << ", off: " << pool_ptr.off << std::endl;
+                      << ", off: " << pool_ptr.off
+                      << ", size: " << pool_ptr.size << std::endl;
               
             free_pool_header_t pool_header;
             _pread(fd_, &pool_header, sizeof(free_pool_header_t), off);
-            std::cout << "next id: " << pool_header.next_id 
+            std::cout << "next id: " << pool_header.next_block_id 
                       << ", next off: " << pool_header.next_off 
+                      << ", next size: " << pool_header.next_size 
                       << ", is_last: " << pool_header.is_last << std::endl;
             if (pool_header.is_last) { break; }
             // block id and offset for next free pool
-            pool_ptr.id = pool_header.next_id;
+            pool_ptr.id = pool_header.next_block_id;
             pool_ptr.off = pool_header.next_off;
           }
         }
@@ -196,6 +207,7 @@ namespace LibMap {
     {
       std::cout << "=== DATABASE HEADER ===" << std::endl;
       std::cout << "num_blocks: " << dh_->num_blocks << std::endl;
+      std::cout << "current block id: " << dh_->cur_block_id << std::endl;
     }
 
     // put new data
@@ -203,13 +215,20 @@ namespace LibMap {
     {
       data_ptr_t *data_ptr;
       record_t *r = init_record(data);
+/*
+      std::cout << "data size: " << r->d->size << std::endl;  
+      std::cout << "size (header+data): " << r->h->size << std::endl;  
+      std::cout << "size (ceiled): " << r->size_ceiled << std::endl;  
+*/
 
       // search free area by data size
       free_pool_ptr_t *pool = get_free_pool(r);
       if (pool != NULL) {
         //std::cout << "####### pool found !!! #######" << std::endl;
-        // put record
+        
         data_ptr = write_record(r, pool->id, pool->off);
+        append_free_pool(pool->id, pool->off + r->size_ceiled,
+                         pool->size - r->size_ceiled);
 
       } else {
         // no free pool found
@@ -247,23 +266,37 @@ namespace LibMap {
 
     free_pool_ptr_t *get_free_pool(record_t *r)
     {
-      if (dh_->is_pool_empty[r->pow_ceiled-1]) {
-        // no free pool for the size
+      uint32_t pow = get_pow_ceiled(r->size_ceiled, 2, 5);
+
+      // search a pool
+      bool pool_found = false;
+      while (pow <= 32) {
+        if (!dh_->is_pool_empty[pow-1]) {
+          pool_found = true;
+          break;
+        }
+        ++pow;
+      }
+      if (!pool_found) {
         return NULL;
       }
+
       free_pool_ptr_t *pool = new free_pool_ptr_t;
-      free_pool_ptr_t *first_pool = &(dh_->first_pool_ptr[r->pow_ceiled-1]);
+      free_pool_ptr_t *first_pool = &(dh_->first_pool_ptr[pow-1]);
       memcpy(pool, first_pool, sizeof(free_pool_ptr_t));
+
+      //std::cout << "free pool found. size: " << first_pool->size << std::endl;
   
-      // organize pointers
+      // organize free pool pointers
       free_pool_header_t pool_header;
       off_t off = calc_off(first_pool->id, first_pool->off);
       _pread(fd_, &pool_header, sizeof(free_pool_header_t), off);
       if (pool_header.is_last) {
-        dh_->is_pool_empty[r->pow_ceiled-1] = true;  
+        dh_->is_pool_empty[pow-1] = true;  
       } else {
-        first_pool->id = pool_header.next_id;
+        first_pool->id = pool_header.next_block_id;
         first_pool->off = pool_header.next_off;
+        first_pool->size = pool_header.next_size;
       }
 
       return pool;
@@ -276,58 +309,82 @@ namespace LibMap {
 
       record_t *r = new record_t;
       r->h = new record_header_t;
+      r->h->type = AREA_ALLOCATED;
       r->h->size = record_size;
       r->h->next_block_id = 0; // no succeeding block
       r->d = data;
-      r->size_ceiled = pow(2, pow_ceiled);
-      r->pow_ceiled = pow_ceiled;
+      // [TODO] ceiling is done in two ways (2^n or with padding)
+      // [TODO] if the size is more than block size, size_ceiled is selected in two ways.
+      // (block*n or the rest is going to pool)
+      //r->size_ceiled = pow(2, pow_ceiled);
+      r->size_ceiled = record_size;
       return r;
     }
 
     data_ptr_t *_put(record_t *r)
     {
-      block_id_t block_id = dh_->num_blocks + 1; // new block
-
       // allocate blocks more than record size
-      div_t d = div(pow(2, r->pow_ceiled), dh_->block_size);
+      div_t d = div(r->size_ceiled, dh_->block_size);
       uint32_t num_blocks = d.rem > 0 ? d.quot + 1 : d.quot;
       append_blocks(num_blocks);
 
       //write a record into the head of the block
-      data_ptr_t *data_ptr = write_record(r, block_id, 0);
+      data_ptr_t *data_ptr = write_record(r, dh_->cur_block_id, 0);
       if (data_ptr == NULL) {
         return NULL;
       }
 
-      /* 
-       * if data size(with record header) is less than block size,
-       * the rest of a block is divied into 2^n(n=11,10...) chunks
-       * and append them to the free_pool_ptr
-       */
       if (r->size_ceiled < dh_->block_size) {
-        block_to_free_pools(block_id, r->size_ceiled);
+        append_free_pool(dh_->cur_block_id, r->size_ceiled,
+                         dh_->block_size - r->size_ceiled);
+      } else {
+        if (d.rem > 0) {
+          append_free_pool(dh_->cur_block_id + d.quot,
+                           d.rem, dh_->block_size - d.rem);
+        }
       }
 
       return data_ptr;
     }
 
-    void block_to_free_pools(block_id_t block_id, uint16_t off_in_block)
+    void append_free_pool(block_id_t block_id, uint16_t off_in_block, uint16_t size)
     {
-      //std::cout << "### split a block ###" << std::endl;
-      uint16_t rest_size = dh_->block_size - off_in_block;
       for (int i = 11; i >= 5; --i) { 
         uint16_t chunk_size = pow(2, i);
-        if (rest_size >= chunk_size) {
-          append_free_pool(block_id, off_in_block, i);
-          off_in_block += chunk_size;
-          rest_size -= chunk_size;
-
-          // [TEST]
-          if (rest_size > chunk_size) {
-            ++i;
-          }
+        if (size >= chunk_size) {
+          /*
+          std::cout << "_append_free_pool: "
+                    << "block_id: " << block_id 
+                    << ", off: " << off_in_block 
+                    << ", size: " << size
+                    << ", pow: " << i << std::endl; 
+                    */
+          _append_free_pool(block_id, off_in_block, size, i);
+          break;
         }
       }
+    }
+  
+    void _append_free_pool(block_id_t id, uint16_t off_in_block, uint32_t size, int pow)
+    {
+      // added size to free_pool_header_t
+      free_pool_ptr_t ptr = {id, off_in_block, size};
+      if (dh_->is_pool_empty[pow-1]) {
+        memcpy(&(dh_->first_pool_ptr[pow-1]), &ptr, sizeof(free_pool_ptr_t));
+        dh_->is_pool_empty[pow-1] = false;
+      } else {
+        free_pool_ptr_t last_ptr;
+        memcpy(&last_ptr, &(dh_->last_pool_ptr[pow-1]), sizeof(free_pool_ptr_t));
+        // put ptr to the next(last) pool
+        off_t off = calc_off(last_ptr.id, last_ptr.off);
+        free_pool_header_t header = {AREA_FREE, last_ptr.size, id, off_in_block, size, false};
+        _pwrite(fd_, &header, sizeof(free_pool_header_t), off);
+      }
+      // last pool
+      free_pool_header_t header = {AREA_FREE, size, 0, 0, 0, true};
+      off_t off = calc_off(id, off_in_block);
+      _pwrite(fd_, &header, sizeof(free_pool_header_t), off);
+      memcpy(&(dh_->last_pool_ptr[pow-1]), &ptr, sizeof(free_pool_ptr_t));
     }
 
     data_ptr_t *write_record(record_t *r, block_id_t block_id, uint16_t off)
@@ -344,27 +401,6 @@ namespace LibMap {
       data_ptr->off = off;
       return data_ptr;
     }
-  
-    void append_free_pool(block_id_t id, uint16_t off_in_block, int pow)
-    {
-      free_pool_ptr_t ptr = {id, off_in_block};
-      if (dh_->is_pool_empty[pow-1]) {
-        memcpy(&(dh_->first_pool_ptr[pow-1]), &ptr, sizeof(free_pool_ptr_t));
-        dh_->is_pool_empty[pow-1] = false;
-      } else {
-        free_pool_ptr_t last_ptr;
-        memcpy(&last_ptr, &(dh_->last_pool_ptr[pow-1]), sizeof(free_pool_ptr_t));
-        // put ptr to the next(last) pool
-        off_t off = calc_off(last_ptr.id, last_ptr.off);
-        free_pool_header_t header = {id, off_in_block, false};
-        _pwrite(fd_, &header, sizeof(free_pool_header_t), off);
-      }
-      // last pool
-      free_pool_header_t header = {0, 0, true};
-      off_t off = calc_off(id, off_in_block);
-      _pwrite(fd_, &header, sizeof(free_pool_header_t), off);
-      memcpy(&(dh_->last_pool_ptr[pow-1]), &ptr, sizeof(free_pool_ptr_t));
-    }
 
     off_t calc_off(block_id_t id, uint16_t off)
     {
@@ -375,6 +411,16 @@ namespace LibMap {
     {
       for (int i = start_pow; i <= 32; ++i) {
         if (size <= pow(base, i)) {
+          return i;
+        }
+      }
+      return 0;
+    }
+
+    uint32_t get_pow_floored(uint32_t size, int base, int start_pow)
+    {
+      for (int i = start_pow; i >= 1; --i) {
+        if (size >= pow(base, i)) {
           return i;
         }
       }
