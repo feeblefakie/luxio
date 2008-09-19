@@ -86,12 +86,13 @@ namespace LibMap {
   typedef struct {
     uint8_t type; // allocated or free
     uint32_t size;
+    uint32_t size_padded; // size in a block
+    uint32_t size_total; // total size in blocks
+    uint8_t num_succeedings;
     block_id_t next_block_id;
     // key ?
   } record_header_t;
 #pragma pack()
-
-  typedef record_header_t common_header_t;
 
   typedef struct {
     uint32_t num_blocks;
@@ -108,7 +109,6 @@ namespace LibMap {
   typedef struct {
     record_header_t *h;
     data_t *d; 
-    uint32_t size_ceiled;
   } record_t;
 
   typedef struct {
@@ -236,17 +236,18 @@ namespace LibMap {
 /*
       std::cout << "data size: " << r->d->size << std::endl;  
       std::cout << "size (header+data): " << r->h->size << std::endl;  
-      std::cout << "size (ceiled): " << r->size_ceiled << std::endl;  
+      std::cout << "size (ceiled): " << r->h->size_padded << std::endl;  
 */
 
       // search free area by data size
       free_pool_ptr_t pool;
       if (search_free_pool(r, &pool)) {
         //std::cout << "####### pool found !!! #######" << std::endl;
-        
+       
+        // [TODO] if the (pool.size - r->h->size_padded) < 32) => r->h->size_padded = pool.size
         data_ptr = write_record(r, pool.id, pool.off);
-        append_free_pool(pool.id, pool.off + r->size_ceiled,
-                         pool.size - r->size_ceiled);
+        append_free_pool(pool.id, pool.off + r->h->size_padded,
+                         pool.size - r->h->size_padded);
 
       } else {
         // no free pool found
@@ -295,7 +296,7 @@ namespace LibMap {
 
     bool search_free_pool(record_t *r, free_pool_ptr_t *pool)
     {
-      uint32_t pow = get_pow_ceiled(r->size_ceiled, 2, 5);
+      uint32_t pow = get_pow_ceiled(r->h->size_padded, 2, 5);
 
       // search a pool
       bool pool_found = false;
@@ -335,35 +336,38 @@ namespace LibMap {
       uint32_t record_size = sizeof(record_header_t) + data->size;
 
       record_t *r = new record_t;
-      r->h = new record_header_t;
-      r->h->type = AREA_ALLOCATED;
-      r->h->size = record_size;
-      r->h->next_block_id = 0; // no succeeding block
+      record_header_t *h = new record_header_t;
+      h->type = AREA_ALLOCATED;
+      h->size = record_size;
+      h->num_succeedings = 0;
+      h->next_block_id = 0; // no succeeding block
       r->d = data;
 
-      // [TODO] if the size is more than block size, size_ceiled is selected in two ways.
+      // [TODO] if the size is more than block size, size_padded is selected in two ways.
       // (block*n or the rest is going to pool)
       switch (dh_->pmode) {
         case NOPADDING:
-          r->size_ceiled = record_size;
+          h->size_padded = record_size;
           break;
         case FIXEDLEN:
-          r->size_ceiled = record_size + dh_->padding;
+          h->size_padded = record_size + dh_->padding;
           break;
         case RATIO:
-          r->size_ceiled = record_size + record_size * dh_->padding / 100;
+          h->size_padded = record_size + record_size * dh_->padding / 100;
           break;
         default: // PO2
-          r->size_ceiled = pow(2, get_pow_ceiled(record_size, 2, 5));
+          h->size_padded = pow(2, get_pow_ceiled(record_size, 2, 5));
           break;
       }
+      h->size_total = h->size_padded;
+      r->h = h;
       return r;
     }
 
     data_ptr_t *_put(record_t *r)
     {
       // allocate blocks more than record size
-      div_t d = div(r->size_ceiled, dh_->block_size);
+      div_t d = div(r->h->size_padded, dh_->block_size);
       uint32_t num_blocks = d.rem > 0 ? d.quot + 1 : d.quot;
       append_blocks(num_blocks);
 
@@ -373,9 +377,9 @@ namespace LibMap {
         return NULL;
       }
 
-      if (r->size_ceiled < dh_->block_size) {
-        append_free_pool(dh_->cur_block_id, r->size_ceiled,
-                         dh_->block_size - r->size_ceiled);
+      if (r->h->size_padded < dh_->block_size) {
+        append_free_pool(dh_->cur_block_id, r->h->size_padded,
+                         dh_->block_size - r->h->size_padded);
       } else {
         if (d.rem > 0) {
           append_free_pool(dh_->cur_block_id + d.quot,
