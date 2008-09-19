@@ -366,6 +366,7 @@ namespace LibMap {
       // too small chunk remains unused
       if (!is_appended) {
         // [TODO]
+        std::cout << size << " bytes in block id: " << block_id << " is unused." << std::endl;
       }
     }
   
