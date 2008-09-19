@@ -213,29 +213,35 @@ namespace LibMap {
     {
       data_ptr_t *data_ptr;
       record_t *r = init_record(data);
-
+/*
       std::cout << "data size: " << r->d->size << std::endl;  
       std::cout << "size (header+data): " << r->h->size << std::endl;  
       std::cout << "size (ceiled): " << r->size_ceiled << std::endl;  
+*/
 
       // search free area by data size
-      free_pool_ptr_t *pool = get_free_pool(r);
-      if (pool != NULL) {
+      free_pool_ptr_t pool;
+      if (!search_free_pool(r, &pool)) {
         //std::cout << "####### pool found !!! #######" << std::endl;
         
-        data_ptr = write_record(r, pool->id, pool->off);
-        append_free_pool(pool->id, pool->off + r->size_ceiled,
-                         pool->size - r->size_ceiled);
+        data_ptr = write_record(r, pool.id, pool.off);
+        append_free_pool(pool.id, pool.off + r->size_ceiled,
+                         pool.size - r->size_ceiled);
 
       } else {
         // no free pool found
         data_ptr = _put(r);
       }
-      
-      // update data_ptr and statistics
-      //
+
+      delete r->h;
+      delete r;
 
       return data_ptr;
+    }
+
+    void clean_data_ptr(data_ptr_t *data_ptr)
+    {
+      delete data_ptr;
     }
 
     data_t *get(data_ptr_t *data_ptr)
@@ -261,7 +267,13 @@ namespace LibMap {
       return data;
     }
 
-    free_pool_ptr_t *get_free_pool(record_t *r)
+    void clean_data(data_t *data)
+    {
+      delete [] (char *) data->data;
+      delete data;
+    }
+
+    bool search_free_pool(record_t *r, free_pool_ptr_t *pool)
     {
       uint32_t pow = get_pow_ceiled(r->size_ceiled, 2, 5);
 
@@ -275,10 +287,9 @@ namespace LibMap {
         ++pow;
       }
       if (!pool_found) {
-        return NULL;
+        return false;
       }
 
-      free_pool_ptr_t *pool = new free_pool_ptr_t;
       free_pool_ptr_t *first_pool = &(dh_->first_pool_ptr[pow-1]);
       memcpy(pool, first_pool, sizeof(free_pool_ptr_t));
 
@@ -296,7 +307,7 @@ namespace LibMap {
         first_pool->size = pool_header.next_size;
       }
 
-      return pool;
+      return true;
     }
 
     record_t *init_record(data_t *data)
@@ -366,7 +377,7 @@ namespace LibMap {
       // too small chunk remains unused
       if (!is_appended) {
         // [TODO]
-        std::cout << size << " bytes in block id: " << block_id << " is unused." << std::endl;
+        //std::cout << size << " bytes in block id: " << block_id << " is unused." << std::endl;
       }
     }
   
