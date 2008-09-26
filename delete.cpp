@@ -8,8 +8,8 @@ int main(int argc, char *argv[])
     exit(1);
   }
 
-  LibMap::Btree *bt = new LibMap::Btree;
-  bt->open(argv[1], LibMap::DB_CREAT);
+  Lux::DBM::Btree *bt = new Lux::DBM::Btree;
+  bt->open(argv[1], Lux::DB_CREAT);
 
   char key[256];
   memset(key, 0, 256);

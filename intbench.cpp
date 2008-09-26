@@ -22,11 +22,11 @@ int main(int argc, char *argv[])
     mode = atoi(argv[2]);
   }
 
-  LibMap::Btree *bt = new LibMap::Btree(LibMap::CLUSTER, sizeof(char)*8);
-  //LibMap::Btree *bt = new LibMap::Btree(LibMap::CLUSTER, sizeof(int));
+  Lux::DBM::Btree *bt = new Lux::DBM::Btree(Lux::DBM::CLUSTER, sizeof(char)*8);
+  //Lux::DBM::Btree *bt = new Lux::DBM::Btree(Lux::DBM::CLUSTER, sizeof(int));
   // !!! this is needed !!1
-  bt->set_cmp_func(LibMap::int32_cmp_func);
-  bt->open("intbenchdb", LibMap::DB_CREAT);
+  bt->set_cmp_func(Lux::DBM::int32_cmp_func);
+  bt->open("intbenchdb", Lux::DB_CREAT);
 
   int rnum = atoi(argv[1]);
   double t1, t2;
@@ -60,7 +60,7 @@ int main(int argc, char *argv[])
       memset(key, 0, 9);
       sprintf(key,"%08d", i);
 
-      LibMap::data_t *val_data = bt->get(&i, sizeof(int));
+      Lux::DBM::data_t *val_data = bt->get(&i, sizeof(int));
       if (val_data != NULL) {
         ///*
         char val[9];
