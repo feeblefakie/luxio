@@ -15,8 +15,8 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
-#ifndef LIBMAP_DATA_H
-#define LIBMAP_DATA__H
+#ifndef LUX_DBM_DATA_H
+#define LUX_DBM_DATA_H
 
 // for UINT8_MAX
 #define __STDC_LIMIT_MACROS
@@ -33,18 +33,20 @@
 #include <iostream>
 #include <stdexcept>
 
-namespace LibMap {
+namespace Lux {
+namespace DBM {
 
-  const int DEFAULT_PAGESIZE = getpagesize();
   typedef int db_flags_t;
-  const db_flags_t DB_RDONLY = 0x0000;
-  const db_flags_t DB_RDWR = 0x0002;
-  const db_flags_t DB_CREAT = 0x0200;
-  const db_flags_t DB_TRUNC = 0x0400;
-  const uint8_t AREA_FREE = 0;
-  const uint8_t AREA_ALLOCATED = 1;
-  const uint32_t DEFAULT_PADDING = 20; // depends on the context
-  const uint32_t MIN_RECORD_SIZE = 32;
+
+  const static int DEFAULT_PAGESIZE = getpagesize();
+  const static db_flags_t DB_RDONLY = 0x0000;
+  const static db_flags_t DB_RDWR = 0x0002;
+  const static db_flags_t DB_CREAT = 0x0200;
+  const static db_flags_t DB_TRUNC = 0x0400;
+  const static uint8_t AREA_FREE = 0;
+  const static uint8_t AREA_ALLOCATED = 1;
+  const static uint32_t DEFAULT_PADDING = 20; // depends on the context
+  const static uint32_t MIN_RECORD_SIZE = 32;
 
   typedef enum {
     Padded,
@@ -573,9 +575,9 @@ namespace LibMap {
     PaddedData(padding_mode_t pmode = PO2, uint32_t padding = DEFAULT_PADDING)
     : Data(Padded, pmode, padding)
     {}
-    ~PaddedData() {}
+    virtual ~PaddedData() {}
 
-    data_ptr_t *put(data_t *data)
+    virtual data_ptr_t *put(data_t *data)
     {
       record_t *r = init_record(data);
 
@@ -589,7 +591,7 @@ namespace LibMap {
       return data_ptr;
     }
 
-    data_ptr_t *append(data_ptr_t *data_ptr, data_t *data)
+    virtual data_ptr_t *append(data_ptr_t *data_ptr, data_t *data)
     {
       data_ptr_t *ptr;
       record_header_t h;
@@ -626,7 +628,7 @@ namespace LibMap {
       return ptr;
     }
 
-    data_ptr_t *update(data_ptr_t *data_ptr, data_t *data)
+    virtual data_ptr_t *update(data_ptr_t *data_ptr, data_t *data)
     {
       data_ptr_t *ptr;
       record_header_t h;
@@ -655,7 +657,7 @@ namespace LibMap {
       return ptr;
     }
 
-    void del(data_ptr_t *data_ptr)
+    virtual void del(data_ptr_t *data_ptr)
     {
       // deleted chunk is put into free pools
       record_header_t h;
@@ -665,7 +667,7 @@ namespace LibMap {
       add_free_pool(data_ptr->id, data_ptr->off, h.padded_size);
     }
 
-    data_t *get(data_ptr_t *data_ptr)
+    virtual data_t *get(data_ptr_t *data_ptr)
     {
       record_header_t h;
       off_t off = calc_off(data_ptr->id, data_ptr->off);
@@ -753,9 +755,9 @@ namespace LibMap {
     LinkedData(padding_mode_t pmode = PO2, uint32_t padding = DEFAULT_PADDING)
     : Data(Linked, pmode, padding)
     {}
-    ~LinkedData() {}
+    virtual ~LinkedData() {}
 
-    data_ptr_t *put(data_t *data)
+    virtual data_ptr_t *put(data_t *data)
     {
       record_t *r = init_record(data);
 
@@ -770,7 +772,7 @@ namespace LibMap {
       return data_ptr;
     }
 
-    data_ptr_t *append(data_ptr_t *data_ptr, data_t *data)
+    virtual data_ptr_t *append(data_ptr_t *data_ptr, data_t *data)
     {
       record_header_t h;
       off_t off = calc_off(data_ptr->id, data_ptr->off);
@@ -825,7 +827,7 @@ namespace LibMap {
       return data_ptr;
     }
 
-    data_ptr_t *update(data_ptr_t *data_ptr, data_t *data)
+    virtual data_ptr_t *update(data_ptr_t *data_ptr, data_t *data)
     {
       data_ptr_t *ptr;
       record_header_t h;
@@ -861,7 +863,7 @@ namespace LibMap {
       return ptr;
     }
 
-    void del(data_ptr_t *data_ptr)
+    virtual void del(data_ptr_t *data_ptr)
     {
       record_header_t h;
       off_t g_off = calc_off(data_ptr->id, data_ptr->off);
@@ -890,7 +892,7 @@ namespace LibMap {
       } while(++cnt < h.num_units);
     }
 
-    data_t *get(data_ptr_t *data_ptr)
+    virtual data_t *get(data_ptr_t *data_ptr)
     {
       record_header_t h;
       off_t off = calc_off(data_ptr->id, data_ptr->off);
@@ -1006,6 +1008,7 @@ namespace LibMap {
     }
   };
 
+}
 }
 
 #endif
