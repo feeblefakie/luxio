@@ -19,7 +19,7 @@ int main(int argc, char *argv[])
   double t1, t2;
   //Lux::DBM::Data *dt = new Lux::DBM::PaddedData(Lux::DBM::RATIO, 10);
   Lux::DBM::Data *dt = new Lux::DBM::LinkedData(Lux::DBM::RATIO, 10);
-  dt->open("datadb", Lux::DBM::DB_CREAT);
+  dt->open("datadb", Lux::DB_CREAT);
 
   std::ifstream fin;
   fin.open("./data.txt", std::ios::in);

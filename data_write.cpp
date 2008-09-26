@@ -24,7 +24,7 @@ int main(int argc, char *argv[])
   double t1, t2;
   Lux::DBM::Data *dt = new Lux::DBM::PaddedData(Lux::DBM::FIXEDLEN);
   //Lux::DBM::Data *dt = new Lux::DBM::LinkedData(Lux::DBM::FIXEDLEN);
-  dt->open("datadb", Lux::DBM::DB_CREAT);
+  dt->open("datadb", Lux::DB_CREAT);
 
   Lux::DBM::data_t data = {argv[1], strlen(argv[1])};
   Lux::DBM::data_ptr_t *data_ptr = dt->put(&data);
