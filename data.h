@@ -279,7 +279,7 @@ namespace DBM {
     void add_free_pool(block_id_t block_id, uint16_t off_in_block, uint32_t size)
     {
       bool is_appended = false;
-      for (int i = 11; i >= 5; --i) { 
+      for (int i = 32; i >= 5; --i) { 
         if (size >= pows_[i-1]) {
           /*
           std::cout << "add_free_pool: "
