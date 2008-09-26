@@ -18,31 +18,12 @@
 #ifndef LUX_DBM_DATA_H
 #define LUX_DBM_DATA_H
 
-// for UINT8_MAX
-#define __STDC_LIMIT_MACROS
-
-#include <unistd.h>
-#include <stdint.h>
-#include <fcntl.h>
-#include <sys/stat.h>
-#include <sys/mman.h>
-#include <errno.h>
-#include <string.h>
-#include <stdlib.h>
-#include <math.h>
-#include <iostream>
-#include <stdexcept>
+#include "dbm.h"
 
 namespace Lux {
 namespace DBM {
 
-  typedef int db_flags_t;
-
   const static int DEFAULT_PAGESIZE = getpagesize();
-  const static db_flags_t DB_RDONLY = 0x0000;
-  const static db_flags_t DB_RDWR = 0x0002;
-  const static db_flags_t DB_CREAT = 0x0200;
-  const static db_flags_t DB_TRUNC = 0x0400;
   const static uint8_t AREA_FREE = 0;
   const static uint8_t AREA_ALLOCATED = 1;
   const static uint32_t DEFAULT_PADDING = 20; // depends on the context
@@ -59,22 +40,6 @@ namespace DBM {
     RATIO,
     PO2 // power of 2
   } padding_mode_t;
-
-  typedef uint32_t block_id_t;
-
-// these should move to a shared header file
-#pragma pack(2)
-  typedef struct {
-    block_id_t id;
-    uint16_t off;
-  } data_ptr_t;
-#pragma pack()
-
-  typedef struct {
-    const void *data;
-    uint32_t size;
-  } data_t;
-// these should move to a shared header file
 
 #pragma pack(1)
     typedef struct {
@@ -409,6 +374,7 @@ namespace DBM {
       return true;
     }
 
+    /*
     // system call wrappers
     int _open(const char *pathname, int flags, mode_t mode)
     {
@@ -509,6 +475,7 @@ namespace DBM {
       }
       return p;
     }
+    */
 
     template<typename T>
     ssize_t write_header_and_data(T *h, data_t *d, off_t off)
