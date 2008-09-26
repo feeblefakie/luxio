@@ -44,6 +44,7 @@ namespace LibMap {
   const uint8_t AREA_FREE = 0;
   const uint8_t AREA_ALLOCATED = 1;
   const uint32_t DEFAULT_PADDING = 20; // depends on the context
+  const uint32_t MIN_RECORD_SIZE = 32;
 
   typedef enum {
     Padded,
@@ -57,10 +58,12 @@ namespace LibMap {
     PO2 // power of 2
   } padding_mode_t;
 
+  typedef uint32_t block_id_t;
+
 // these should move to a shared header file
 #pragma pack(2)
   typedef struct {
-    uint32_t id;
+    block_id_t id;
     uint16_t off;
   } data_ptr_t;
 #pragma pack()
@@ -70,8 +73,6 @@ namespace LibMap {
     uint32_t size;
   } data_t;
 // these should move to a shared header file
-
-typedef uint32_t block_id_t;
 
 #pragma pack(1)
     typedef struct {
@@ -274,8 +275,6 @@ typedef uint32_t block_id_t;
       free_pool_ptr_t *first_pool = &(dh_->first_pool_ptr[pow-1]);
       memcpy(pool, first_pool, sizeof(free_pool_ptr_t));
 
-      //std::cout << "free pool found. size: " << first_pool->size << std::endl;
-  
       // organize free pool pointers
       free_pool_header_t pool_header;
       off_t off = calc_off(first_pool->id, first_pool->off);
@@ -291,28 +290,32 @@ typedef uint32_t block_id_t;
       return true;
     }
 
-    uint32_t get_padding(uint32_t size)
+    uint32_t get_padded_size(uint32_t size)
     {
+      uint32_t padded_size;
       switch (dh_->pmode) {
         case NOPADDING:
-          return size;
+          padded_size = size;
         case FIXEDLEN:
-          return size + dh_->padding;
+          padded_size = size + dh_->padding;
         case RATIO:
-          return size + size * dh_->padding / 100;
+          padded_size = size + size * dh_->padding / 100;
         default: // PO2
-          return pows_[get_pow_of_2_ceiled(size, 5)-1];
+          padded_size = pows_[get_pow_of_2_ceiled(size, 5)-1];
       }
+      if (padded_size < MIN_RECORD_SIZE) {
+        padded_size = MIN_RECORD_SIZE;
+      }
+      return padded_size;
     }
 
-    void append_free_pool(block_id_t block_id, uint16_t off_in_block, uint16_t size)
+    void add_free_pool(block_id_t block_id, uint16_t off_in_block, uint32_t size)
     {
-      //std::cout << "append_free_pool: size: " << size << ", off: " << off_in_block << std::endl;
       bool is_appended = false;
       for (int i = 11; i >= 5; --i) { 
         if (size >= pows_[i-1]) {
           /*
-          std::cout << "_append_free_pool: "
+          std::cout << "add_free_pool: "
                     << "block_id: " << block_id 
                     << ", off: " << off_in_block 
                     << ", size: " << size
@@ -328,7 +331,7 @@ typedef uint32_t block_id_t;
       // too small chunk remains unused
       if (!is_appended) {
         // [TODO]
-        //std::cout << size << " bytes in block id: " << block_id << " is unused." << std::endl;
+        std::cout << size << " bytes in block id: " << block_id << " is unused." << std::endl;
       }
     }
 
@@ -525,8 +528,7 @@ typedef uint32_t block_id_t;
       if (search_free_pool(size, &pool)) {
         data_ptr->id = pool.id;
         data_ptr->off = pool.off;
-        append_free_pool(pool.id, pool.off + size,
-                         pool.size - size);
+        add_free_pool(pool.id, pool.off + size, new_pool_size);
       } else {
         div_t d = div(size, dh_->block_size);
         uint32_t num_blocks = d.rem > 0 ? d.quot + 1 : d.quot;
@@ -537,12 +539,11 @@ typedef uint32_t block_id_t;
         data_ptr->off = 0;
 
         if (size < dh_->block_size) {
-          append_free_pool(dh_->cur_block_id, size,
-                           dh_->block_size - size);
+          add_free_pool(dh_->cur_block_id, size, dh_->block_size - size);
         } else {
           if (d.rem > 0) {
-            append_free_pool(dh_->cur_block_id + d.quot,
-                             d.rem, dh_->block_size - d.rem);
+            add_free_pool(dh_->cur_block_id + d.quot,
+                          d.rem, dh_->block_size - d.rem);
           }
         }
       }
@@ -559,7 +560,7 @@ typedef uint32_t block_id_t;
     typedef struct {
       uint8_t type; // allocated or free
       uint32_t size;
-      uint32_t size_padded; // size in a block
+      uint32_t padded_size; // size in a block
     } record_header_t;
 #pragma pack()
 
@@ -578,7 +579,7 @@ typedef uint32_t block_id_t;
     {
       record_t *r = init_record(data);
 
-      data_ptr_t *data_ptr = alloc_space(r->h->size_padded);
+      data_ptr_t *data_ptr = alloc_space(r->h->padded_size);
       //write a record into the head of the block
       if (!write_record(r, data_ptr)) {
         return NULL;
@@ -595,7 +596,7 @@ typedef uint32_t block_id_t;
       off_t off = calc_off(data_ptr->id, data_ptr->off);
       _pread(fd_, &h, sizeof(record_header_t), off);
 
-      if (h.size_padded - h.size >= data->size) {
+      if (h.padded_size - h.size >= data->size) {
         // if the padding is big enough
         int bytes_write = _pwrite(fd_, data->data, data->size, off + h.size);
         if (bytes_write != data->size) { return NULL; }
@@ -608,7 +609,6 @@ typedef uint32_t block_id_t;
         ptr = data_ptr;
       } else {
         data_t d;
-        // [TODO] size should specify the size of data (not including header)
         uint32_t prev_size = h.size - sizeof(record_header_t);
         d.size = prev_size + data->size;
         d.data = new char[d.size];
@@ -619,7 +619,7 @@ typedef uint32_t block_id_t;
         ptr = put(&d);
 
         // previously used area is put into free pools
-        append_free_pool(data_ptr->id, data_ptr->off, h.size_padded);
+        add_free_pool(data_ptr->id, data_ptr->off, h.padded_size);
 
         delete [] (char *) d.data;
       }
@@ -633,7 +633,7 @@ typedef uint32_t block_id_t;
       off_t off = calc_off(data_ptr->id, data_ptr->off);
       _pread(fd_, &h, sizeof(record_header_t), off);
 
-      if (h.size_padded - sizeof(record_header_t) >= data->size) {
+      if (h.padded_size - sizeof(record_header_t) >= data->size) {
         // if the padding is big enough
         int bytes_write = _pwrite(fd_, data->data, data->size,
                                   off + sizeof(record_header_t)); 
@@ -650,7 +650,7 @@ typedef uint32_t block_id_t;
         ptr = put(data);
 
         // previously used area is put into free pools
-        append_free_pool(data_ptr->id, data_ptr->off, h.size_padded);
+        add_free_pool(data_ptr->id, data_ptr->off, h.padded_size);
       }
       return ptr;
     }
@@ -662,7 +662,7 @@ typedef uint32_t block_id_t;
       off_t off = calc_off(data_ptr->id, data_ptr->off);
       _pread(fd_, &h, sizeof(record_header_t), off);
 
-      append_free_pool(data_ptr->id, data_ptr->off, h.size_padded);
+      add_free_pool(data_ptr->id, data_ptr->off, h.padded_size);
     }
 
     data_t *get(data_ptr_t *data_ptr)
@@ -692,7 +692,7 @@ typedef uint32_t block_id_t;
 
       h->type = AREA_ALLOCATED;
       h->size = sizeof(record_header_t) + data->size;
-      h->size_padded = get_padding(h->size);
+      h->padded_size = get_padded_size(h->size);
       r->h = h;
       r->d = data;
 
@@ -723,7 +723,7 @@ typedef uint32_t block_id_t;
 #pragma pack(1)
     typedef struct {
       uint8_t type; // allocated or free
-      uint32_t size_padded;
+      uint32_t padded_size;
       block_id_t last_block_id;
       uint16_t last_off;
       uint8_t num_units;
@@ -733,7 +733,7 @@ typedef uint32_t block_id_t;
     typedef struct {
       uint8_t type;
       uint32_t size;
-      uint32_t size_padded; // size in a block
+      uint32_t padded_size; // size in a block
       block_id_t next_block_id;
       uint16_t next_off;
     } unit_header_t;
@@ -759,7 +759,7 @@ typedef uint32_t block_id_t;
     {
       record_t *r = init_record(data);
 
-      data_ptr_t *data_ptr = alloc_space(r->h->size_padded);
+      data_ptr_t *data_ptr = alloc_space(r->h->padded_size);
       if (!write_record(r, data_ptr)) {
         return NULL;
       }
@@ -787,7 +787,7 @@ typedef uint32_t block_id_t;
       _pread(fd_, &u, sizeof(unit_header_t), last_off);
 
       // if the padding is big enough, then no big deal. just put the data into it.
-      uint32_t unused_size = u.size_padded - u.size;
+      uint32_t unused_size = u.padded_size - u.size;
       if (unused_size >= data->size) {
         _pwrite(fd_, data->data, data->size, last_off + u.size);
         u.size += data->size;
@@ -802,12 +802,12 @@ typedef uint32_t block_id_t;
         // create a new unit and put the rest of the data into the unit
         data_t new_data = {(char *) data->data + unused_size, data->size - unused_size};
         unit_t *unit = init_unit(&new_data);
-        uint32_t padding = get_padding(unit->h->size);
-        unit->h->size_padded = padding > u.size_padded ? padding : u.size_padded;
+        uint32_t padding = get_padded_size(unit->h->size);
+        unit->h->padded_size = padding > u.padded_size ? padding : u.padded_size;
         data_ptr_t *dp = put_unit(unit);
 
         // update unit header
-        u.size = u.size_padded; // full
+        u.size = u.padded_size; // full
         u.next_block_id = dp->id;
         u.next_off = dp->off;
 
@@ -815,7 +815,7 @@ typedef uint32_t block_id_t;
         ++(h.num_units);
         h.last_block_id = dp->id;
         h.last_off = dp->off;
-        h.size_padded += unit->h->size_padded;
+        h.padded_size += unit->h->padded_size;
         _pwrite(fd_, &h, sizeof(record_header_t), off);
 
         clear_unit(unit);
@@ -838,7 +838,7 @@ typedef uint32_t block_id_t;
 
       // checking the first one only (not checking succeeding blocks)
       if (h.num_units == 1 && 
-          u.size_padded - sizeof(unit_header_t) >= data->size) {
+          u.padded_size - sizeof(unit_header_t) >= data->size) {
         // if the padding is big enough
         int bytes_write = _pwrite(fd_, data->data, data->size,
                                   off + sizeof(unit_header_t));
@@ -875,13 +875,13 @@ typedef uint32_t block_id_t;
         unit_header_t u;
         _pread(fd_, &u, sizeof(unit_header_t), g_off);
 
-        uint32_t size = u.size_padded;
+        uint32_t size = u.padded_size;
         // for the first unit
         if (cnt == 0) {
           size += sizeof(record_header_t);
         }
         std::cout << "in del: id:" << id << ", off:" << off << ", size:" << size << std::endl;
-        append_free_pool(id, off, size);
+        add_free_pool(id, off, size);
 
         // next unit
         id = u.next_block_id;
@@ -898,7 +898,7 @@ typedef uint32_t block_id_t;
 
       data_t *data = new data_t;
       data->size = 0;
-      char *d = new char[h.size_padded]; // must be more than data size
+      char *d = new char[h.padded_size]; // must be more than data size
       char *p = d;
 
       int cnt = 0;
@@ -932,7 +932,7 @@ typedef uint32_t block_id_t;
       unit_t *u = init_unit(data);
 
       h->type = AREA_ALLOCATED;
-      h->size_padded = sizeof(record_header_t) + u->h->size_padded;
+      h->padded_size = sizeof(record_header_t) + u->h->padded_size;
       h->last_block_id = 0;
       h->last_off = 0;
       h->num_units = 1;
@@ -956,7 +956,7 @@ typedef uint32_t block_id_t;
 
       h->type = AREA_ALLOCATED;
       h->size = data->size + sizeof(unit_header_t);
-      h->size_padded = get_padding(h->size);
+      h->padded_size = get_padded_size(h->size);
       h->next_block_id = 0;
       h->next_off = 0;
 
@@ -998,7 +998,7 @@ typedef uint32_t block_id_t;
 
     data_ptr_t *put_unit(unit_t *u)
     {
-      data_ptr_t *data_ptr = alloc_space(u->h->size_padded);
+      data_ptr_t *data_ptr = alloc_space(u->h->padded_size);
       if (!write_unit(u, data_ptr)) {
         return NULL;
       }
