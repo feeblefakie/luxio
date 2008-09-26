@@ -528,7 +528,7 @@ namespace LibMap {
       if (search_free_pool(size, &pool)) {
         data_ptr->id = pool.id;
         data_ptr->off = pool.off;
-        add_free_pool(pool.id, pool.off + size, new_pool_size);
+        add_free_pool(pool.id, pool.off + size, pool.size - size);
       } else {
         div_t d = div(size, dh_->block_size);
         uint32_t num_blocks = d.rem > 0 ? d.quot + 1 : d.quot;
