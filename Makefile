@@ -23,16 +23,16 @@ intbench: intbench.cpp btree.h
 keybench: keybench.cpp btree.h
 	g++ -g $< -o $@
 
-data_test: data_test.cpp data3.h
+data_test: data_test.cpp data.h
 	g++ -g $< -o $@
 
-data_write: data_write.cpp data3.h
+data_write: data_write.cpp data.h
 	g++ -g $< -o $@
 
-data_read: data_read.cpp data3.h
+data_read: data_read.cpp data.h
 	g++ -g $< -o $@
 
-data_update: data_update.cpp data3.h
+data_update: data_update.cpp data.h
 	g++ -g $< -o $@
 
 check:

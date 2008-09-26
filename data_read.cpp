@@ -1,4 +1,4 @@
-#include "data3.h"
+#include "data.h"
 #include <iostream>
 #include <fstream>
 #include <vector>
@@ -22,17 +22,17 @@ int main(int argc, char *argv[])
   }
 
   double t1, t2;
-  LibMap::Data *dt = new LibMap::PaddedData();
-  //LibMap::Data *dt = new LibMap::LinkedData();
-  if (!dt->open("datadb", LibMap::DB_CREAT)) {
+  Lux::DBM::Data *dt = new Lux::DBM::PaddedData();
+  //Lux::DBM::Data *dt = new Lux::DBM::LinkedData();
+  if (!dt->open("datadb", Lux::DBM::DB_CREAT)) {
     std::cerr << "open failed" << std::endl;
     dt->close();
     exit(-1);
   }
 
   t1 = gettimeofday_sec();
-  LibMap::data_ptr_t data_ptr = {atoi(argv[1]), atoi(argv[2])};
-  LibMap::data_t *data = dt->get(&data_ptr);
+  Lux::DBM::data_ptr_t data_ptr = {atoi(argv[1]), atoi(argv[2])};
+  Lux::DBM::data_t *data = dt->get(&data_ptr);
   if (data != NULL) {
     std::cout << "HIT" << std::endl;
     std::cout.write((char *) data->data, data->size);

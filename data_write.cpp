@@ -1,4 +1,4 @@
-#include "data3.h"
+#include "data.h"
 #include <iostream>
 #include <fstream>
 #include <vector>
@@ -22,12 +22,12 @@ int main(int argc, char *argv[])
   }
 
   double t1, t2;
-  LibMap::Data *dt = new LibMap::PaddedData(LibMap::FIXEDLEN);
-  //LibMap::Data *dt = new LibMap::LinkedData(LibMap::FIXEDLEN);
-  dt->open("datadb", LibMap::DB_CREAT);
+  Lux::DBM::Data *dt = new Lux::DBM::PaddedData(Lux::DBM::FIXEDLEN);
+  //Lux::DBM::Data *dt = new Lux::DBM::LinkedData(Lux::DBM::FIXEDLEN);
+  dt->open("datadb", Lux::DBM::DB_CREAT);
 
-  LibMap::data_t data = {argv[1], strlen(argv[1])};
-  LibMap::data_ptr_t *data_ptr = dt->put(&data);
+  Lux::DBM::data_t data = {argv[1], strlen(argv[1])};
+  Lux::DBM::data_ptr_t *data_ptr = dt->put(&data);
   std::cout << data_ptr->id << "," << data_ptr->off << std::endl;
 
   dt->show_free_pools();

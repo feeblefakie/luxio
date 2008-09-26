@@ -1,4 +1,4 @@
-#include "data3.h"
+#include "data.h"
 #include <iostream>
 #include <fstream>
 #include <vector>
@@ -22,13 +22,13 @@ int main(int argc, char *argv[])
   }
 
   double t1, t2;
-  LibMap::Data *dt = new LibMap::PaddedData(LibMap::NOPADDING);
-  //LibMap::Data *dt = new LibMap::LinkedData(LibMap::NOPADDING);
-  dt->open("datadb", LibMap::DB_CREAT);
+  Lux::DBM::Data *dt = new Lux::DBM::PaddedData(Lux::DBM::NOPADDING);
+  //Lux::DBM::Data *dt = new Lux::DBM::LinkedData(Lux::DBM::NOPADDING);
+  dt->open("datadb", Lux::DBM::DB_CREAT);
 
-  LibMap::data_t data = {argv[2], strlen(argv[2])};
-  LibMap::data_ptr_t data_ptr_in = {atoi(argv[3]), atoi(argv[4])}; // id, off
-  LibMap::data_ptr_t *data_ptr;
+  Lux::DBM::data_t data = {argv[2], strlen(argv[2])};
+  Lux::DBM::data_ptr_t data_ptr_in = {atoi(argv[3]), atoi(argv[4])}; // id, off
+  Lux::DBM::data_ptr_t *data_ptr;
   if (strcmp(argv[1], "update") == 0) {
     std::cout << "updating" << std::endl;
     data_ptr = dt->update(&data_ptr_in, &data);

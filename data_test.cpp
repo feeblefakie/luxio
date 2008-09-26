@@ -1,4 +1,4 @@
-#include "data3.h"
+#include "data.h"
 #include <iostream>
 #include <fstream>
 #include <vector>
@@ -17,9 +17,9 @@ double gettimeofday_sec()
 int main(int argc, char *argv[])
 {
   double t1, t2;
-  //LibMap::Data *dt = new LibMap::PaddedData(LibMap::RATIO, 10);
-  LibMap::Data *dt = new LibMap::LinkedData(LibMap::RATIO, 10);
-  dt->open("datadb", LibMap::DB_CREAT);
+  //Lux::DBM::Data *dt = new Lux::DBM::PaddedData(Lux::DBM::RATIO, 10);
+  Lux::DBM::Data *dt = new Lux::DBM::LinkedData(Lux::DBM::RATIO, 10);
+  dt->open("datadb", Lux::DBM::DB_CREAT);
 
   std::ifstream fin;
   fin.open("./data.txt", std::ios::in);
@@ -29,11 +29,11 @@ int main(int argc, char *argv[])
   }
 
   t1 = gettimeofday_sec();
-  std::vector<LibMap::data_ptr_t *> vec;
+  std::vector<Lux::DBM::data_ptr_t *> vec;
   std::string line;
   while (getline(fin, line)) {
-    LibMap::data_t data = {line.c_str(), line.size()};
-    LibMap::data_ptr_t *data_ptr = dt->put(&data);
+    Lux::DBM::data_t data = {line.c_str(), line.size()};
+    Lux::DBM::data_ptr_t *data_ptr = dt->put(&data);
     vec.push_back(data_ptr);
     //std::cerr << data_ptr->id << "," << data_ptr->off << std::endl;
     //dt->clean_data_ptr(data_ptr);
@@ -48,12 +48,12 @@ int main(int argc, char *argv[])
     std::cout << "cannot open the file" << std::endl;
     exit(-1);
   }
-  std::vector<LibMap::data_ptr_t *>::iterator itr = vec.begin();
-  std::vector<LibMap::data_ptr_t *>::iterator itr_end = vec.end();
+  std::vector<Lux::DBM::data_ptr_t *>::iterator itr = vec.begin();
+  std::vector<Lux::DBM::data_ptr_t *>::iterator itr_end = vec.end();
 
   t1 = gettimeofday_sec();
   while (getline(fin, line)) {
-    LibMap::data_t *data = dt->get(*itr); 
+    Lux::DBM::data_t *data = dt->get(*itr); 
     //std::cout << "data: [";
     //std::cout.write(data->>data, data->size);
     //std::cout << "]" << std::endl;;
