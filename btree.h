@@ -212,7 +212,7 @@ namespace DBM {
       dh_ = (btree_header_t *) map_;
       if (dh_->index_type == NONCLUSTER) {
         std::string data_db_name = db_name + ".data";
-        dt_->open(data_db_name.c_str(), Lux::DB_CREAT);
+        dt_->open(data_db_name.c_str(), oflags);
       }
     }
 
@@ -413,15 +413,6 @@ namespace DBM {
       if (node->h->is_leaf) {
         find_res_t *r = find_key(node, entry.key, entry.key_size);
         if (r->type == KEY_FOUND) {
-          // [TODO] get_data
-          /*
-          slot_t *slot = (slot_t *) r->slot_p;
-          *val_data = new data_t;
-          (*val_data)->data = (char *) new char[slot->size+1];
-          // [TODO] data size is sizeof(uint32_t) for now 
-          (*val_data)->size = sizeof(uint32_t);
-          memcpy((void *) (*val_data)->data, (const char *) r->data_p + slot->size, sizeof(uint32_t));
-          */
           *val_data = get_data(r);
         }
         delete r;
@@ -443,14 +434,6 @@ namespace DBM {
         memcpy((void *) val_data->data, 
                (const char *) r->data_p + slot->size, dh_->data_size);
       } else {
-        //std::cout << "non-cluster index is not supported yet. "
-        //          << "returning page-id and offset." << std::endl;
-        /*
-        val_data->data = (char *) new char[dh_->data_size];
-        val_data->size = dh_->data_size;
-        memcpy((void *) val_data->data,
-               (const char *) r->data_p + slot->size, dh_->data_size);
-        */
         data_ptr_t data_ptr;
         memcpy(&data_ptr, (const char *) r->data_p + slot->size, sizeof(data_ptr_t));
         val_data = dt_->get(&data_ptr);
