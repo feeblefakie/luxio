@@ -39,4 +39,4 @@ check:
 	./main
 
 clean:
-	rm -f $(prog) test benchdb intbenchdb keybenchdb datadb
+	rm -f $(prog) benchdb intbenchdb keybenchdb datadb
