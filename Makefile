@@ -39,4 +39,4 @@ check:
 	./main
 
 clean:
-	rm -f $(prog) benchdb intbenchdb keybenchdb datadb
+	rm -rf $(prog) benchdb intbenchdb keybenchdb datadb *.dSYM
