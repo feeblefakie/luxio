@@ -263,10 +263,13 @@ namespace DBM {
       switch (dh_->pmode) {
         case NOPADDING:
           padded_size = size;
+          break;
         case FIXEDLEN:
           padded_size = size + dh_->padding;
+          break;
         case RATIO:
           padded_size = size + size * dh_->padding / 100;
+          break;
         default: // PO2
           padded_size = pows_[get_pow_of_2_ceiled(size, 5)-1];
       }
@@ -298,7 +301,7 @@ namespace DBM {
       // too small chunk remains unused
       if (!is_appended) {
         // [TODO]
-        std::cout << size << " bytes in block id: " << block_id << " is unused." << std::endl;
+        //std::cout << size << " bytes in block id: " << block_id << " is unused." << std::endl;
       }
     }
 
@@ -849,7 +852,7 @@ namespace DBM {
         if (cnt == 0) {
           size += sizeof(record_header_t);
         }
-        std::cout << "in del: id:" << id << ", off:" << off << ", size:" << size << std::endl;
+        //std::cout << "in del: id:" << id << ", off:" << off << ", size:" << size << std::endl;
         add_free_pool(id, off, size);
 
         // next unit
