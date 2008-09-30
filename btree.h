@@ -210,6 +210,12 @@ namespace DBM {
 
       oflags_ = oflags;
       dh_ = (btree_header_t *) map_;
+
+      if (index_type_ != dh_->index_type) {
+        std::cerr << "wrong index type" << std::endl;
+        return false;
+      }
+
       if (dh_->index_type == NONCLUSTER) {
         std::string data_db_name = db_name + ".data";
         dt_->open(data_db_name.c_str(), oflags);
