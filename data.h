@@ -271,7 +271,7 @@ namespace DBM {
           padded_size = size + size * dh_->padding / 100;
           break;
         default: // PO2
-          padded_size = pows_[get_pow_of_2_ceiled(size, 5)-1];
+          padded_size = (uint32_t) pows_[get_pow_of_2_ceiled(size, 5)-1];
       }
       if (padded_size < MIN_RECORD_SIZE) {
         padded_size = MIN_RECORD_SIZE;
