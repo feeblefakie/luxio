@@ -1,5 +1,6 @@
 
-all: clean main bench select ctest delete intbench keybench
+prog=clean main bench select ctest delete intbench keybench data_test data_write data_read data_update
+all: $(prog)
 
 main: main.cpp btree.h
 	g++ -g $< -o $@
@@ -22,8 +23,20 @@ intbench: intbench.cpp btree.h
 keybench: keybench.cpp btree.h
 	g++ -g $< -o $@
 
+data_test: data_test.cpp data.h
+	g++ -g $< -o $@
+
+data_write: data_write.cpp data.h
+	g++ -g $< -o $@
+
+data_read: data_read.cpp data.h
+	g++ -g $< -o $@
+
+data_update: data_update.cpp data.h
+	g++ -g $< -o $@
+
 check:
 	./main
 
 clean:
-	rm -f main test bench benchdb select ctest delete intbench intbenchdb keybenchdb
+	rm -f $(prog) test benchdb intbenchdb keybenchdb datadb

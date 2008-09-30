@@ -30,8 +30,8 @@ int main(int argc, char *argv[])
     exit(-1);
   }
 
-  LibMap::Btree *bt = new LibMap::Btree(LibMap::CLUSTER, sizeof(int));
-  bt->open("keybenchdb", LibMap::DB_CREAT);
+  Lux::DBM::Btree *bt = new Lux::DBM::Btree(Lux::DBM::CLUSTER, sizeof(int));
+  bt->open("keybenchdb", Lux::DB_CREAT);
 
   double t1, t2;
 
@@ -62,7 +62,7 @@ int main(int argc, char *argv[])
     std::string line;
     while (getline(fin, line)) {
 
-      LibMap::data_t *val_data = bt->get(line.c_str(), line.size());
+      Lux::DBM::data_t *val_data = bt->get(line.c_str(), line.size());
       if (val_data != NULL) {
         int val;
         memcpy(&val, val_data->data, val_data->size);

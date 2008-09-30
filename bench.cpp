@@ -22,8 +22,8 @@ int main(int argc, char *argv[])
     mode = atoi(argv[2]);
   }
 
-  LibMap::Btree *bt = new LibMap::Btree(LibMap::CLUSTER);
-  bt->open("benchdb", LibMap::DB_CREAT);
+  Lux::DBM::Btree *bt = new Lux::DBM::Btree(Lux::DBM::CLUSTER);
+  bt->open("benchdb", Lux::DB_CREAT);
 
   int rnum = atoi(argv[1]);
   double t1, t2;
@@ -59,7 +59,7 @@ int main(int argc, char *argv[])
       //int num = rand() % rnum;
       //sprintf(key,"%08d", num);
 
-      LibMap::data_t *val_data = bt->get(key, strlen(key));
+      Lux::DBM::data_t *val_data = bt->get(key, strlen(key));
       if (val_data != NULL) {
         uint32_t val;
         memcpy(&val, val_data->data, val_data->size);

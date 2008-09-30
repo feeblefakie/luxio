@@ -15,34 +15,21 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
-#ifndef LIBMAP_BTREE_H
-#define LIBMAP_BTREE_H
+#ifndef LUX_DBM_BTREE_H
+#define LUX_DBM_BTREE_H
 
-#include <unistd.h>
-#include <stdint.h>
-#include <fcntl.h>
-#include <sys/stat.h>
-#include <sys/mman.h>
-#include <errno.h>
-#include <string.h>
-#include <stdlib.h>
-#include <iostream>
-#include <stdexcept>
+#include "dbm.h"
 
 #define ALLOC_AND_COPY(s1, s2, size) \
   char s1[size+1]; \
   memcpy(s1, s2, size); \
   s1[size] = '\0';
 
-namespace LibMap {
+namespace Lux {
+namespace DBM {
 
-  const char *MAGIC = "LMBT0001";
+  const char *MAGIC = "LUXBT001";
   const int DEFAULT_PAGESIZE = getpagesize();
-  typedef int db_flags_t;
-  const db_flags_t DB_RDONLY = 0x0000;
-  const db_flags_t DB_RDWR = 0x0002;
-  const db_flags_t DB_CREAT = 0x0200;
-  const db_flags_t DB_TRUNC = 0x0400;
 
   typedef enum {
     NONCLUSTER,
@@ -114,18 +101,6 @@ namespace LibMap {
     char *slot_p;
     find_key_t type;
   } find_res_t;
-
-  typedef struct {
-    const void *data;
-    uint32_t size;
-  } data_t;
-
-#pragma pack(2)
-  typedef struct {
-    uint32_t id;
-    uint16_t off;
-  } data_ptr_t;
-#pragma pack()
 
   // comparison functions
   int str_cmp_func(data_t &d1, data_t &d2)
@@ -956,84 +931,9 @@ namespace LibMap {
         *up_entry = NULL;
     }
 
-    int _open(const char *pathname, int flags, mode_t mode)
-    {
-      int oflags = O_RDONLY;
-
-      if (flags & DB_RDWR) {
-        oflags |= O_RDWR;
-      }
-      if (flags & DB_CREAT) {
-        oflags |= O_CREAT | O_RDWR;
-        _mkdir(pathname);
-      }
-      if (flags & DB_TRUNC) {
-        oflags |= O_TRUNC;
-      }
-      return ::open(pathname, oflags, mode);
-    }
-    
-    ssize_t _read(int fd, void *buf, size_t count)
-    {
-      char *p = reinterpret_cast<char *>(buf);
-      const char * const end_p = p + count;
-
-      while (p < end_p) {
-        const int num_bytes = read(fd, p, end_p - p);
-        if (num_bytes < 0) {
-          if (errno == EINTR) {
-            continue;
-          }
-          perror("read failed");
-          break;
-        }
-        p += num_bytes;
-      }
-
-      if (p != end_p) {
-        return -1;
-      }
-      return count;
-    }
-
-    ssize_t _write(int fd, const void *buf, size_t count)
-    {
-      const char *p = reinterpret_cast<const char *>(buf);
-      const char * const end_p = p + count;
-
-      while (p < end_p) {
-        const int num_bytes = write(fd, p, end_p - p);
-        if (num_bytes < 0) {
-          if (errno == EINTR) continue;
-          perror("write failed");
-          break;
-        }
-        p += num_bytes;
-      }
-
-      if (p != end_p) {
-        return -1;
-      }
-      return count;
-    }
-
-    void _mkdir(const char *str)
-    {
-      std::string str_(str); 
-      int n = -1; 
-      while (1) {
-        n = str_.find_first_of('/', n+1);
-        if (n == std::string::npos) {
-          break;  
-        }
-        std::string dir = str_.substr(0, n);
-        // [TODO] error handling
-        ::mkdir(dir.c_str(), 0755);
-      }
-    }
-
   };
 
+}
 }
 
 #endif

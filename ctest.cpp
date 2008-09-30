@@ -8,8 +8,8 @@ int main(int argc, char *argv[])
     exit(1);
   }
 
-  LibMap::Btree *bt = new LibMap::Btree;
-  bt->open("benchdb", LibMap::DB_CREAT);
+  Lux::DBM::Btree *bt = new Lux::DBM::Btree;
+  bt->open("benchdb", Lux::DB_CREAT);
 
   int rnum = atoi(argv[1]);
 
@@ -29,7 +29,7 @@ int main(int argc, char *argv[])
     memset(key, 0, 9);
     sprintf(key,"%08d", i);
 
-    LibMap::data_t *val_data = bt->get(key, strlen(key));
+    Lux::DBM::data_t *val_data = bt->get(key, strlen(key));
     if (val_data != NULL) {
       uint32_t val;
       memcpy(&val, val_data->data, val_data->size);

@@ -8,15 +8,15 @@ int main(int argc, char *argv[])
     exit(1);
   }
 
-  LibMap::Btree *bt = new LibMap::Btree;
-  bt->open(argv[1], LibMap::DB_CREAT);
+  Lux::DBM::Btree *bt = new Lux::DBM::Btree;
+  bt->open(argv[1], Lux::DB_CREAT);
 
   char key[256];
   memset(key, 0, 256);
   memcpy(key, argv[2], 256);
 
   bt->get(key, strlen(key));
-  LibMap::data_t *val_data = bt->get(key, strlen(key));
+  Lux::DBM::data_t *val_data = bt->get(key, strlen(key));
   if (val_data != NULL) {
     int val;
     memcpy(&val, val_data->data, val_data->size);
