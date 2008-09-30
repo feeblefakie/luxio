@@ -594,7 +594,7 @@ namespace DBM {
         }
         if (dh_->index_type == CLUSTER) {
           // append is not supported in b+-tree cluster index. only updating
-          memcpy((char *) r->data_p + _entry.key_size, _entry.val, _entry.val_size);
+          memcpy((char *) r->data_p + entry->key_size, entry->val, entry->val_size);
         } else {
           data_ptr_t data_ptr;
           memcpy(&data_ptr, (char *) r->data_p + entry->key_size, sizeof(data_ptr_t));
