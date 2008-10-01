@@ -1,17 +1,23 @@
 
-prog=clean main bench select ctest delete intbench keybench data_test data_write data_read data_update
+prog=clean main bench bench-nocluster select select-nocluster ctest delete intbench keybench data_test data_write data_read data_update
 all: $(prog)
 
-main: main.cpp btree.h
+main: main.cpp btree.h data.h 
 	g++ -g $< -o $@
 
-select: select.cpp btree.h
+select: select.cpp btree.h data.h
+	g++ -g $< -o $@
+
+select-nocluster: select-nocluster.cpp btree.h data.h
 	g++ -g $< -o $@
 
 delete: delete.cpp btree.h
 	g++ -g $< -o $@
 
-bench: bench.cpp btree.h
+bench: bench.cpp btree.h data.h
+	g++ -g $< -o $@
+
+bench-nocluster: bench-nocluster.cpp btree.h data.h
 	g++ -g $< -o $@
 
 ctest: ctest.cpp btree.h

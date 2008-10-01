@@ -4,6 +4,8 @@
 #include <sys/time.h>
 #include <stdio.h>
 
+#define VALSIZE 160000
+
 double gettimeofday_sec()
 {
   struct timeval tv;
@@ -36,8 +38,12 @@ int main(int argc, char *argv[])
       memset(key, 0, 9);
       sprintf(key,"%08d", i);
       //std::cout << "[" << key << "]" << std::endl;
+      char val[VALSIZE+1];
+      memset(val, 0, VALSIZE+1);
+      sprintf(val, "%0160000d", i);
+      //std::cout << "[" << val << "]" << std::endl;
 
-      bt->put(key, strlen(key), &i, sizeof(uint32_t));
+      bt->put(key, strlen(key), val, VALSIZE);
     }
     t2 = gettimeofday_sec();
     std::cout << "put time: " << t2 - t1 << std::endl;
@@ -49,6 +55,9 @@ int main(int argc, char *argv[])
 
   if (mode == 2 || mode == 3) {
 
+    char val2[VALSIZE+1];
+    memset(val2, 0, VALSIZE+1);
+
     int select_num = rnum / 10;
     t1 = gettimeofday_sec();
     for (int i = 0; i < rnum; ++i) {
@@ -58,18 +67,20 @@ int main(int argc, char *argv[])
       int num = i;
       //int num = rand() % rnum;
       //sprintf(key,"%08d", num);
+      char val[VALSIZE+1];
+      memset(val, 0, VALSIZE+1);
+      sprintf(val, "%016000d", i);
 
       Lux::DBM::data_t *val_data = bt->get(key, strlen(key));
       if (val_data != NULL) {
-        uint32_t val;
-        memcpy(&val, val_data->data, val_data->size);
-        if (num != val) {
+        memcpy(&val2, val_data->data, val_data->size);
+        if (strcmp(val, val2) != 0) {
           std::cout << "[error] value incorrect." << std::endl;
         }
         bt->clean_data(val_data);
       } else {
         std::cout << "[error] entry not found. [" << key << "]" << std::endl;
-      } 
+      }
     }
     t2 = gettimeofday_sec();
     std::cout << "get time: " << t2 - t1 << std::endl;

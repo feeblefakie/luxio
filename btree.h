@@ -19,6 +19,7 @@
 #define LUX_DBM_BTREE_H
 
 #include "dbm.h"
+#include "data.h"
 
 #define ALLOC_AND_COPY(s1, s2, size) \
   char s1[size+1]; \
@@ -53,7 +54,7 @@ namespace DBM {
     uint32_t num_nonleaves;
     uint8_t index_type;
     uint8_t data_size; // for fixed length value in cluster index
-  } db_header_t;
+  } btree_header_t;
 
   typedef uint32_t node_id_t;
   typedef struct {
@@ -132,17 +133,27 @@ namespace DBM {
   public:
     Btree(db_index_t index_type = NONCLUSTER,
           uint8_t data_size = sizeof(uint32_t))
-    : index_type_(index_type),
-      data_size_(index_type == NONCLUSTER ? sizeof(data_ptr_t) : data_size),
-      cmp_(str_cmp_func)
+    : cmp_(str_cmp_func),
+      index_type_(index_type),
+      dt_(index_type == NONCLUSTER ? new LinkedData(NOPADDING) : NULL),
+      data_size_(index_type == NONCLUSTER ? sizeof(data_ptr_t) : data_size)
     {}
 
     ~Btree()
-    {}
+    {
+      if (dt_ != NULL) {
+        delete dt_;
+        dt_ = NULL;
+      }
+      if (map_ != NULL) {
+        close();
+      }
+    }
 
     bool open(std::string db_name, db_flags_t oflags)
     {
-      fd_ = _open(db_name.c_str(), oflags, 00644);
+      std::string idx_db_name = db_name + ".bidx";
+      fd_ = _open(idx_db_name.c_str(), oflags, 00644);
       if (fd_ < 0) {
         return false;
       }
@@ -152,8 +163,8 @@ namespace DBM {
         return false;
       }
 
-      db_header_t dh;
-      memset(&dh, 0, sizeof(db_header_t));
+      btree_header_t dh;
+      memset(&dh, 0, sizeof(btree_header_t));
       if (stat_buf.st_size == 0 && oflags & DB_CREAT) {
         // initialize the header for the newly created file
         //strncpy(h.magic, MAGIC, strlen(MAGIC));
@@ -169,7 +180,7 @@ namespace DBM {
         dh.index_type = index_type_;
         dh.data_size = data_size_;
 
-        if (_write(fd_, &dh, sizeof(db_header_t)) < 0) {
+        if (_write(fd_, &dh, sizeof(btree_header_t)) < 0) {
           return false;
         }
         if (!alloc_page(dh.num_nodes, dh.node_size)) {
@@ -189,7 +200,7 @@ namespace DBM {
         delete leaf;
 
       } else {
-        if (_read(fd_, &dh, sizeof(db_header_t)) < 0) {
+        if (_read(fd_, &dh, sizeof(btree_header_t)) < 0) {
           std::cerr << "read failed" << std::endl;
           return false;
         }
@@ -206,13 +217,25 @@ namespace DBM {
       }
 
       oflags_ = oflags;
-      dh_ = (db_header_t *) map_;
+      dh_ = (btree_header_t *) map_;
+
+      if (index_type_ != dh_->index_type) {
+        std::cerr << "wrong index type" << std::endl;
+        return false;
+      }
+
+      if (dh_->index_type == NONCLUSTER) {
+        std::string data_db_name = db_name + ".data";
+        dt_->open(data_db_name.c_str(), oflags);
+      }
+      return true;
     }
 
     bool close()
     {
       msync(map_, dh_->node_size * dh_->num_nodes, MS_SYNC);
       munmap(map_, dh_->node_size * dh_->num_nodes);
+      map_ = NULL;
       ::close(fd_);
     }
 
@@ -350,10 +373,11 @@ namespace DBM {
     int fd_;
     db_flags_t oflags_;
     char *map_;
-    db_header_t *dh_;
+    btree_header_t *dh_;
     db_index_t index_type_;
     uint8_t data_size_;
     CMP cmp_;
+    Data *dt_;
 
     node_t *_init_node(uint32_t id, bool is_root, bool is_leaf)
     {
@@ -405,15 +429,6 @@ namespace DBM {
       if (node->h->is_leaf) {
         find_res_t *r = find_key(node, entry.key, entry.key_size);
         if (r->type == KEY_FOUND) {
-          // [TODO] get_data
-          /*
-          slot_t *slot = (slot_t *) r->slot_p;
-          *val_data = new data_t;
-          (*val_data)->data = (char *) new char[slot->size+1];
-          // [TODO] data size is sizeof(uint32_t) for now 
-          (*val_data)->size = sizeof(uint32_t);
-          memcpy((void *) (*val_data)->data, (const char *) r->data_p + slot->size, sizeof(uint32_t));
-          */
           *val_data = get_data(r);
         }
         delete r;
@@ -427,19 +442,17 @@ namespace DBM {
     data_t *get_data(find_res_t *r)
     {
       slot_t *slot = (slot_t *) r->slot_p;
-      data_t *val_data = new data_t;
+      data_t *val_data;
       if (dh_->index_type == CLUSTER) {
+        val_data = new data_t;
         val_data->data = (char *) new char[dh_->data_size];
         val_data->size = dh_->data_size;
         memcpy((void *) val_data->data, 
                (const char *) r->data_p + slot->size, dh_->data_size);
       } else {
-        std::cout << "non-cluster index is not supported yet. "
-                  << "returning page-id and offset." << std::endl;
-        val_data->data = (char *) new char[dh_->data_size];
-        val_data->size = dh_->data_size;
-        memcpy((void *) val_data->data,
-               (const char *) r->data_p + slot->size, dh_->data_size);
+        data_ptr_t data_ptr;
+        memcpy(&data_ptr, (const char *) r->data_p + slot->size, sizeof(data_ptr_t));
+        val_data = dt_->get(&data_ptr);
       }
       return val_data;
     }
@@ -579,9 +592,6 @@ namespace DBM {
 
     void put_entry_in_leaf(node_t *node, entry_t *entry)
     {
-      node_header_t *h = node->h;
-      node_body_t *b = node->b;
-
       find_res_t *r = find_key(node, entry->key, entry->key_size);
 
       if (r->type == KEY_FOUND && entry->mode == NOOVERWRITE) {
@@ -589,28 +599,37 @@ namespace DBM {
         return;
       }
 
-      char val[dh_->data_size];
       if (dh_->index_type == CLUSTER) {
-        // [NOTICE] APPEND is not supported in cluster index
-        memcpy(val, entry->val, dh_->data_size);
+        if (r->type == KEY_FOUND) {
+          // append is not supported in b+-tree cluster index. only updating
+          memcpy((char *) r->data_p + entry->key_size,
+                 entry->val, entry->val_size);
+        } else {
+          put_entry(node, entry, r);
+        }
       } else {
-        // get data ptr
-        // [TODO] append
-        // specify if it's update or append (append in inverted index usually)
-        data_ptr_t data_ptr = { 10, 64 }; // temporary
-        memcpy(val, &data_ptr, dh_->data_size);
-      }
+        entry_t _entry = {entry->key, entry->key_size,
+                          NULL, dh_->data_size, entry->size, entry->mode};
+        data_t data = {entry->val, entry->val_size};
+        data_ptr_t *res_data_ptr;
 
-      // entry for leaf pages
-      entry_t _entry = {entry->key, entry->key_size,
-                        val, dh_->data_size,
-                        entry->size, entry->mode};
+        if (r->type == KEY_FOUND) {
+          data_ptr_t data_ptr;
+          memcpy(&data_ptr, (char *) r->data_p + entry->key_size, sizeof(data_ptr_t));
 
-      if (r->type == KEY_FOUND) {
-        // update the value
-        memcpy((char *) r->data_p + _entry.key_size, _entry.val, _entry.val_size);
-      } else {
+          // append or update the data, get the ptr to the data and update the index
+          if (entry->mode == APPEND) {
+            res_data_ptr = dt_->append(&data_ptr, &data);
+          } else { // OVERWRITE
+            res_data_ptr = dt_->update(&data_ptr, &data);
+          }
+        } else {
+          // put the data, get the ptr to the data and update the index
+          res_data_ptr = dt_->put(&data);
+        }
+        _entry.val = res_data_ptr;
         put_entry(node, &_entry, r);
+        dt_->clean_data_ptr(res_data_ptr);
       }
       delete r;
     }
@@ -769,7 +788,7 @@ namespace DBM {
         std::cout << "map failed" << std::endl;
         return false;
       }
-      dh_ = (db_header_t *) map_;
+      dh_ = (btree_header_t *) map_;
       dh_->num_nodes = num_nodes;
       return true;
     }

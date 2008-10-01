@@ -23,7 +23,7 @@
 namespace Lux {
 namespace DBM {
 
-  const static int DEFAULT_PAGESIZE = getpagesize();
+  const static int DEFAULT_BLOCKSIZE = getpagesize();
   const static uint8_t AREA_FREE = 0;
   const static uint8_t AREA_ALLOCATED = 1;
   const static uint32_t DEFAULT_PADDING = 20; // depends on the context
@@ -141,7 +141,7 @@ namespace DBM {
         }
       }
 
-      map_ = (char *) _mmap(fd_, DEFAULT_PAGESIZE);
+      map_ = (char *) _mmap(fd_, DEFAULT_BLOCKSIZE);
 
       oflags_ = oflags;
       dh_ = (db_header_t *) map_;
@@ -151,8 +151,8 @@ namespace DBM {
     bool close()
     {
       if (map_ != NULL) {
-        msync(map_, DEFAULT_PAGESIZE, MS_SYNC);
-        munmap(map_, DEFAULT_PAGESIZE);
+        msync(map_, DEFAULT_BLOCKSIZE, MS_SYNC);
+        munmap(map_, DEFAULT_BLOCKSIZE);
       }
       ::close(fd_);
     }
@@ -353,7 +353,7 @@ namespace DBM {
 
     off_t calc_off(block_id_t id, uint16_t off)
     {
-      return (id-1) * dh_->block_size + DEFAULT_PAGESIZE + off;
+      return (id-1) * dh_->block_size + DEFAULT_BLOCKSIZE + off;
     }
 
     uint32_t get_pow_of_2_ceiled(uint32_t size, int start)
@@ -370,7 +370,7 @@ namespace DBM {
     {
       dh_->cur_block_id = dh_->num_blocks + 1;
       dh_->num_blocks += append_num_blocks;
-      if (ftruncate(fd_, DEFAULT_PAGESIZE + dh_->block_size * dh_->num_blocks) < 0) {
+      if (ftruncate(fd_, DEFAULT_BLOCKSIZE + dh_->block_size * dh_->num_blocks) < 0) {
         std::cout << "ftruncate failed" << std::endl;
         return false;
       }

@@ -1,0 +1,14 @@
+160000 * 10000
+
+pagesize: default (4K)
+% time ./test-long 10000
+put time: 89.2725
+./test-long 10000  4.74s user 41.47s system 38% cpu 2:00.46 total
+
+
+pagesize: 64K (max)
+ % time ./test-long 10000
+ put time: 70.734
+ ./test-long 10000  3.89s user 6.86s system 11% cpu 1:36.13 total
+
+
