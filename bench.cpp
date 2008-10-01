@@ -1,5 +1,5 @@
-#include <iostream>
 #include "btree.h"
+#include <iostream>
 #include <time.h>
 #include <sys/time.h>
 #include <stdio.h>
@@ -22,7 +22,7 @@ int main(int argc, char *argv[])
     mode = atoi(argv[2]);
   }
 
-  Lux::DBM::Btree *bt = new Lux::DBM::Btree(Lux::DBM::CLUSTER);
+  Lux::DBM::Btree *bt = new Lux::DBM::Btree(Lux::DBM::NONCLUSTER);
   bt->open("benchdb", Lux::DB_CREAT);
 
   int rnum = atoi(argv[1]);
