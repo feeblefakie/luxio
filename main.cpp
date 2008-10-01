@@ -1,5 +1,5 @@
-#include <iostream>
 #include "btree.h"
+#include <iostream>
 
 int main(int argc, char *argv[])
 {
@@ -8,7 +8,7 @@ int main(int argc, char *argv[])
     exit(1);
   }
 
-  Lux::DBM::Btree *bt = new Lux::DBM::Btree(Lux::DBM::CLUSTER);
+  Lux::DBM::Btree *bt = new Lux::DBM::Btree(Lux::DBM::NONCLUSTER);
   bt->open(argv[1], Lux::DB_CREAT);
 
   char key[256];

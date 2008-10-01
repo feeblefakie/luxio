@@ -1,5 +1,5 @@
-#include <iostream>
 #include "btree.h"
+#include <iostream>
 
 int main(int argc, char *argv[])
 {
@@ -8,8 +8,11 @@ int main(int argc, char *argv[])
     exit(1);
   }
 
-  Lux::DBM::Btree *bt = new Lux::DBM::Btree;
-  bt->open(argv[1], Lux::DB_CREAT);
+  Lux::DBM::Btree *bt = new Lux::DBM::Btree(Lux::DBM::CLUSTER);
+  if (!bt->open(argv[1], Lux::DB_CREAT)) {
+    std::cerr << "error happned" << std::endl;
+    exit(-1);
+  }
 
   char key[256];
   memset(key, 0, 256);
