@@ -140,7 +140,15 @@ namespace DBM {
     {}
 
     ~Btree()
-    {}
+    {
+      if (dt_ != NULL) {
+        delete dt_;
+        dt_ = NULL;
+      }
+      if (map_ != NULL) {
+        close();
+      }
+    }
 
     bool open(std::string db_name, db_flags_t oflags)
     {
@@ -226,6 +234,7 @@ namespace DBM {
     {
       msync(map_, dh_->node_size * dh_->num_nodes, MS_SYNC);
       munmap(map_, dh_->node_size * dh_->num_nodes);
+      map_ = NULL;
       ::close(fd_);
     }
 
