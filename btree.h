@@ -135,7 +135,7 @@ namespace DBM {
           uint8_t data_size = sizeof(uint32_t))
     : cmp_(str_cmp_func),
       index_type_(index_type),
-      dt_(index_type == NONCLUSTER ? new LinkedData() : NULL),
+      dt_(index_type == NONCLUSTER ? new LinkedData(NOPADDING) : NULL),
       data_size_(index_type == NONCLUSTER ? sizeof(data_ptr_t) : data_size)
     {}
 
@@ -228,6 +228,7 @@ namespace DBM {
         std::string data_db_name = db_name + ".data";
         dt_->open(data_db_name.c_str(), oflags);
       }
+      return true;
     }
 
     bool close()
