@@ -591,24 +591,30 @@ namespace DBM {
 
     void put_entry_in_leaf(node_t *node, entry_t *entry)
     {
-      entry_t _entry = {entry->key, entry->key_size,
-                        NULL, dh_->data_size, entry->size, entry->mode};
-
       find_res_t *r = find_key(node, entry->key, entry->key_size);
 
-      if (r->type == KEY_FOUND) {
-        if (entry->mode == NOOVERWRITE) {
-          delete r;
-          return;
-        }
-        if (dh_->index_type == CLUSTER) {
+      if (r->type == KEY_FOUND && entry->mode == NOOVERWRITE) {
+        delete r;
+        return;
+      }
+
+      if (dh_->index_type == CLUSTER) {
+        if (r->type == KEY_FOUND) {
           // append is not supported in b+-tree cluster index. only updating
-          memcpy((char *) r->data_p + entry->key_size, entry->val, entry->val_size);
+          memcpy((char *) r->data_p + entry->key_size,
+                 entry->val, entry->val_size);
         } else {
+          put_entry(node, entry, r);
+        }
+      } else {
+        entry_t _entry = {entry->key, entry->key_size,
+                          NULL, dh_->data_size, entry->size, entry->mode};
+        data_t data = {entry->val, entry->val_size};
+        data_ptr_t *res_data_ptr;
+
+        if (r->type == KEY_FOUND) {
           data_ptr_t data_ptr;
           memcpy(&data_ptr, (char *) r->data_p + entry->key_size, sizeof(data_ptr_t));
-          data_t data = {entry->val, entry->val_size};
-          data_ptr_t *res_data_ptr;
 
           // append or update the data, get the ptr to the data and update the index
           if (entry->mode == APPEND) {
@@ -616,30 +622,13 @@ namespace DBM {
           } else { // OVERWRITE
             res_data_ptr = dt_->update(&data_ptr, &data);
           }
-          char val[dh_->data_size];
-          memcpy(&val, res_data_ptr, sizeof(data_ptr_t));
-          _entry.val = val;
-          put_entry(node, &_entry, r);
-
-          dt_->clean_data_ptr(res_data_ptr);
-        }
-
-      } else {
-        if (dh_->index_type == CLUSTER) {
-          put_entry(node, entry, r);
         } else {
-          data_t data = {entry->val, entry->val_size};
-          data_ptr_t *res_data_ptr;
-
           // put the data, get the ptr to the data and update the index
           res_data_ptr = dt_->put(&data);
-          char val[dh_->data_size];
-          memcpy(&val, res_data_ptr, sizeof(data_ptr_t));
-          _entry.val = val;
-          put_entry(node, &_entry, r);
-
-          dt_->clean_data_ptr(res_data_ptr);
         }
+        _entry.val = res_data_ptr;
+        put_entry(node, &_entry, r);
+        dt_->clean_data_ptr(res_data_ptr);
       }
       delete r;
     }
