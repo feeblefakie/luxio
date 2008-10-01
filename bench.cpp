@@ -78,6 +78,7 @@ int main(int argc, char *argv[])
   bt->show_db_header();
 
   bt->close();
+  delete bt;
 
   return 0;
 }
