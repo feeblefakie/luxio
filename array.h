@@ -144,6 +144,10 @@ namespace DBM {
     data_t *get(uint32_t index)
     {
       data_t *data;
+      // [TODO] offset calculation takes too much time. 
+      // better to caluculate a offset directly from the specified index like
+      // off_t off = index * dh_->data_size;
+      // IDX_TO_OFF(index)
       div_t d = div(index + 1, num_in_page_);
       uint32_t page_num = d.rem > 0 ? d.quot + 1 : d.quot;
 
@@ -206,6 +210,48 @@ namespace DBM {
       return true;
     }
 
+    /*
+    bool put2(uint32_t index,
+              const void *val, uint32_t val_size, insert_mode_t flags = OVERWRITE)
+    {
+      data_t data = {val, val_size};
+      off_t off = index * dh_->data_size + DEFAULT_PAGESIZE;
+
+      if (off > allocated_size_) {
+
+
+      div_t d = div(index + 1, num_in_page_);
+      uint32_t page_num = d.rem > 0 ? d.quot + 1 : d.quot;
+
+      if (page_num + 1 > dh_->num_pages) {
+        realloc_pages(page_num + 1, dh_->page_size);
+      }
+      off_t off = page_num * dh_->page_size + d.rem * dh_->data_size;
+
+      if (dh_->index_type == CLUSTER) {
+        // only update is supported in cluster index
+        memcpy(map_ + off, val, dh_->data_size);
+      } else {
+        data_ptr_t *res_data_ptr;
+        data_ptr_t data_ptr;
+        memcpy(&data_ptr, map_ + off, sizeof(data_ptr_t));
+
+        if (data_ptr.id != 0 || data_ptr.off != 0) { // already stored
+          if (flags == APPEND) {
+            res_data_ptr = dt_->append(&data_ptr, &data);
+          } else { // OVERWRITE
+            res_data_ptr = dt_->update(&data_ptr, &data);
+          }
+        } else {
+          res_data_ptr = dt_->put(&data);
+        }
+        memcpy(map_ + off, res_data_ptr, sizeof(data_ptr_t));
+        dt_->clean_data_ptr(res_data_ptr);
+      }
+      return true;
+    }
+    */
+
     bool del(uint32_t index)
     {
     }
@@ -228,15 +274,17 @@ namespace DBM {
     db_index_t index_type_;
     uint8_t data_size_;
     uint32_t num_in_page_;
+    uint64_t allocated_size_;
     Data *dt_;
 
     bool alloc_pages(uint32_t num_pages, uint16_t page_size)
     {
-      if (ftruncate(fd_, page_size * num_pages) < 0) {
+      allocated_size_ = page_size * num_pages;
+      if (ftruncate(fd_, allocated_size_) < 0) {
         std::cerr << "ftruncate failed" << std::endl;
         return false;
       }
-      map_ = (char *) _mmap(fd_, page_size * num_pages, oflags_);
+      map_ = (char *) _mmap(fd_, allocated_size_, oflags_);
       if (map_ == NULL) { return false; }
 
       return true;
