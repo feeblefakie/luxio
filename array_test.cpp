@@ -32,7 +32,8 @@ int main(int argc, char *argv[])
 
     t1 = gettimeofday_sec();
     for (int i = 0; i < rnum; ++i) {
-      ary->put(i, &i, sizeof(uint32_t));
+      //ary->put(i, &i, sizeof(uint32_t));
+      ary->put2(i, &i, sizeof(uint32_t));
     }
     t2 = gettimeofday_sec();
     std::cout << "put time: " << t2 - t1 << std::endl;
@@ -46,7 +47,8 @@ int main(int argc, char *argv[])
 
     t1 = gettimeofday_sec();
     for (int i = 0; i < rnum; ++i) {
-      Lux::DBM::data_t *val_data = ary->get(i);
+      //Lux::DBM::data_t *val_data = ary->get(i);
+      Lux::DBM::data_t *val_data = ary->get2(i);
       if (val_data != NULL) {
         uint32_t val;
         memcpy(&val, val_data->data, val_data->size);
