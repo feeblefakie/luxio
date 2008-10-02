@@ -141,7 +141,7 @@ namespace DBM {
         }
       }
 
-      map_ = (char *) _mmap(fd_, DEFAULT_BLOCKSIZE);
+      map_ = (char *) _mmap(fd_, DEFAULT_BLOCKSIZE, oflags);
 
       oflags_ = oflags;
       dh_ = (db_header_t *) map_;
