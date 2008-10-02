@@ -120,6 +120,7 @@ namespace DBM {
       oflags_ = oflags;
       dh_ = (array_header_t *) map_;
       num_in_page_ = dh_->page_size / dh_->data_size;
+      allocated_size_ = dh_->page_size * dh_->num_pages;
 
       if (index_type_ != dh_->index_type) {
         std::cerr << "wrong index type" << std::endl;
@@ -159,7 +160,7 @@ namespace DBM {
         data = new data_t;
         data->size = dh_->data_size;
         data->data = new char[dh_->data_size];
-        memset((char *) data->data, 0, dh_->data_size);
+        //memset((char *) data->data, 0, dh_->data_size);
         memcpy((char *) data->data, map_ + off, dh_->data_size);
       } else {
         data_ptr_t data_ptr;
@@ -177,17 +178,46 @@ namespace DBM {
       if (off + dh_->data_size > allocated_size_) { return NULL; }
 
       if (dh_->index_type == CLUSTER) {
+        /*
         data = new data_t;
         data->size = dh_->data_size;
         data->data = new char[dh_->data_size];
-        memset((char *) data->data, 0, dh_->data_size);
-        memcpy((char *) data->data, map_ + off, dh_->data_size);
+        */
+        //memset((char *) data->data, 0, dh_->data_size);
+        //memcpy((char *) data->data, map_ + off, dh_->data_size);
+      } else {
+        /*
+        data_ptr_t data_ptr;
+        memcpy(&data_ptr, map_ + off, sizeof(data_ptr_t));
+        data = dt_->get(&data_ptr);
+        */
+      }
+      return data;
+    }
+
+    bool get2p(uint32_t index, void *val, uint32_t *val_size)
+    {
+      data_t *data;
+      off_t off = index * dh_->data_size + dh_->page_size;
+
+      if (off + dh_->data_size > allocated_size_) { return false; }
+
+      if (dh_->index_type == CLUSTER) {
+        /*
+        data = new data_t;
+        data->size = dh_->data_size;
+        data->data = new char[dh_->data_size];
+        */
+        //memset((char *) data->data, 0, dh_->data_size);
+        //memcpy((char *) data->data, map_ + off, dh_->data_size);
+        memcpy((char *) val, map_ + off, dh_->data_size);
+        //*val_size = dh_->data_size;
       } else {
         data_ptr_t data_ptr;
         memcpy(&data_ptr, map_ + off, sizeof(data_ptr_t));
         data = dt_->get(&data_ptr);
       }
-      return data;
+      return true;
     }
 
     bool clean_data(data_t *d)
