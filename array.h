@@ -57,10 +57,14 @@ namespace DBM {
    */
   class Array {
   public:
-    Array(db_index_t index_type = NONCLUSTER,
+    Array(db_index_t index_type = CLUSTER,
           uint8_t data_size = sizeof(uint32_t))
-    : index_type_(index_type),
-      dt_(index_type == NONCLUSTER ? new LinkedData(NOPADDING) : NULL),
+    : map_(NULL),
+      dt_(NULL),
+      smode_(Padded),
+      pmode_(RATIO),
+      padding_(20),
+      index_type_(index_type),
       data_size_(index_type == NONCLUSTER ? sizeof(data_ptr_t) : data_size)
     {}
 
@@ -73,6 +77,15 @@ namespace DBM {
       if (map_ != NULL) {
         close();
       }
+    }
+
+    // only for noncluster database
+    bool set_noncluster_params(store_mode_t smode,
+                               padding_mode_t pmode = RATIO, uint32_t padding = 20)
+    {
+      smode_ = smode;
+      pmode_ = pmode;
+      padding_ = padding;
     }
 
     bool open(std::string db_name, db_flags_t oflags)
@@ -127,6 +140,11 @@ namespace DBM {
       }
 
       if (dh_->index_type == NONCLUSTER) {
+        if(smode_ == Padded) {
+          dt_ = new PaddedData(pmode_, padding_);
+        } else {
+          dt_ = new LinkedData(pmode_, padding_);
+        }
         std::string data_db_name = db_name + ".data";
         dt_->open(data_db_name.c_str(), oflags);
       }
@@ -253,6 +271,9 @@ namespace DBM {
     uint8_t data_size_;
     uint64_t allocated_size_;
     Data *dt_;
+    store_mode_t smode_;
+    padding_mode_t pmode_;
+    uint32_t padding_;
 
     bool alloc_pages(uint32_t num_pages, uint16_t page_size)
     {
