@@ -211,6 +211,8 @@ namespace DBM {
     virtual data_ptr_t *update(data_ptr_t *data_ptr, data_t *data) = 0;
     virtual void del(data_ptr_t *data_ptr) = 0;
     virtual data_t *get(data_ptr_t *data_ptr) = 0;
+    // using user memory
+    virtual bool get(data_ptr_t *data_ptr, data_t *data, uint32_t *size) = 0;
 
   protected:
     int fd_;
@@ -552,6 +554,24 @@ namespace DBM {
       return data;
     }
 
+    // uses user allocated data
+    virtual bool get(data_ptr_t *data_ptr, data_t *data, uint32_t *size)
+    {
+      record_header_t h;
+      off_t off = calc_off(data_ptr->id, data_ptr->off);
+      _pread(fd_, &h, sizeof(record_header_t), off);
+
+      *size = h.size - sizeof(record_header_t);
+      if (data->size < *size) {
+        std::cerr << "allocated size is too small for the data " << size << std::endl;
+        return false;
+      }
+      int bytes_read = _pread(fd_, (char *) data->data, *size,
+                              off + sizeof(record_header_t));
+
+      return true;
+    }
+
   private:
 
     record_t *init_record(data_t *data)
@@ -791,6 +811,43 @@ namespace DBM {
 
       data->data = d;
       return data;
+    }
+
+    virtual bool get(data_ptr_t *data_ptr, data_t *data, uint32_t *size)
+    {
+      record_header_t h;
+      off_t off = calc_off(data_ptr->id, data_ptr->off);
+      _pread(fd_, &h, sizeof(record_header_t), off);
+
+      char *p = (char *) data->data;
+      uint32_t data_size = 0;
+      *size = 0;
+
+      int cnt = 0;
+      off += sizeof(record_header_t);
+      unit_header_t u;
+      do {
+        _pread(fd_, &u, sizeof(unit_header_t), off);
+
+        data_size = u.size - sizeof(unit_header_t);
+        *size += data_size;
+        if (data->size < *size) {
+          std::cerr << "allocated size is too small for the data" << std::endl;
+          return false;
+        }
+
+        off += sizeof(unit_header_t);
+        int bytes_read = _pread(fd_, p, data_size, off);
+        if (bytes_read != data_size) {
+          return false;
+        }
+        p += bytes_read;
+
+        // next unit
+        off = calc_off(u.next_block_id, u.next_off); 
+      } while (++cnt < h.num_units);
+
+      return true;
     }
 
   private:
