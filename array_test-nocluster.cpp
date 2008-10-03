@@ -18,6 +18,7 @@ int main(int argc, char *argv[])
 {
   double t1, t2;
   Lux::DBM::Array *ary = new Lux::DBM::Array(Lux::DBM::NONCLUSTER);
+  ary->set_noncluster_params(Lux::DBM::Padded, Lux::DBM::NOPADDING);
   ary->open("anoc", Lux::DB_CREAT);
 
   std::ifstream fin;
@@ -64,8 +65,6 @@ int main(int argc, char *argv[])
           strncmp((char *) data.data, line.c_str(), size) != 0) {
         std::cout << "ERROR: GOT WRONG DATA - size: " << size << ", line size: " << line.size() << std::endl;
       } else {
-        std::cerr.write((char *) data.data, size);
-        std::cerr << std::endl;
         //std::cout << "data [ok]" << std::endl;
       }
     }
