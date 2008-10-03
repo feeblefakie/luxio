@@ -17,8 +17,8 @@ double gettimeofday_sec()
 int main(int argc, char *argv[])
 {
   double t1, t2;
-  //Lux::DBM::Data *dt = new Lux::DBM::PaddedData(Lux::DBM::RATIO, 10);
-  Lux::DBM::Data *dt = new Lux::DBM::LinkedData(Lux::DBM::RATIO, 10);
+  Lux::DBM::Data *dt = new Lux::DBM::PaddedData(Lux::DBM::RATIO, 10);
+  //Lux::DBM::Data *dt = new Lux::DBM::LinkedData(Lux::DBM::RATIO, 10);
   dt->open("datadb", Lux::DB_CREAT);
 
   std::ifstream fin;
@@ -51,8 +51,25 @@ int main(int argc, char *argv[])
   std::vector<Lux::DBM::data_ptr_t *>::iterator itr = vec.begin();
   std::vector<Lux::DBM::data_ptr_t *>::iterator itr_end = vec.end();
 
+  Lux::DBM::data_t data;
+  char buf[4096];
+  data.data = buf;
+  data.size = 4096;
+  uint32_t size;
+
   t1 = gettimeofday_sec();
   while (getline(fin, line)) {
+    bool res = dt->get(*itr, &data, &size); 
+    if (res) {
+      if (size != line.size() ||
+          strncmp((char *) data.data, line.c_str(), size) != 0) {
+        std::cout << "ERROR: GOT WRONG DATA - size: " << size << ", line size: " << line.size() << std::endl;
+      } else {
+        //std::cout << "data [ok]" << std::endl;
+      }
+    }
+
+    /*
     Lux::DBM::data_t *data = dt->get(*itr); 
     //std::cout << "data: [";
     //std::cout.write(data->>data, data->size);
@@ -64,6 +81,8 @@ int main(int argc, char *argv[])
       //std::cout << "data [ok]" << std::endl;
     }
     dt->clean_data(data); 
+    */
+
     dt->clean_data_ptr(*itr); // data_ptr
     ++itr;
   }
