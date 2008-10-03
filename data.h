@@ -209,7 +209,7 @@ namespace DBM {
     virtual data_ptr_t *put(data_t *data) = 0;
     virtual data_ptr_t *append(data_ptr_t *data_ptr, data_t *data) = 0;
     virtual data_ptr_t *update(data_ptr_t *data_ptr, data_t *data) = 0;
-    virtual void del(data_ptr_t *data_ptr) = 0;
+    virtual bool del(data_ptr_t *data_ptr) = 0;
     virtual data_t *get(data_ptr_t *data_ptr) = 0;
     // using user memory
     virtual bool get(data_ptr_t *data_ptr, data_t *data, uint32_t *size) = 0;
@@ -466,6 +466,7 @@ namespace DBM {
       record_header_t h;
       off_t off = calc_off(data_ptr->id, data_ptr->off);
       _pread(fd_, &h, sizeof(record_header_t), off);
+      if (h.type == AREA_FREE) { return NULL; }
 
       if (h.padded_size - h.size >= data->size) {
         // if the padding is big enough
@@ -503,6 +504,7 @@ namespace DBM {
       record_header_t h;
       off_t off = calc_off(data_ptr->id, data_ptr->off);
       _pread(fd_, &h, sizeof(record_header_t), off);
+      if (h.type == AREA_FREE) { return NULL; }
 
       if (h.padded_size - sizeof(record_header_t) >= data->size) {
         // if the padding is big enough
@@ -526,14 +528,16 @@ namespace DBM {
       return ptr;
     }
 
-    virtual void del(data_ptr_t *data_ptr)
+    virtual bool del(data_ptr_t *data_ptr)
     {
       // deleted chunk is put into free pools
       record_header_t h;
       off_t off = calc_off(data_ptr->id, data_ptr->off);
       _pread(fd_, &h, sizeof(record_header_t), off);
+      if (h.type == AREA_FREE) { return false; }
 
       add_free_pool(data_ptr->id, data_ptr->off, h.padded_size);
+      return true;
     }
 
     virtual data_t *get(data_ptr_t *data_ptr)
@@ -541,6 +545,7 @@ namespace DBM {
       record_header_t h;
       off_t off = calc_off(data_ptr->id, data_ptr->off);
       _pread(fd_, &h, sizeof(record_header_t), off);
+      if (h.type == AREA_FREE) { return NULL; }
 
       data_t *data = new data_t;
       data->data = new char[h.size - sizeof(record_header_t)];
@@ -560,6 +565,7 @@ namespace DBM {
       record_header_t h;
       off_t off = calc_off(data_ptr->id, data_ptr->off);
       _pread(fd_, &h, sizeof(record_header_t), off);
+      if (h.type == AREA_FREE) { return NULL; }
 
       *size = h.size - sizeof(record_header_t);
       if (data->size < *size) {
@@ -664,6 +670,7 @@ namespace DBM {
       record_header_t h;
       off_t off = calc_off(data_ptr->id, data_ptr->off);
       _pread(fd_, &h, sizeof(record_header_t), off);
+      if (h.type == AREA_FREE) { return NULL; }
 
       unit_header_t u;
       off_t last_off;
@@ -720,6 +727,7 @@ namespace DBM {
       record_header_t h;
       off_t off = calc_off(data_ptr->id, data_ptr->off);
       _pread(fd_, &h, sizeof(record_header_t), off);
+      if (h.type == AREA_FREE) { return NULL; }
 
       unit_header_t u;
       off += sizeof(record_header_t);
@@ -750,11 +758,12 @@ namespace DBM {
       return ptr;
     }
 
-    virtual void del(data_ptr_t *data_ptr)
+    virtual bool del(data_ptr_t *data_ptr)
     {
       record_header_t h;
       off_t g_off = calc_off(data_ptr->id, data_ptr->off);
       _pread(fd_, &h, sizeof(record_header_t), g_off);
+      if (h.type == AREA_FREE) { return false; }
 
       int cnt = 0;
       block_id_t id = data_ptr->id;
@@ -777,6 +786,8 @@ namespace DBM {
         off = u.next_off; 
         g_off = calc_off(id, off);
       } while(++cnt < h.num_units);
+
+      return true;
     }
 
     virtual data_t *get(data_ptr_t *data_ptr)
@@ -784,6 +795,7 @@ namespace DBM {
       record_header_t h;
       off_t off = calc_off(data_ptr->id, data_ptr->off);
       _pread(fd_, &h, sizeof(record_header_t), off);
+      if (h.type == AREA_FREE) { return NULL; }
 
       data_t *data = new data_t;
       data->size = 0;
@@ -818,6 +830,7 @@ namespace DBM {
       record_header_t h;
       off_t off = calc_off(data_ptr->id, data_ptr->off);
       _pread(fd_, &h, sizeof(record_header_t), off);
+      if (h.type == AREA_FREE) { return false; }
 
       char *p = (char *) data->data;
       uint32_t data_size = 0;
