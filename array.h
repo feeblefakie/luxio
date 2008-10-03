@@ -21,11 +21,6 @@
 #include "dbm.h"
 #include "data.h"
 
-#define ALLOC_AND_COPY(s1, s2, size) \
-  char s1[size+1]; \
-  memcpy(s1, s2, size); \
-  s1[size] = '\0';
-
 namespace Lux {
 namespace DBM {
 
@@ -321,7 +316,6 @@ namespace DBM {
 
       return true;
     }
-
   };
 
 }
