@@ -182,7 +182,6 @@ namespace DBM {
     bool get(uint32_t index, data_t *data, uint32_t *size)
     {
       off_t off = index * dh_->data_size + dh_->page_size;
-
       if (off + dh_->data_size > allocated_size_) { return false; }
 
       if (dh_->index_type == CLUSTER) {
@@ -218,7 +217,6 @@ namespace DBM {
     bool put(uint32_t index, data_t *data, insert_mode_t flags = OVERWRITE)
     {
       off_t off = index * dh_->data_size + dh_->page_size;
-
       if (off + dh_->data_size > allocated_size_) {
         div_t d = div(off + dh_->data_size, dh_->page_size);
         uint32_t page_num = d.rem > 0 ? d.quot + 1 : d.quot;
@@ -250,6 +248,18 @@ namespace DBM {
 
     bool del(uint32_t index)
     {
+      off_t off = index * dh_->data_size + dh_->page_size;
+      if (off + dh_->data_size > allocated_size_) { return false; }
+
+      if (dh_->index_type == CLUSTER) {
+        // [NOTICE] deleting only fills zero
+        memset(map_ + off, 0, dh_->data_size);
+      } else {
+        data_ptr_t data_ptr;
+        memcpy(&data_ptr, map_ + off, sizeof(data_ptr_t));
+        dt_->del(&data_ptr);
+      }
+      return true;
     }
 
     void show_db_header()
