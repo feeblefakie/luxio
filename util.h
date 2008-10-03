@@ -101,9 +101,14 @@ namespace Lux {
     // [TODO] pread
   }
 
-  void *_mmap(int filedes, size_t size, int prot = PROT_READ | PROT_WRITE)
+  void *_mmap(int fd, size_t size, int flags)
   {
-    void *p = mmap(0, size, prot, MAP_SHARED, filedes, 0);  
+    int prot = PROT_READ;
+    if (flags & DB_RDWR || flags & DB_CREAT) {
+      prot |= PROT_WRITE;
+    }
+
+    void *p = mmap(0, size, prot, MAP_SHARED, fd, 0);  
     if (p == MAP_FAILED) {
       std::cerr << "map failed" << std::endl;
         return NULL;

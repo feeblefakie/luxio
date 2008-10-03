@@ -1,5 +1,5 @@
 
-prog=clean main bench bench-nocluster select select-nocluster ctest delete intbench keybench data_test data_write data_read data_update
+prog=clean main bench bench-nocluster select select-nocluster ctest delete intbench keybench data_test data_write data_read data_update array_test array_test-nocluster
 all: $(prog)
 
 main: main.cpp btree.h data.h 
@@ -39,6 +39,12 @@ data_read: data_read.cpp data.h
 	g++ -g $< -o $@
 
 data_update: data_update.cpp data.h
+	g++ -g $< -o $@
+
+array_test: array_test.cpp array.h data.h
+	g++ -g $< -o $@
+
+array_test-nocluster: array_test-nocluster.cpp array.h data.h
 	g++ -g $< -o $@
 
 check:

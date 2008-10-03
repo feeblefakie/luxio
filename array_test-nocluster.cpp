@@ -1,4 +1,4 @@
-#include "data.h"
+#include "array.h"
 #include <iostream>
 #include <fstream>
 #include <vector>
@@ -17,9 +17,9 @@ double gettimeofday_sec()
 int main(int argc, char *argv[])
 {
   double t1, t2;
-  Lux::DBM::Data *dt = new Lux::DBM::PaddedData(Lux::DBM::RATIO, 10);
-  //Lux::DBM::Data *dt = new Lux::DBM::LinkedData(Lux::DBM::RATIO, 10);
-  dt->open("datadb", Lux::DB_CREAT);
+  Lux::DBM::Array *ary = new Lux::DBM::Array(Lux::DBM::NONCLUSTER);
+  ary->set_noncluster_params(Lux::DBM::Padded, Lux::DBM::NOPADDING);
+  ary->open("anoc", Lux::DB_CREAT);
 
   std::ifstream fin;
   fin.open("./data.txt", std::ios::in);
@@ -31,12 +31,12 @@ int main(int argc, char *argv[])
   t1 = gettimeofday_sec();
   std::vector<Lux::DBM::data_ptr_t *> vec;
   std::string line;
+  int i = 0;
   while (getline(fin, line)) {
     Lux::DBM::data_t data = {line.c_str(), line.size()};
-    Lux::DBM::data_ptr_t *data_ptr = dt->put(&data);
-    vec.push_back(data_ptr);
-    //std::cerr << data_ptr->id << "," << data_ptr->off << std::endl;
-    //dt->clean_data_ptr(data_ptr);
+    if (!ary->put(i++, &data)) {
+      std::cerr << "put failed" << std::endl;
+    }
   }
   t2 = gettimeofday_sec();
   std::cout << "put time: " << t2 - t1 << std::endl;
@@ -58,9 +58,9 @@ int main(int argc, char *argv[])
   uint32_t size;
 
   t1 = gettimeofday_sec();
+  i = 0;
   while (getline(fin, line)) {
-    bool res = dt->get(*itr, &data, &size); 
-    if (res) {
+    if (ary->get(i++, &data, &size)) {
       if (size != line.size() ||
           strncmp((char *) data.data, line.c_str(), size) != 0) {
         std::cout << "ERROR: GOT WRONG DATA - size: " << size << ", line size: " << line.size() << std::endl;
@@ -70,7 +70,7 @@ int main(int argc, char *argv[])
     }
 
     /*
-    Lux::DBM::data_t *data = dt->get(*itr); 
+    Lux::DBM::data_t *data = ary->get(*itr); 
     //std::cout << "data: [";
     //std::cout.write(data->>data, data->size);
     //std::cout << "]" << std::endl;;
@@ -80,23 +80,19 @@ int main(int argc, char *argv[])
     } else {
       //std::cout << "data [ok]" << std::endl;
     }
-    dt->clean_data(data); 
+    ary->clean_data(data); 
     */
-
-    dt->clean_data_ptr(*itr); // data_ptr
-    ++itr;
   }
   t2 = gettimeofday_sec();
   std::cout << "get time: " << t2 - t1 << std::endl;
 
   fin.close();
 
-  dt->show_free_pools();
-  dt->show_db_header();
+  ary->show_db_header();
 
-  dt->close();
+  ary->close();
 
-  delete dt;
+  delete ary;
 
   return 0;
 }

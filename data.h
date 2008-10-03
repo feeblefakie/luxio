@@ -141,7 +141,7 @@ namespace DBM {
         }
       }
 
-      map_ = (char *) _mmap(fd_, DEFAULT_BLOCKSIZE);
+      map_ = (char *) _mmap(fd_, DEFAULT_BLOCKSIZE, oflags);
 
       oflags_ = oflags;
       dh_ = (db_header_t *) map_;
@@ -211,6 +211,8 @@ namespace DBM {
     virtual data_ptr_t *update(data_ptr_t *data_ptr, data_t *data) = 0;
     virtual void del(data_ptr_t *data_ptr) = 0;
     virtual data_t *get(data_ptr_t *data_ptr) = 0;
+    // using user memory
+    virtual bool get(data_ptr_t *data_ptr, data_t *data, uint32_t *size) = 0;
 
   protected:
     int fd_;
@@ -376,109 +378,6 @@ namespace DBM {
       }
       return true;
     }
-
-    /*
-    // system call wrappers
-    int _open(const char *pathname, int flags, mode_t mode)
-    {
-      int oflags = O_RDONLY;
-
-      if (flags & DB_RDWR) {
-        oflags |= O_RDWR;
-      }
-      if (flags & DB_CREAT) {
-        oflags |= O_CREAT | O_RDWR;
-        _mkdir(pathname);
-      }
-      if (flags & DB_TRUNC) {
-        oflags |= O_TRUNC;
-      }
-      return ::open(pathname, oflags, mode);
-    }
-    
-    ssize_t _read(int fd, void *buf, size_t count)
-    {
-      char *p = reinterpret_cast<char *>(buf);
-      const char * const end_p = p + count;
-
-      while (p < end_p) {
-        const int num_bytes = read(fd, p, end_p - p);
-        if (num_bytes < 0) {
-          if (errno == EINTR) {
-            continue;
-          }
-          perror("read failed");
-          break;
-        }
-        p += num_bytes;
-      }
-
-      if (p != end_p) {
-        return -1;
-      }
-      return count;
-    }
-
-    ssize_t _write(int fd, const void *buf, size_t count)
-    {
-      const char *p = reinterpret_cast<const char *>(buf);
-      const char * const end_p = p + count;
-
-      while (p < end_p) {
-        const int num_bytes = write(fd, p, end_p - p);
-        if (num_bytes < 0) {
-          if (errno == EINTR) continue;
-          perror("write failed");
-          break;
-        }
-        p += num_bytes;
-      }
-
-      if (p != end_p) {
-        return -1;
-      }
-      return count;
-    }
-
-    ssize_t _pwrite(int fd, const void *buf, size_t nbyte, off_t offset)
-    {
-      lseek(fd, offset, SEEK_SET);
-      return _write(fd, buf, nbyte);
-      // [TODO] pwrite 
-    }
-
-    ssize_t _pread(int fd, void *buf, size_t nbyte, off_t offset)
-    {
-      lseek(fd, offset, SEEK_SET);
-      return _read(fd, buf, nbyte);
-      // [TODO] pread
-    }
-
-    void _mkdir(const char *str)
-    {
-      std::string str_(str); 
-      int n = -1; 
-      while (1) {
-        n = str_.find_first_of('/', n+1);
-        if (n == std::string::npos) {
-          break;  
-        }
-        std::string dir = str_.substr(0, n);
-        // [TODO] error handling
-        ::mkdir(dir.c_str(), 0755);
-      }
-    }
-
-    void *_mmap(int filedes, size_t size, int prot = PROT_READ | PROT_WRITE)
-    {
-      void *p = mmap(0, size, prot, MAP_SHARED, filedes, 0);  
-      if (p == MAP_FAILED) {
-        std::cerr << "map failed" << std::endl;
-          return NULL;
-      }
-      return p;
-    }
-    */
 
     template<typename T>
     ssize_t write_header_and_data(T *h, data_t *d, off_t off)
@@ -653,6 +552,24 @@ namespace DBM {
         return NULL;
       }
       return data;
+    }
+
+    // uses user allocated data
+    virtual bool get(data_ptr_t *data_ptr, data_t *data, uint32_t *size)
+    {
+      record_header_t h;
+      off_t off = calc_off(data_ptr->id, data_ptr->off);
+      _pread(fd_, &h, sizeof(record_header_t), off);
+
+      *size = h.size - sizeof(record_header_t);
+      if (data->size < *size) {
+        std::cerr << "allocated size is too small for the data " << size << std::endl;
+        return false;
+      }
+      int bytes_read = _pread(fd_, (char *) data->data, *size,
+                              off + sizeof(record_header_t));
+
+      return true;
     }
 
   private:
@@ -894,6 +811,43 @@ namespace DBM {
 
       data->data = d;
       return data;
+    }
+
+    virtual bool get(data_ptr_t *data_ptr, data_t *data, uint32_t *size)
+    {
+      record_header_t h;
+      off_t off = calc_off(data_ptr->id, data_ptr->off);
+      _pread(fd_, &h, sizeof(record_header_t), off);
+
+      char *p = (char *) data->data;
+      uint32_t data_size = 0;
+      *size = 0;
+
+      int cnt = 0;
+      off += sizeof(record_header_t);
+      unit_header_t u;
+      do {
+        _pread(fd_, &u, sizeof(unit_header_t), off);
+
+        data_size = u.size - sizeof(unit_header_t);
+        *size += data_size;
+        if (data->size < *size) {
+          std::cerr << "allocated size is too small for the data" << std::endl;
+          return false;
+        }
+
+        off += sizeof(unit_header_t);
+        int bytes_read = _pread(fd_, p, data_size, off);
+        if (bytes_read != data_size) {
+          return false;
+        }
+        p += bytes_read;
+
+        // next unit
+        off = calc_off(u.next_block_id, u.next_off); 
+      } while (++cnt < h.num_units);
+
+      return true;
     }
 
   private:
