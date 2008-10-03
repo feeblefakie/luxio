@@ -191,7 +191,7 @@ namespace DBM {
     }
 
     bool put(uint32_t index,
-              const void *val, uint32_t val_size, insert_mode_t flags = OVERWRITE)
+             const void *val, uint32_t val_size, insert_mode_t flags = OVERWRITE)
     {
       data_t data = {val, val_size};
       return put(index, &data, flags);
