@@ -119,7 +119,6 @@ namespace DBM {
 
       oflags_ = oflags;
       dh_ = (array_header_t *) map_;
-      num_in_page_ = dh_->page_size / dh_->data_size;
       allocated_size_ = dh_->page_size * dh_->num_pages;
 
       if (index_type_ != dh_->index_type) {
@@ -145,22 +144,14 @@ namespace DBM {
     data_t *get(uint32_t index)
     {
       data_t *data;
-      // [TODO] offset calculation takes too much time. 
-      // better to caluculate a offset directly from the specified index like
-      // off_t off = index * dh_->data_size;
-      // IDX_TO_OFF(index)
-      div_t d = div(index + 1, num_in_page_);
-      uint32_t page_num = d.rem > 0 ? d.quot + 1 : d.quot;
+      off_t off = index * dh_->data_size + dh_->page_size;
 
-      if (page_num + 1 > dh_->num_pages) { return NULL; }
-
-      off_t off = page_num * dh_->page_size + d.rem * dh_->data_size;
+      if (off + dh_->data_size > allocated_size_) { return NULL; }
 
       if (dh_->index_type == CLUSTER) {
         data = new data_t;
         data->size = dh_->data_size;
         data->data = new char[dh_->data_size];
-        //memset((char *) data->data, 0, dh_->data_size);
         memcpy((char *) data->data, map_ + off, dh_->data_size);
       } else {
         data_ptr_t data_ptr;
@@ -170,52 +161,25 @@ namespace DBM {
       return data;
     }
 
-    data_t *get2(uint32_t index)
+    bool get(uint32_t index, data_t *data, uint32_t *size)
     {
-      data_t *data;
-      off_t off = index * dh_->data_size + dh_->page_size;
-
-      if (off + dh_->data_size > allocated_size_) { return NULL; }
-
-      if (dh_->index_type == CLUSTER) {
-        /*
-        data = new data_t;
-        data->size = dh_->data_size;
-        data->data = new char[dh_->data_size];
-        */
-        //memset((char *) data->data, 0, dh_->data_size);
-        //memcpy((char *) data->data, map_ + off, dh_->data_size);
-      } else {
-        /*
-        data_ptr_t data_ptr;
-        memcpy(&data_ptr, map_ + off, sizeof(data_ptr_t));
-        data = dt_->get(&data_ptr);
-        */
-      }
-      return data;
-    }
-
-    bool get2p(uint32_t index, void *val, uint32_t *val_size)
-    {
-      data_t *data;
       off_t off = index * dh_->data_size + dh_->page_size;
 
       if (off + dh_->data_size > allocated_size_) { return false; }
 
       if (dh_->index_type == CLUSTER) {
-        /*
-        data = new data_t;
-        data->size = dh_->data_size;
-        data->data = new char[dh_->data_size];
-        */
-        //memset((char *) data->data, 0, dh_->data_size);
-        //memcpy((char *) data->data, map_ + off, dh_->data_size);
-        memcpy((char *) val, map_ + off, dh_->data_size);
-        //*val_size = dh_->data_size;
+        if (data->size < dh_->data_size) {
+          std::cerr << "allocated size is too small for the data" << std::endl;
+          return false;
+        }
+        memcpy((char *) data->data, map_ + off, dh_->data_size);
+        *size = dh_->data_size;
       } else {
         data_ptr_t data_ptr;
         memcpy(&data_ptr, map_ + off, sizeof(data_ptr_t));
-        data = dt_->get(&data_ptr);
+        if (!dt_->get(&data_ptr, data, size)) {
+          return false;
+        }
       }
       return true;
     }
@@ -227,44 +191,14 @@ namespace DBM {
     }
 
     bool put(uint32_t index,
-             const void *val, uint32_t val_size, insert_mode_t flags = OVERWRITE)
-    {
-      data_t data = {val, val_size};
-      div_t d = div(index + 1, num_in_page_);
-      uint32_t page_num = d.rem > 0 ? d.quot + 1 : d.quot;
-
-      if (page_num + 1 > dh_->num_pages) {
-        realloc_pages(page_num + 1, dh_->page_size);
-      }
-      off_t off = page_num * dh_->page_size + d.rem * dh_->data_size;
-
-      if (dh_->index_type == CLUSTER) {
-        // only update is supported in cluster index
-        memcpy(map_ + off, val, dh_->data_size);
-      } else {
-        data_ptr_t *res_data_ptr;
-        data_ptr_t data_ptr;
-        memcpy(&data_ptr, map_ + off, sizeof(data_ptr_t));
-
-        if (data_ptr.id != 0 || data_ptr.off != 0) { // already stored
-          if (flags == APPEND) {
-            res_data_ptr = dt_->append(&data_ptr, &data);
-          } else { // OVERWRITE
-            res_data_ptr = dt_->update(&data_ptr, &data);
-          }
-        } else {
-          res_data_ptr = dt_->put(&data);
-        }
-        memcpy(map_ + off, res_data_ptr, sizeof(data_ptr_t));
-        dt_->clean_data_ptr(res_data_ptr);
-      }
-      return true;
-    }
-
-    bool put2(uint32_t index,
               const void *val, uint32_t val_size, insert_mode_t flags = OVERWRITE)
     {
       data_t data = {val, val_size};
+      return put(index, &data, flags);
+    }
+
+    bool put(uint32_t index, data_t *data, insert_mode_t flags = OVERWRITE)
+    {
       off_t off = index * dh_->data_size + dh_->page_size;
 
       if (off + dh_->data_size > allocated_size_) {
@@ -275,7 +209,7 @@ namespace DBM {
 
       if (dh_->index_type == CLUSTER) {
         // only update is supported in cluster index
-        memcpy(map_ + off, val, dh_->data_size);
+        memcpy(map_ + off, data->data, dh_->data_size);
       } else {
         data_ptr_t *res_data_ptr;
         data_ptr_t data_ptr;
@@ -283,12 +217,12 @@ namespace DBM {
 
         if (data_ptr.id != 0 || data_ptr.off != 0) { // already stored
           if (flags == APPEND) {
-            res_data_ptr = dt_->append(&data_ptr, &data);
+            res_data_ptr = dt_->append(&data_ptr, data);
           } else { // OVERWRITE
-            res_data_ptr = dt_->update(&data_ptr, &data);
+            res_data_ptr = dt_->update(&data_ptr, data);
           }
         } else {
-          res_data_ptr = dt_->put(&data);
+          res_data_ptr = dt_->put(data);
         }
         memcpy(map_ + off, res_data_ptr, sizeof(data_ptr_t));
         dt_->clean_data_ptr(res_data_ptr);
@@ -317,7 +251,6 @@ namespace DBM {
     array_header_t *dh_;
     db_index_t index_type_;
     uint8_t data_size_;
-    uint32_t num_in_page_;
     uint64_t allocated_size_;
     Data *dt_;
 
