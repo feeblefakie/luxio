@@ -34,15 +34,23 @@ int main(int argc, char *argv[])
 
   write_seq(&rnum);
 
-  pthread_t thread_writer, thread_reader;
+  pthread_t tw, tr1, tr2, tr3, tr4, tr5;
   double t1, t2;
 
   t1 = gettimeofday_sec();
-  pthread_create(&thread_writer, NULL, (PROC)update_random, (void *) &rnum);
-  //pthread_create(&thread_writer, NULL, (PROC)write_seq, (void *) &rnum);
-  pthread_create(&thread_reader, NULL, (PROC)read_ramdom, (void *) &rnum);
-  pthread_join(thread_writer, NULL);
-  pthread_join(thread_reader, NULL);
+  //pthread_create(&tw, NULL, (PROC)update_random, (void *) &rnum);
+  //pthread_create(&tw, NULL, (PROC)write_seq, (void *) &rnum);
+  pthread_create(&tr1, NULL, (PROC)read_ramdom, (void *) &rnum);
+  pthread_create(&tr2, NULL, (PROC)read_ramdom, (void *) &rnum);
+  pthread_create(&tr3, NULL, (PROC)read_ramdom, (void *) &rnum);
+  pthread_create(&tr4, NULL, (PROC)read_ramdom, (void *) &rnum);
+  pthread_create(&tr5, NULL, (PROC)read_ramdom, (void *) &rnum);
+  //pthread_join(tw, NULL);
+  pthread_join(tr1, NULL);
+  pthread_join(tr2, NULL);
+  pthread_join(tr3, NULL);
+  pthread_join(tr4, NULL);
+  pthread_join(tr5, NULL);
   t2 = gettimeofday_sec();
   std::cout << "time(threads): " << t2 - t1 << std::endl;
 
@@ -113,6 +121,9 @@ void read_ramdom(int *rnum)
     } else {
       std::cout << "[error] entry not found. [" << key << "]" << std::endl;
     } 
+    if (i % 100000 == 0) {
+      std::cout << i << std::endl;
+    }
   }
   t2 = gettimeofday_sec();
   std::cout << "get time: " << t2 - t1 << std::endl;
