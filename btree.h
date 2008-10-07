@@ -20,6 +20,7 @@
 
 #include "dbm.h"
 #include "data.h"
+#include <pthread.h>
 
 #define ALLOC_AND_COPY(s1, s2, size) \
   char s1[size+1]; \
@@ -137,7 +138,12 @@ namespace DBM {
       index_type_(index_type),
       dt_(index_type == NONCLUSTER ? new LinkedData(NOPADDING) : NULL),
       data_size_(index_type == NONCLUSTER ? sizeof(data_ptr_t) : data_size)
-    {}
+    {
+      if (pthread_rwlock_init(&rwlock_, NULL) != 0) {
+        std::cerr << "pthread_rwlock_init failed" << std::endl;
+        exit(-1);
+      }
+    }
 
     ~Btree()
     {
@@ -148,102 +154,38 @@ namespace DBM {
       if (map_ != NULL) {
         close();
       }
+      if (pthread_rwlock_destroy(&rwlock_) != 0) {
+        std::cerr << "pthread_rwlock_destroy failed" << std::endl;
+        exit(-1);
+      }
     }
 
     bool open(std::string db_name, db_flags_t oflags)
     {
-      std::string idx_db_name = db_name + ".bidx";
-      fd_ = _open(idx_db_name.c_str(), oflags, 00644);
-      if (fd_ < 0) {
-        return false;
-      }
+      pthread_rwlock_wrlock(&rwlock_);
+      bool res = open_(db_name, oflags);
+      pthread_rwlock_unlock(&rwlock_);
 
-      struct stat stat_buf;
-      if (fstat(fd_, &stat_buf) == -1 || !S_ISREG(stat_buf.st_mode)) {
-        return false;
-      }
-
-      btree_header_t dh;
-      memset(&dh, 0, sizeof(btree_header_t));
-      if (stat_buf.st_size == 0 && oflags & DB_CREAT) {
-        // initialize the header for the newly created file
-        //strncpy(h.magic, MAGIC, strlen(MAGIC));
-        dh.num_keys = 0;
-        // one for db_header, one for root node and one for leaf node
-        dh.num_nodes = 3;
-        dh.node_size = getpagesize();
-        //dh.node_size = 128;
-        dh.init_data_size = dh.node_size - sizeof(node_header_t);
-        dh.root_id = 1;
-        dh.num_leaves = 0;
-        dh.num_nonleaves = 0; // root node
-        dh.index_type = index_type_;
-        dh.data_size = data_size_;
-
-        if (_write(fd_, &dh, sizeof(btree_header_t)) < 0) {
-          return false;
-        }
-        if (!alloc_page(dh.num_nodes, dh.node_size)) {
-          std::cerr << "alloc_page failed in open" << std::endl;    
-        }
-
-        // root node and the first leaf node
-        node_t *root = _init_node(1, true, false);
-        node_t *leaf = _init_node(2, false, true);
-
-        // make a link from root to the first leaf node
-        memcpy(root->b, &(leaf->h->id), sizeof(node_id_t));
-        root->h->data_off += sizeof(node_id_t);
-        root->h->free_size -= sizeof(node_id_t);
-
-        delete root;
-        delete leaf;
-
-      } else {
-        if (_read(fd_, &dh, sizeof(btree_header_t)) < 0) {
-          std::cerr << "read failed" << std::endl;
-          return false;
-        }
-
-        // [TODO] read filesize and compare with num_nodes * node_size
-        // if they differ, gives alert and trust the filesize ?
-        
-        map_ = (char *) mmap(0, dh.node_size * dh.num_nodes,
-                            PROT_READ | PROT_WRITE, MAP_SHARED, fd_, 0);  
-        if (map_ == MAP_FAILED) {
-          std::cerr << "map failed" << std::endl;
-          return false;
-        }
-      }
-
-      oflags_ = oflags;
-      dh_ = (btree_header_t *) map_;
-
-      if (index_type_ != dh_->index_type) {
-        std::cerr << "wrong index type" << std::endl;
-        return false;
-      }
-
-      if (dh_->index_type == NONCLUSTER) {
-        std::string data_db_name = db_name + ".data";
-        dt_->open(data_db_name.c_str(), oflags);
-      }
-      return true;
+      return res;
     }
 
     bool close()
     {
+      pthread_rwlock_wrlock(&rwlock_);
       msync(map_, dh_->node_size * dh_->num_nodes, MS_SYNC);
       munmap(map_, dh_->node_size * dh_->num_nodes);
       map_ = NULL;
       ::close(fd_);
+      pthread_rwlock_unlock(&rwlock_);
     }
 
     data_t *get(const void *key, uint32_t key_size)
     {
       data_t key_data = {key, key_size};
       data_t *val_data = NULL;
+      pthread_rwlock_rdlock(&rwlock_);
       find(dh_->root_id, &key_data, &val_data);
+      pthread_rwlock_unlock(&rwlock_);
       return val_data;
     }
 
@@ -262,14 +204,18 @@ namespace DBM {
                        flags};
       up_entry_t *up_entry = NULL;
     
+      pthread_rwlock_wrlock(&rwlock_);
       insert(dh_->root_id, &entry, &up_entry);
+      pthread_rwlock_unlock(&rwlock_);
     }
 
     bool del(const void *key, uint32_t key_size)
     {
       entry_t entry = {key, key_size, NULL, 0, 0};
 
+      pthread_rwlock_wrlock(&rwlock_);
       _del(dh_->root_id, &entry);
+      pthread_rwlock_unlock(&rwlock_);
     }
 
     bool _del(node_id_t id, entry_t *entry)
@@ -378,6 +324,85 @@ namespace DBM {
     uint8_t data_size_;
     CMP cmp_;
     Data *dt_;
+    pthread_rwlock_t rwlock_;
+
+    bool open_(std::string db_name, db_flags_t oflags)
+    {
+      std::string idx_db_name = db_name + ".bidx";
+      fd_ = _open(idx_db_name.c_str(), oflags, 00644);
+      if (fd_ < 0) {
+        return false;
+      }
+
+      struct stat stat_buf;
+      if (fstat(fd_, &stat_buf) == -1 || !S_ISREG(stat_buf.st_mode)) {
+        return false;
+      }
+
+      btree_header_t dh;
+      memset(&dh, 0, sizeof(btree_header_t));
+      if (stat_buf.st_size == 0 && oflags & DB_CREAT) {
+        // initialize the header for the newly created file
+        //strncpy(h.magic, MAGIC, strlen(MAGIC));
+        dh.num_keys = 0;
+        // one for db_header, one for root node and one for leaf node
+        dh.num_nodes = 3;
+        dh.node_size = getpagesize();
+        dh.init_data_size = dh.node_size - sizeof(node_header_t);
+        dh.root_id = 1;
+        dh.num_leaves = 0;
+        dh.num_nonleaves = 0; // root node
+        dh.index_type = index_type_;
+        dh.data_size = data_size_;
+
+        if (_write(fd_, &dh, sizeof(btree_header_t)) < 0) {
+          return false;
+        }
+        if (!alloc_page(dh.num_nodes, dh.node_size)) {
+          std::cerr << "alloc_page failed in open" << std::endl;    
+        }
+
+        // root node and the first leaf node
+        node_t *root = _init_node(1, true, false);
+        node_t *leaf = _init_node(2, false, true);
+
+        // make a link from root to the first leaf node
+        memcpy(root->b, &(leaf->h->id), sizeof(node_id_t));
+        root->h->data_off += sizeof(node_id_t);
+        root->h->free_size -= sizeof(node_id_t);
+
+        delete root;
+        delete leaf;
+
+      } else {
+        if (_read(fd_, &dh, sizeof(btree_header_t)) < 0) {
+          std::cerr << "read failed" << std::endl;
+          return false;
+        }
+
+        // [TODO] read filesize and compare with num_nodes * node_size
+        // if they differ, gives alert and trust the filesize ?
+        map_ = (char *) mmap(0, dh.node_size * dh.num_nodes,
+                            PROT_READ | PROT_WRITE, MAP_SHARED, fd_, 0);  
+        if (map_ == MAP_FAILED) {
+          std::cerr << "map failed" << std::endl;
+          return false;
+        }
+      }
+
+      oflags_ = oflags;
+      dh_ = (btree_header_t *) map_;
+
+      if (index_type_ != dh_->index_type) {
+        std::cerr << "wrong index type" << std::endl;
+        return false;
+      }
+
+      if (dh_->index_type == NONCLUSTER) {
+        std::string data_db_name = db_name + ".data";
+        dt_->open(data_db_name.c_str(), oflags);
+      }
+    }
 
     node_t *_init_node(uint32_t id, bool is_root, bool is_leaf)
     {
