@@ -106,7 +106,7 @@ void update_random(int *rnum)
 {
   double t1, t2;
   t1 = gettimeofday_sec();
-  for (int i = 0; i < *rnum/10; ++i) {
+  for (int i = 0; i < *rnum/20; ++i) {
     char key[9];
     memset(key, 0, 9);
     int num = rand() % *rnum;
@@ -118,7 +118,7 @@ void update_random(int *rnum)
       fprintf(stderr, "put error\n");
     }
     ++num_updated;
-    usleep(15);
+    usleep(20);
   }
   t2 = gettimeofday_sec();
   std::cout << "update time: " << t2 - t1 << std::endl;

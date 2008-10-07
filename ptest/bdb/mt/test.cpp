@@ -103,9 +103,8 @@ void write_seq(int *rnum)
 void update_random(int *rnum)
 {
   double t1, t2;
-  int update_num = *rnum / 10;
   t1 = gettimeofday_sec();
-  for (int i = 0; i < update_num; ++i) {
+  for (int i = 0; i < *rnum/10; ++i) {
     DBT key, data;
     int ret;
     char str[9];
