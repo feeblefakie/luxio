@@ -58,13 +58,21 @@ int main(int argc, char **argv){
   write_seq(&rnum);
 
   double t1, t2;
-  pthread_t thread_writer, thread_reader;
+  pthread_t tw, tr1, tr2, tr3, tr4, tr5;
 
   t1 = gettimeofday_sec();
-  pthread_create(&thread_writer, NULL, (PROC)update_random, (void *) &rnum);
-  pthread_create(&thread_reader, NULL, (PROC)read_ramdom, (void *) &rnum);
-  pthread_join(thread_writer, NULL);
-  pthread_join(thread_reader, NULL);
+  //pthread_create(&tw, NULL, (PROC)update_random, (void *) &rnum);
+  pthread_create(&tr1, NULL, (PROC)read_ramdom, (void *) &rnum);
+  pthread_create(&tr2, NULL, (PROC)read_ramdom, (void *) &rnum);
+  pthread_create(&tr3, NULL, (PROC)read_ramdom, (void *) &rnum);
+  pthread_create(&tr4, NULL, (PROC)read_ramdom, (void *) &rnum);
+  pthread_create(&tr5, NULL, (PROC)read_ramdom, (void *) &rnum);
+  //pthread_join(tw, NULL);
+  pthread_join(tr1, NULL);
+  pthread_join(tr2, NULL);
+  pthread_join(tr3, NULL);
+  pthread_join(tr4, NULL);
+  pthread_join(tr5, NULL);
   t2 = gettimeofday_sec();
   std::cout << "time(threads): " << t2 - t1 << std::endl;
 
@@ -106,7 +114,7 @@ void update_random(int *rnum)
 {
   double t1, t2;
   t1 = gettimeofday_sec();
-  for (int i = 0; i < *rnum/20; ++i) {
+  for (int i = 0; i < *rnum/10; ++i) {
     char key[9];
     memset(key, 0, 9);
     int num = rand() % *rnum;
@@ -118,7 +126,7 @@ void update_random(int *rnum)
       fprintf(stderr, "put error\n");
     }
     ++num_updated;
-    usleep(20);
+    usleep(15);
   }
   t2 = gettimeofday_sec();
   std::cout << "update time: " << t2 - t1 << std::endl;
