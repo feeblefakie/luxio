@@ -20,6 +20,7 @@
 
 #include "dbm.h"
 #include "data.h"
+#include <pthread.h>
 
 namespace Lux {
 namespace DBM {
@@ -61,7 +62,12 @@ namespace DBM {
       padding_(20),
       index_type_(index_type),
       data_size_(index_type == NONCLUSTER ? sizeof(data_ptr_t) : data_size)
-    {}
+    {
+      if (pthread_rwlock_init(&rwlock_, NULL) != 0) {
+        std::cerr << "pthread_rwlock_init failed" << std::endl;
+        exit(-1);
+      }
+    }
 
     ~Array()
     {
@@ -71,6 +77,10 @@ namespace DBM {
       }
       if (map_ != NULL) {
         close();
+      }
+      if (pthread_rwlock_destroy(&rwlock_) != 0) {
+        std::cerr << "pthread_rwlock_destroy failed" << std::endl;
+        exit(-1);
       }
     }
 
@@ -84,6 +94,160 @@ namespace DBM {
     }
 
     bool open(std::string db_name, db_flags_t oflags)
+    {
+      pthread_rwlock_wrlock(&rwlock_);
+      bool res = open_(db_name, oflags);
+      pthread_rwlock_unlock(&rwlock_);
+
+      return res;
+    }
+
+    bool close()
+    {
+      pthread_rwlock_wrlock(&rwlock_);
+      msync(map_, dh_->page_size * dh_->num_pages, MS_SYNC);
+      munmap(map_, dh_->page_size * dh_->num_pages);
+      map_ = NULL;
+      ::close(fd_);
+      pthread_rwlock_unlock(&rwlock_);
+    }
+
+    data_t *get(uint32_t index)
+    {
+      data_t *data;
+      
+      pthread_rwlock_rdlock(&rwlock_);
+      off_t off = index * dh_->data_size + dh_->page_size;
+      if (off + dh_->data_size > allocated_size_) { return NULL; }
+
+      if (dh_->index_type == CLUSTER) {
+        data = new data_t;
+        data->size = dh_->data_size;
+        data->data = new char[dh_->data_size];
+        memcpy((char *) data->data, map_ + off, dh_->data_size);
+      } else {
+        data_ptr_t data_ptr;
+        memcpy(&data_ptr, map_ + off, sizeof(data_ptr_t));
+        data = dt_->get(&data_ptr);
+      }
+      pthread_rwlock_rdlock(&rwlock_);
+      return data;
+    }
+
+    bool get(uint32_t index, data_t *data, uint32_t *size)
+    {
+      pthread_rwlock_rdlock(&rwlock_);
+      off_t off = index * dh_->data_size + dh_->page_size;
+      if (off + dh_->data_size > allocated_size_) { return false; }
+
+      if (dh_->index_type == CLUSTER) {
+        if (data->size < dh_->data_size) {
+          std::cerr << "allocated size is too small for the data" << std::endl;
+          return false;
+        }
+        memcpy((char *) data->data, map_ + off, dh_->data_size);
+        *size = dh_->data_size;
+      } else {
+        data_ptr_t data_ptr;
+        memcpy(&data_ptr, map_ + off, sizeof(data_ptr_t));
+        if (!dt_->get(&data_ptr, data, size)) {
+          return false;
+        }
+      }
+      pthread_rwlock_rdlock(&rwlock_);
+      return true;
+    }
+
+    bool clean_data(data_t *d)
+    {
+      delete [] (char *) (d->data);
+      delete d;
+    }
+
+    bool put(uint32_t index,
+             const void *val, uint32_t val_size, insert_mode_t flags = OVERWRITE)
+    {
+      data_t data = {val, val_size};
+      return put(index, &data, flags);
+    }
+
+    bool put(uint32_t index, data_t *data, insert_mode_t flags = OVERWRITE)
+    {
+      pthread_rwlock_wrlock(&rwlock_);
+      off_t off = index * dh_->data_size + dh_->page_size;
+      if (off + dh_->data_size > allocated_size_) {
+        div_t d = div(off + dh_->data_size, dh_->page_size);
+        uint32_t page_num = d.rem > 0 ? d.quot + 1 : d.quot;
+        realloc_pages(page_num, dh_->page_size);
+      }
+
+      if (dh_->index_type == CLUSTER) {
+        // only update is supported in cluster index
+        memcpy(map_ + off, data->data, dh_->data_size);
+      } else {
+        data_ptr_t *res_data_ptr;
+        data_ptr_t data_ptr;
+        memcpy(&data_ptr, map_ + off, sizeof(data_ptr_t));
+
+        if (data_ptr.id != 0 || data_ptr.off != 0) { // already stored
+          if (flags == APPEND) {
+            res_data_ptr = dt_->append(&data_ptr, data);
+          } else { // OVERWRITE
+            res_data_ptr = dt_->update(&data_ptr, data);
+          }
+        } else {
+          res_data_ptr = dt_->put(data);
+        }
+        memcpy(map_ + off, res_data_ptr, sizeof(data_ptr_t));
+        dt_->clean_data_ptr(res_data_ptr);
+      }
+      pthread_rwlock_unlock(&rwlock_);
+      return true;
+    }
+
+    bool del(uint32_t index)
+    {
+      pthread_rwlock_wrlock(&rwlock_);
+      off_t off = index * dh_->data_size + dh_->page_size;
+      if (off + dh_->data_size > allocated_size_) { return false; }
+
+      if (dh_->index_type == CLUSTER) {
+        // [NOTICE] deleting only fills zero
+        memset(map_ + off, 0, dh_->data_size);
+      } else {
+        data_ptr_t data_ptr;
+        memcpy(&data_ptr, map_ + off, sizeof(data_ptr_t));
+        dt_->del(&data_ptr);
+      }
+      pthread_rwlock_unlock(&rwlock_);
+      return true;
+    }
+
+    void show_db_header()
+    {
+      std::cout << "========= SHOW DATABASE HEADER ==========" << std::endl;
+      std::cout << "num_keys: " << dh_->num_keys << std::endl;
+      std::cout << "num_nodes: " << dh_->num_pages << std::endl;
+      std::cout << "node_size: " << dh_->page_size << std::endl;
+      std::cout << "index_type: " << (int) dh_->index_type << std::endl;
+      std::cout << "data_size: " << (int) dh_->data_size << std::endl;
+    }
+
+  private:
+    int fd_;
+    db_flags_t oflags_;
+    char *map_;
+    array_header_t *dh_;
+    db_index_t index_type_;
+    uint8_t data_size_;
+    uint64_t allocated_size_;
+    Data *dt_;
+    store_mode_t smode_;
+    padding_mode_t pmode_;
+    uint32_t padding_;
+    pthread_rwlock_t rwlock_;
+
+    bool open_(std::string db_name, db_flags_t oflags)
     {
       std::string idx_db_name = db_name + ".aidx";
       fd_ = _open(idx_db_name.c_str(), oflags, 00644);
@@ -145,140 +309,6 @@ namespace DBM {
       }
       return true;
     }
-
-    bool close()
-    {
-      msync(map_, dh_->page_size * dh_->num_pages, MS_SYNC);
-      munmap(map_, dh_->page_size * dh_->num_pages);
-      map_ = NULL;
-      ::close(fd_);
-    }
-
-    data_t *get(uint32_t index)
-    {
-      data_t *data;
-      off_t off = index * dh_->data_size + dh_->page_size;
-
-      if (off + dh_->data_size > allocated_size_) { return NULL; }
-
-      if (dh_->index_type == CLUSTER) {
-        data = new data_t;
-        data->size = dh_->data_size;
-        data->data = new char[dh_->data_size];
-        memcpy((char *) data->data, map_ + off, dh_->data_size);
-      } else {
-        data_ptr_t data_ptr;
-        memcpy(&data_ptr, map_ + off, sizeof(data_ptr_t));
-        data = dt_->get(&data_ptr);
-      }
-      return data;
-    }
-
-    bool get(uint32_t index, data_t *data, uint32_t *size)
-    {
-      off_t off = index * dh_->data_size + dh_->page_size;
-      if (off + dh_->data_size > allocated_size_) { return false; }
-
-      if (dh_->index_type == CLUSTER) {
-        if (data->size < dh_->data_size) {
-          std::cerr << "allocated size is too small for the data" << std::endl;
-          return false;
-        }
-        memcpy((char *) data->data, map_ + off, dh_->data_size);
-        *size = dh_->data_size;
-      } else {
-        data_ptr_t data_ptr;
-        memcpy(&data_ptr, map_ + off, sizeof(data_ptr_t));
-        if (!dt_->get(&data_ptr, data, size)) {
-          return false;
-        }
-      }
-      return true;
-    }
-
-    bool clean_data(data_t *d)
-    {
-      delete [] (char *) (d->data);
-      delete d;
-    }
-
-    bool put(uint32_t index,
-             const void *val, uint32_t val_size, insert_mode_t flags = OVERWRITE)
-    {
-      data_t data = {val, val_size};
-      return put(index, &data, flags);
-    }
-
-    bool put(uint32_t index, data_t *data, insert_mode_t flags = OVERWRITE)
-    {
-      off_t off = index * dh_->data_size + dh_->page_size;
-      if (off + dh_->data_size > allocated_size_) {
-        div_t d = div(off + dh_->data_size, dh_->page_size);
-        uint32_t page_num = d.rem > 0 ? d.quot + 1 : d.quot;
-        realloc_pages(page_num, dh_->page_size);
-      }
-
-      if (dh_->index_type == CLUSTER) {
-        // only update is supported in cluster index
-        memcpy(map_ + off, data->data, dh_->data_size);
-      } else {
-        data_ptr_t *res_data_ptr;
-        data_ptr_t data_ptr;
-        memcpy(&data_ptr, map_ + off, sizeof(data_ptr_t));
-
-        if (data_ptr.id != 0 || data_ptr.off != 0) { // already stored
-          if (flags == APPEND) {
-            res_data_ptr = dt_->append(&data_ptr, data);
-          } else { // OVERWRITE
-            res_data_ptr = dt_->update(&data_ptr, data);
-          }
-        } else {
-          res_data_ptr = dt_->put(data);
-        }
-        memcpy(map_ + off, res_data_ptr, sizeof(data_ptr_t));
-        dt_->clean_data_ptr(res_data_ptr);
-      }
-      return true;
-    }
-
-    bool del(uint32_t index)
-    {
-      off_t off = index * dh_->data_size + dh_->page_size;
-      if (off + dh_->data_size > allocated_size_) { return false; }
-
-      if (dh_->index_type == CLUSTER) {
-        // [NOTICE] deleting only fills zero
-        memset(map_ + off, 0, dh_->data_size);
-      } else {
-        data_ptr_t data_ptr;
-        memcpy(&data_ptr, map_ + off, sizeof(data_ptr_t));
-        dt_->del(&data_ptr);
-      }
-      return true;
-    }
-
-    void show_db_header()
-    {
-      std::cout << "========= SHOW DATABASE HEADER ==========" << std::endl;
-      std::cout << "num_keys: " << dh_->num_keys << std::endl;
-      std::cout << "num_nodes: " << dh_->num_pages << std::endl;
-      std::cout << "node_size: " << dh_->page_size << std::endl;
-      std::cout << "index_type: " << (int) dh_->index_type << std::endl;
-      std::cout << "data_size: " << (int) dh_->data_size << std::endl;
-    }
-
-  private:
-    int fd_;
-    db_flags_t oflags_;
-    char *map_;
-    array_header_t *dh_;
-    db_index_t index_type_;
-    uint8_t data_size_;
-    uint64_t allocated_size_;
-    Data *dt_;
-    store_mode_t smode_;
-    padding_mode_t pmode_;
-    uint32_t padding_;
 
     bool alloc_pages(uint32_t num_pages, uint16_t page_size)
     {
