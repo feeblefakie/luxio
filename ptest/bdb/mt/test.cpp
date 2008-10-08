@@ -26,8 +26,8 @@ typedef void *(*PROC)(void *);
 
 int main(int argc, char **argv){
 
-  if (argc != 2) {
-    std::cerr << "Usage: " << argv[0] << " record_num" << std::endl; 
+  if (argc != 3) {
+    std::cerr << "Usage: " << argv[0] << " record_num thread_num" << std::endl; 
     exit(1);
   }
 
@@ -49,17 +49,26 @@ int main(int argc, char **argv){
   }
 
   int rnum = atoi(argv[1]);
+  int tnum = atoi(argv[2]);
 
   write_seq(&rnum);
 
-  pthread_t thread_writer, thread_reader;
+  pthread_t tw, *thread;
+  thread = new pthread_t[tnum];
   double t1, t2;
 
   t1 = gettimeofday_sec();
-  pthread_create(&thread_writer, NULL, (PROC)update_random, (void *) &rnum);
-  pthread_create(&thread_reader, NULL, (PROC)read_ramdom, (void *) &rnum);
-  pthread_join(thread_writer, NULL);
-  pthread_join(thread_reader, NULL);
+  //pthread_create(&tw, NULL, (PROC)update_random, (void *) &rnum);
+  for (int i = 0; i < tnum; ++i) {
+    pthread_create(&thread[i], NULL, (PROC)read_ramdom, (void *) &rnum);
+    //pthread_join(thread[i], NULL);
+  }
+  //pthread_join(tw, NULL);
+  ///*
+  for (int i = 0; i < tnum; ++i) {
+    pthread_join(thread[i], NULL);
+  }
+  //*/
   t2 = gettimeofday_sec();
   std::cout << "time(threads): " << t2 - t1 << std::endl;
 
@@ -151,18 +160,18 @@ void read_ramdom(int *rnum)
 
     key.data = str;
     key.size = strlen(str);
-
-    uint32_t val;
-    data.data = &val;
+    //uint32_t val;
+    //data.data = &val;
     data.ulen = sizeof(uint32_t);
-    data.flags = DB_DBT_USERMEM;
+    //data.flags = DB_DBT_USERMEM;
+    data.flags = DB_DBT_MALLOC;
     int ret = dbp->get(dbp, NULL, &key, &data, 0);
 
     if (ret != DB_NOTFOUND) {
       uint32_t val;
       memcpy(&val, data.data, data.ulen);
       if (rec_num != val) {
-        std::cout << "[error] value incorrect." << std::endl;
+        std::cout << "[error] value incorrect. " << rec_num << ", " << val << std::endl;
       }
     } else {
       std::cout << "[error] entry not found for " << str << std::endl;
