@@ -198,13 +198,13 @@ namespace DBM {
     bool put(const void *key, uint32_t key_size,
              const void *val, uint32_t val_size, insert_mode_t flags = OVERWRITE)
     {
+      pthread_rwlock_wrlock(&rwlock_);
       entry_t entry = {(char *) key, key_size,
                        (char *) val, val_size,
                        key_size + dh_->data_size,
                        flags};
       up_entry_t *up_entry = NULL;
     
-      pthread_rwlock_wrlock(&rwlock_);
       insert(dh_->root_id, &entry, &up_entry);
       pthread_rwlock_unlock(&rwlock_);
     }
