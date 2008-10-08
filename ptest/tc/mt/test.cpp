@@ -28,8 +28,8 @@ typedef void *(*PROC)(void *);
 
 int main(int argc, char **argv){
 
-  if (argc != 2) {
-    std::cerr << "Usage: " << argv[0] << " record_num" << std::endl; 
+  if (argc != 3) {
+    std::cerr << "Usage: " << argv[0] << " record_num thread_num" << std::endl; 
     exit(1);
   }
 
@@ -55,24 +55,22 @@ int main(int argc, char **argv){
   }
 
   int rnum = atoi(argv[1]);
+  int tnum = atoi(argv[2]);
   write_seq(&rnum);
 
   double t1, t2;
-  pthread_t tw, tr1, tr2, tr3, tr4, tr5;
+  pthread_t tw, *thread;
+  thread = new pthread_t[tnum];
 
   t1 = gettimeofday_sec();
   //pthread_create(&tw, NULL, (PROC)update_random, (void *) &rnum);
-  pthread_create(&tr1, NULL, (PROC)read_ramdom, (void *) &rnum);
-  pthread_create(&tr2, NULL, (PROC)read_ramdom, (void *) &rnum);
-  pthread_create(&tr3, NULL, (PROC)read_ramdom, (void *) &rnum);
-  pthread_create(&tr4, NULL, (PROC)read_ramdom, (void *) &rnum);
-  pthread_create(&tr5, NULL, (PROC)read_ramdom, (void *) &rnum);
+  for (int i = 0; i < tnum; ++i) {
+    pthread_create(&thread[i], NULL, (PROC)read_ramdom, (void *) &rnum);
+  }
   //pthread_join(tw, NULL);
-  pthread_join(tr1, NULL);
-  pthread_join(tr2, NULL);
-  pthread_join(tr3, NULL);
-  pthread_join(tr4, NULL);
-  pthread_join(tr5, NULL);
+  for (int i = 0; i < tnum; ++i) {
+    pthread_join(thread[i], NULL);
+  }
   t2 = gettimeofday_sec();
   std::cout << "time(threads): " << t2 - t1 << std::endl;
 
