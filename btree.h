@@ -128,12 +128,6 @@ namespace DBM {
   };
   typedef int (*CMP)(data_t &d1, data_t &d2);
 
-  typedef enum {
-    NO_LOCK,
-    LOCK_THREAD,
-    LOCK_PROCESS
-  } lock_type_t;
-
   /*
    * Class Btree
    */
@@ -1041,7 +1035,7 @@ namespace DBM {
         pthread_rwlock_unlock(&rwlock_);
       } else {
         // process level locking
-        if (flock(fd_, LOCK_UN) != 0) { return NULL; }
+        if (flock(fd_, LOCK_UN) != 0) { return false; }
       }
     }
 
@@ -1082,7 +1076,6 @@ namespace DBM {
         }
       }
     }
-
   };
 
 }
