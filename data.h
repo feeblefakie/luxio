@@ -565,7 +565,7 @@ namespace DBM {
       record_header_t h;
       off_t off = calc_off(data_ptr->id, data_ptr->off);
       _pread(fd_, &h, sizeof(record_header_t), off);
-      if (h.type == AREA_FREE) { return NULL; }
+      if (h.type == AREA_FREE) { return false; }
 
       *size = h.size - sizeof(record_header_t);
       if (data->size < *size) {
