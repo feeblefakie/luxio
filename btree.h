@@ -33,17 +33,6 @@ namespace DBM {
   const char *MAGIC = "LUXBT001";
   const int DEFAULT_PAGESIZE = getpagesize();
 
-  typedef enum {
-    NONCLUSTER,
-    CLUSTER
-  } db_index_t;
-
-  typedef enum {
-    OVERWRITE,
-    NOOVERWRITE,
-    APPEND // it's only supported in non-cluster index
-  } insert_mode_t;
-
   // global header
   typedef struct {
     uint32_t num_keys;
