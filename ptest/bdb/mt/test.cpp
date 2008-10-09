@@ -8,9 +8,9 @@
 #include <pthread.h>
 #include <unistd.h>
 
-void update_random(int *rnum);
-void write_seq(int *rnum);
-void read_ramdom(int *rnum);
+void update_random(int *num);
+void write_seq(int *num);
+void read_ramdom(int *num);
 
 double gettimeofday_sec()
 {
@@ -20,14 +20,20 @@ double gettimeofday_sec()
 }
 
 DB *dbp;
+int rnum;
 int num_recs = 0;
 int num_updated = 0;
+int num_writes = 0;
+int num_reads = 0;
 typedef void *(*PROC)(void *);
 
-int main(int argc, char **argv){
-
-  if (argc != 3) {
-    std::cerr << "Usage: " << argv[0] << " record_num thread_num" << std::endl; 
+int main(int argc, char **argv)
+{
+  if (argc != 4) {
+    std::cerr << "Usage: " 
+              << argv[0] 
+              << " num_record num_write_threads num_read_threads" 
+              << std::endl; 
     exit(1);
   }
 
@@ -48,27 +54,39 @@ int main(int argc, char **argv){
     /* Error handling goes here */
   }
 
-  int rnum = atoi(argv[1]);
-  int tnum = atoi(argv[2]);
+  rnum = atoi(argv[1]);
+  num_writes = atoi(argv[2]);
+  num_reads = atoi(argv[3]);
 
-  write_seq(&rnum);
-
-  pthread_t tw, *thread;
-  thread = new pthread_t[tnum];
+  pthread_t *writers = new pthread_t[num_writes];
+  pthread_t *readers = new pthread_t[num_reads];
+  int rarr[128], warr[128];
   double t1, t2;
 
+  for (int i = 0; i < num_writes; ++i) {
+    warr[i] = i;
+  }
+  for (int i = 0; i < num_reads; ++i) {
+    rarr[i] = i;
+  }
+
   t1 = gettimeofday_sec();
-  //pthread_create(&tw, NULL, (PROC)update_random, (void *) &rnum);
-  for (int i = 0; i < tnum; ++i) {
-    pthread_create(&thread[i], NULL, (PROC)read_ramdom, (void *) &rnum);
-    //pthread_join(thread[i], NULL);
+  for (int i = 0; i < num_writes; ++i) {
+    if (pthread_create(&writers[i], NULL, (PROC)write_seq, (void *) &warr[i]) != 0) {
+      std::cerr << "pthread_create failed" << std::endl;
+    }
   }
-  //pthread_join(tw, NULL);
-  ///*
-  for (int i = 0; i < tnum; ++i) {
-    pthread_join(thread[i], NULL);
+  for (int i = 0; i < num_reads; ++i) {
+    if (pthread_create(&readers[i], NULL, (PROC)read_ramdom, (void *) &rarr[i]) != 0) {
+      std::cerr << "pthread_create failed" << std::endl;
+    }
   }
-  //*/
+  for (int i = 0; i < num_writes; ++i) {
+    pthread_join(writers[i], NULL);
+  }
+  for (int i = 0; i < num_reads; ++i) {
+    pthread_join(readers[i], NULL);
+  }
   t2 = gettimeofday_sec();
   std::cout << "time(threads): " << t2 - t1 << std::endl;
 
@@ -77,11 +95,13 @@ int main(int argc, char **argv){
   }
 }
 
-void write_seq(int *rnum)
+void write_seq(int *num)
 {
   double t1, t2;
+  int from = rnum / num_writes * (*num);
+  int to = rnum / num_writes * (*num + 1);
   t1 = gettimeofday_sec();
-  for (int i = 0; i < *rnum; ++i) {
+  for (int i = from; i < to; ++i) {
     DBT key, data;
     int ret;
     char str[9];
@@ -109,17 +129,17 @@ void write_seq(int *rnum)
   std::cout << "put time: " << t2 - t1 << std::endl;
 }
 
-void update_random(int *rnum)
+void update_random(int *num)
 {
   double t1, t2;
   t1 = gettimeofday_sec();
-  for (int i = 0; i < *rnum/10; ++i) {
+  for (int i = 0; i < *num/10; ++i) {
     DBT key, data;
     int ret;
     char str[9];
     memset(str, 0, 9);
-    int num = rand() % *rnum;
-    sprintf(str,"%08d", num);
+    int n = rand() % (*num);
+    sprintf(str,"%08d", n);
 
     /* Zero out the DBTs before using them. */
     memset(&key, 0, sizeof(DBT));
@@ -142,17 +162,22 @@ void update_random(int *rnum)
   std::cout << "num_updated: " << num_updated << std::endl;
 }
 
-
-void read_ramdom(int *rnum)
+void read_ramdom(int *num)
 {
-  double t1, t2;
+  double t1, t2; 
+  int from = rnum / num_reads * (*num);
+  int to = rnum / num_reads * (*num + 1);
   t1 = gettimeofday_sec();
-  for (int i = 0; i < *rnum; ++i) {
+  for (int i = from; i < to; ++i) {
     char str[9];
     memset(str, 0, 9);
+    sprintf(str,"%08d", i);
+    int rec_num = i;
+    /*
     if (num_recs == 0) { continue; }
     int rec_num = (int) random() % num_recs;
     sprintf(str,"%08d", rec_num);
+    */
 
     DBT key, data;
     memset(&key, 0, sizeof(DBT));
