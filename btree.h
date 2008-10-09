@@ -183,12 +183,6 @@ namespace DBM {
       return val_data;
     }
 
-    bool clean_data(data_t *d)
-    {
-      delete [] (char *) (d->data);
-      delete d;
-    }
-
     bool put(const void *key, uint32_t key_size,
              const void *val, uint32_t val_size, insert_mode_t flags = OVERWRITE)
     {
@@ -216,30 +210,6 @@ namespace DBM {
       return true;
     }
 
-    bool _del(node_id_t id, entry_t *entry)
-    {
-      node_t *node = _alloc_node(id);
-      if (node->h->is_leaf) {
-        find_res_t *r = find_key(node, entry->key, entry->key_size);
-        if (r->type == KEY_FOUND) {
-          // remove a slot
-          char *p = (char *) node->b + node->h->free_off;
-          if (p != r->slot_p) {
-            memmove(p + sizeof(slot_t), p, r->slot_p - p);
-          }
-          node->h->free_off += sizeof(slot_t);
-          node->h->free_size += sizeof(slot_t);
-          --(node->h->num_keys);
-          --(dh_->num_keys);
-        }
-        delete r;
-      } else {
-        node_id_t next_id = _find_next(node, entry);
-        _del(next_id, entry);
-      }
-      delete node;
-    }
-
     bool set_lock_type(lock_type_t lock_type)
     {
       lock_type_ = lock_type;
@@ -248,6 +218,12 @@ namespace DBM {
     bool set_cmp_func(CMP cmp)
     {
       cmp_ = cmp;
+    }
+
+    bool clean_data(data_t *d)
+    {
+      delete [] (char *) (d->data);
+      delete d;
     }
 
     void show_node(void)
@@ -603,6 +579,30 @@ namespace DBM {
           }
           clean_up_entry(&e);
         }
+      }
+      delete node;
+    }
+
+    bool _del(node_id_t id, entry_t *entry)
+    {
+      node_t *node = _alloc_node(id);
+      if (node->h->is_leaf) {
+        find_res_t *r = find_key(node, entry->key, entry->key_size);
+        if (r->type == KEY_FOUND) {
+          // remove a slot
+          char *p = (char *) node->b + node->h->free_off;
+          if (p != r->slot_p) {
+            memmove(p + sizeof(slot_t), p, r->slot_p - p);
+          }
+          node->h->free_off += sizeof(slot_t);
+          node->h->free_size += sizeof(slot_t);
+          --(node->h->num_keys);
+          --(dh_->num_keys);
+        }
+        delete r;
+      } else {
+        node_id_t next_id = _find_next(node, entry);
+        _del(next_id, entry);
       }
       delete node;
     }
