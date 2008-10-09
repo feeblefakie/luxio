@@ -853,7 +853,6 @@ namespace DBM {
       dh_->num_nodes = num_nodes;
       ++(dh_->num_resized);
       num_nodes_ = num_nodes;
-      node_size_ = node_size;
       return true;
     }
     
@@ -1017,19 +1016,17 @@ namespace DBM {
     bool remap(void)
     {
       uint32_t num_nodes = dh_->num_nodes;
-      uint16_t node_size = dh_->node_size;
       if (munmap(map_, node_size_ * num_nodes_) < 0) {
         std::cerr << "munmap failed" << std::endl;
         return false;
       }
-      map_ = (char *) _mmap(fd_, node_size * num_nodes, oflags_);
+      map_ = (char *) _mmap(fd_, node_size_ * num_nodes, oflags_);
       if (map_ == NULL) {
         std::cerr << "map failed" << std::endl;
         return false;
       }
       dh_ = (btree_header_t *) map_;
       num_nodes_ = dh_->num_nodes;
-      node_size_ = dh_->node_size;
       num_resized_ = dh_->num_resized;
 
       return true;
