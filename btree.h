@@ -53,6 +53,7 @@ namespace DBM {
     uint32_t root_id;
     uint32_t num_leaves;
     uint32_t num_nonleaves;
+    uint32_t num_resized;
     uint8_t index_type;
     uint8_t data_size; // for fixed length value in cluster index
   } btree_header_t;
@@ -127,6 +128,12 @@ namespace DBM {
   };
   typedef int (*CMP)(data_t &d1, data_t &d2);
 
+  typedef enum {
+    NO_LOCK,
+    LOCK_THREAD,
+    LOCK_PROCESS
+  } lock_type_t;
+
   /*
    * Class Btree
    */
@@ -162,30 +169,34 @@ namespace DBM {
 
     bool open(std::string db_name, db_flags_t oflags)
     {
-      pthread_rwlock_wrlock(&rwlock_);
+      if (lock_type_ == LOCK_THREAD) {
+        pthread_rwlock_wrlock(&rwlock_);
+      }
       bool res = open_(db_name, oflags);
-      pthread_rwlock_unlock(&rwlock_);
+      if (lock_type_ == LOCK_THREAD) {
+        pthread_rwlock_unlock(&rwlock_);
+      }
 
       return res;
     }
 
     bool close()
     {
-      pthread_rwlock_wrlock(&rwlock_);
+      wlock_db();
       msync(map_, dh_->node_size * dh_->num_nodes, MS_SYNC);
       munmap(map_, dh_->node_size * dh_->num_nodes);
       map_ = NULL;
       ::close(fd_);
-      pthread_rwlock_unlock(&rwlock_);
+      unlock_db();
     }
 
     data_t *get(const void *key, uint32_t key_size)
     {
       data_t key_data = {key, key_size};
       data_t *val_data = NULL;
-      pthread_rwlock_rdlock(&rwlock_);
+      rlock_db();
       find(dh_->root_id, &key_data, &val_data);
-      pthread_rwlock_unlock(&rwlock_);
+      unlock_db();
       return val_data;
     }
 
@@ -198,7 +209,7 @@ namespace DBM {
     bool put(const void *key, uint32_t key_size,
              const void *val, uint32_t val_size, insert_mode_t flags = OVERWRITE)
     {
-      pthread_rwlock_wrlock(&rwlock_);
+      wlock_db();
       entry_t entry = {(char *) key, key_size,
                        (char *) val, val_size,
                        key_size + dh_->data_size,
@@ -206,16 +217,20 @@ namespace DBM {
       up_entry_t *up_entry = NULL;
     
       insert(dh_->root_id, &entry, &up_entry);
-      pthread_rwlock_unlock(&rwlock_);
+      unlock_db();
+
+      return true;
     }
 
     bool del(const void *key, uint32_t key_size)
     {
       entry_t entry = {key, key_size, NULL, 0, 0};
 
-      pthread_rwlock_wrlock(&rwlock_);
+      wlock_db();
       _del(dh_->root_id, &entry);
-      pthread_rwlock_unlock(&rwlock_);
+      unlock_db();
+
+      return true;
     }
 
     bool _del(node_id_t id, entry_t *entry)
@@ -240,6 +255,11 @@ namespace DBM {
         _del(next_id, entry);
       }
       delete node;
+    }
+
+    bool set_lock_type(lock_type_t lock_type)
+    {
+      lock_type_ = lock_type;
     }
 
     bool set_cmp_func(CMP cmp)
@@ -325,6 +345,10 @@ namespace DBM {
     CMP cmp_;
     Data *dt_;
     pthread_rwlock_t rwlock_;
+    uint32_t num_nodes_;
+    uint16_t node_size_;
+    uint32_t num_resized_;
+    lock_type_t lock_type_;
 
     bool open_(std::string db_name, db_flags_t oflags)
     {
@@ -332,6 +356,13 @@ namespace DBM {
       fd_ = _open(idx_db_name.c_str(), oflags, 00644);
       if (fd_ < 0) {
         return false;
+      }
+      oflags_ = oflags;
+      if (lock_type_ == LOCK_PROCESS) {
+        if (flock(fd_, LOCK_EX) != 0) { 
+          std::cerr << "flock failed in open_" << std::endl;
+          return false;
+        }
       }
 
       struct stat stat_buf;
@@ -352,6 +383,7 @@ namespace DBM {
         dh.root_id = 1;
         dh.num_leaves = 0;
         dh.num_nonleaves = 0; // root node
+        dh.num_resized = 0;
         dh.index_type = index_type_;
         dh.data_size = data_size_;
 
@@ -382,16 +414,25 @@ namespace DBM {
 
         // [TODO] read filesize and compare with num_nodes * node_size
         // if they differ, gives alert and trust the filesize ?
+        /*
         map_ = (char *) mmap(0, dh.node_size * dh.num_nodes,
                             PROT_READ | PROT_WRITE, MAP_SHARED, fd_, 0);  
         if (map_ == MAP_FAILED) {
           std::cerr << "map failed" << std::endl;
           return false;
         }
+        */
+        map_ = (char *) _mmap(fd_, dh.node_size * dh.num_nodes, oflags);
+        if (map_ == NULL) {
+          std::cerr << "map failed" << std::endl;
+          return false;
+        }
       }
 
-      oflags_ = oflags;
       dh_ = (btree_header_t *) map_;
+      num_nodes_ = dh_->num_nodes;
+      node_size_ = dh_->node_size;
+      num_resized_ = dh_->num_resized;
 
       if (index_type_ != dh_->index_type) {
         std::cerr << "wrong index type" << std::endl;
@@ -401,6 +442,10 @@ namespace DBM {
       if (dh_->index_type == NONCLUSTER) {
         std::string data_db_name = db_name + ".data";
         dt_->open(data_db_name.c_str(), oflags);
+      }
+
+      if (lock_type_ == LOCK_PROCESS) {
+        if (flock(fd_, LOCK_UN) != 0) { return false; }
       }
     }
 
@@ -807,14 +852,24 @@ namespace DBM {
         std::cout << "ftruncate failed" << std::endl;
         return false;
       }
+      /*
       map_ = (char *) mmap(0, node_size * num_nodes, 
                            PROT_READ | PROT_WRITE, MAP_SHARED, fd_, 0);  
       if (map_ == MAP_FAILED) {
         std::cout << "map failed" << std::endl;
         return false;
       }
+      */
+      map_ = (char *) _mmap(fd_, node_size * num_nodes, oflags_);
+      if (map_ == NULL) {
+        std::cerr << "map failed" << std::endl;
+        return false;
+      }
       dh_ = (btree_header_t *) map_;
       dh_->num_nodes = num_nodes;
+      ++(dh_->num_resized);
+      num_nodes_ = num_nodes;
+      node_size_ = node_size;
       return true;
     }
     
@@ -973,6 +1028,79 @@ namespace DBM {
         delete [] (char *) (*up_entry)->val;
         delete *up_entry;
         *up_entry = NULL;
+    }
+
+    bool remap(void)
+    {
+      std::cout << "size changed remapping ... " << num_resized_ << " - " << dh_->num_resized << std::endl;
+      uint32_t num_nodes = dh_->num_nodes;
+      uint16_t node_size = dh_->node_size;
+      if (munmap(map_, node_size_ * num_nodes_) < 0) {
+        std::cerr << "munmap failed" << std::endl;
+        return false;
+      }
+      map_ = (char *) _mmap(fd_, node_size * num_nodes, oflags_);
+      if (map_ == NULL) {
+        std::cerr << "map failed" << std::endl;
+        return false;
+      }
+      dh_ = (btree_header_t *) map_;
+      num_nodes_ = dh_->num_nodes;
+      node_size_ = dh_->node_size;
+      num_resized_ = dh_->num_resized;
+
+      return true;
+    }
+
+    bool unlock_db(void)
+    {
+      if (lock_type_ == NO_LOCK) {
+        return true;
+      } else if (lock_type_ == LOCK_THREAD) {
+        // thread level locking
+        pthread_rwlock_unlock(&rwlock_);
+      } else {
+        // process level locking
+        if (flock(fd_, LOCK_UN) != 0) { return NULL; }
+      }
+    }
+
+    bool rlock_db(void)
+    {
+      if (lock_type_ == NO_LOCK) {
+        return true;
+      } else if (lock_type_ == LOCK_THREAD) {
+        // thread level locking
+        pthread_rwlock_rdlock(&rwlock_);
+      } else {
+        // process level locking
+        if (flock(fd_, LOCK_SH) != 0) { 
+          std::cerr << "flock failed in get" << std::endl;
+          return false;
+        }
+        if (num_resized_ != dh_->num_resized) {
+          remap();
+        }
+      }
+    }
+
+    bool wlock_db(void)
+    {
+      if (lock_type_ == NO_LOCK) {
+        return true;
+      } else if (lock_type_ == LOCK_THREAD) {
+        // thread level locking
+        pthread_rwlock_wrlock(&rwlock_);
+      } else {
+        // process level locking
+        if (flock(fd_, LOCK_EX) != 0) { 
+          std::cerr << "flock failed in get" << std::endl;
+          return false;
+        }
+        if (num_resized_ != dh_->num_resized) {
+          remap();
+        }
+      }
     }
 
   };
