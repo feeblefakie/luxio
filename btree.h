@@ -414,14 +414,6 @@ namespace DBM {
 
         // [TODO] read filesize and compare with num_nodes * node_size
         // if they differ, gives alert and trust the filesize ?
-        /*
-        map_ = (char *) mmap(0, dh.node_size * dh.num_nodes,
-                            PROT_READ | PROT_WRITE, MAP_SHARED, fd_, 0);  
-        if (map_ == MAP_FAILED) {
-          std::cerr << "map failed" << std::endl;
-          return false;
-        }
-        */
         map_ = (char *) _mmap(fd_, dh.node_size * dh.num_nodes, oflags);
         if (map_ == NULL) {
           std::cerr << "map failed" << std::endl;
@@ -852,14 +844,6 @@ namespace DBM {
         std::cout << "ftruncate failed" << std::endl;
         return false;
       }
-      /*
-      map_ = (char *) mmap(0, node_size * num_nodes, 
-                           PROT_READ | PROT_WRITE, MAP_SHARED, fd_, 0);  
-      if (map_ == MAP_FAILED) {
-        std::cout << "map failed" << std::endl;
-        return false;
-      }
-      */
       map_ = (char *) _mmap(fd_, node_size * num_nodes, oflags_);
       if (map_ == NULL) {
         std::cerr << "map failed" << std::endl;
@@ -1032,7 +1016,6 @@ namespace DBM {
 
     bool remap(void)
     {
-      std::cout << "size changed remapping ... " << num_resized_ << " - " << dh_->num_resized << std::endl;
       uint32_t num_nodes = dh_->num_nodes;
       uint16_t node_size = dh_->node_size;
       if (munmap(map_, node_size_ * num_nodes_) < 0) {
