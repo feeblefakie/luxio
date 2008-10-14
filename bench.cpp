@@ -23,7 +23,8 @@ int main(int argc, char *argv[])
   }
 
   Lux::DBM::Btree *bt = new Lux::DBM::Btree(Lux::DBM::CLUSTER);
-  bt->set_lock_type(Lux::DBM::LOCK_PROCESS);
+  //bt->set_lock_type(Lux::DBM::LOCK_PROCESS);
+  //bt->set_page_size(4096);
   bt->open("benchdb", Lux::DB_CREAT);
 
   int rnum = atoi(argv[1]);
