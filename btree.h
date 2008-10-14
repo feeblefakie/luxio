@@ -135,7 +135,7 @@ namespace DBM {
       data_size_(index_type == NONCLUSTER ? sizeof(data_ptr_t) : data_size)
     {
       if (pthread_rwlock_init(&rwlock_, NULL) != 0) {
-        std::cerr << "pthread_rwlock_init failed" << std::endl;
+        error_log("pthread_rwlock_init failed");
         exit(-1);
       }
     }
@@ -150,7 +150,7 @@ namespace DBM {
         close();
       }
       if (pthread_rwlock_destroy(&rwlock_) != 0) {
-        std::cerr << "pthread_rwlock_destroy failed" << std::endl;
+        error_log("pthread_rwlock_destroy failed");
         exit(-1);
       }
     }
@@ -330,18 +330,20 @@ namespace DBM {
       std::string idx_db_name = db_name + ".bidx";
       fd_ = _open(idx_db_name.c_str(), oflags, 00644);
       if (fd_ < 0) {
+        error_log("open failed.");
         return false;
       }
       oflags_ = oflags;
       if (lock_type_ == LOCK_PROCESS) {
         if (flock(fd_, LOCK_EX) != 0) { 
-          std::cerr << "flock failed in open_" << std::endl;
+          error_log("flock failed.");
           return false;
         }
       }
 
       struct stat stat_buf;
       if (fstat(fd_, &stat_buf) == -1 || !S_ISREG(stat_buf.st_mode)) {
+        error_log("fstat failed.");
         return false;
       }
 
@@ -363,10 +365,12 @@ namespace DBM {
         dh.data_size = data_size_;
 
         if (_write(fd_, &dh, sizeof(btree_header_t)) < 0) {
+          error_log("write failed.");
           return false;
         }
         if (!alloc_page(dh.num_nodes, dh.node_size)) {
-          std::cerr << "alloc_page failed in open" << std::endl;    
+          error_log("alloc_page failed.");
+          return false;
         }
 
         // root node and the first leaf node
@@ -383,7 +387,7 @@ namespace DBM {
 
       } else {
         if (_read(fd_, &dh, sizeof(btree_header_t)) < 0) {
-          std::cerr << "read failed" << std::endl;
+          error_log("read failed.");
           return false;
         }
 
@@ -391,7 +395,7 @@ namespace DBM {
         // if they differ, gives alert and trust the filesize ?
         map_ = (char *) _mmap(fd_, dh.node_size * dh.num_nodes, oflags);
         if (map_ == NULL) {
-          std::cerr << "map failed" << std::endl;
+          error_log("mmap failed.");
           return false;
         }
       }
@@ -402,17 +406,22 @@ namespace DBM {
       num_resized_ = dh_->num_resized;
 
       if (index_type_ != dh_->index_type) {
-        std::cerr << "wrong index type" << std::endl;
+        error_log("wrong index type.");
         return false;
       }
 
       if (dh_->index_type == NONCLUSTER) {
         std::string data_db_name = db_name + ".data";
-        dt_->open(data_db_name.c_str(), oflags);
+        if (!dt_->open(data_db_name.c_str(), oflags)) {
+          return false;
+        }
       }
 
       if (lock_type_ == LOCK_PROCESS) {
-        if (flock(fd_, LOCK_UN) != 0) { return false; }
+        if (flock(fd_, LOCK_UN) != 0) {
+          error_log("flock failed.");
+          return false;
+        }
       }
     }
 
@@ -526,7 +535,7 @@ namespace DBM {
           }
 
           if (!append_page()) {
-            std::cerr << "alloc_page() failed" << std::endl; 
+            error_log("append_page failed.");
           }
           // must reallocate after remapped
           delete node;
@@ -554,7 +563,7 @@ namespace DBM {
           clean_up_entry(up_entry);
         } else {
           if (!append_page()) {
-            std::cerr << "alloc_page() failed" << std::endl; 
+            error_log("append_page failed.");
           }
           // must reallocate after remapped
           delete node;
@@ -580,7 +589,7 @@ namespace DBM {
 
           if (node->h->is_root) {
             if (!append_page()) {
-              std::cerr << "alloc_page() failed" << std::endl; 
+              error_log("append_page failed.");
             }
             delete node;
             node = _alloc_node(id);
@@ -829,7 +838,7 @@ namespace DBM {
       uint16_t node_size = dh_->node_size;
 
       if (munmap(map_, node_size * num_nodes) < 0) {
-        std::cerr << "munmap failed" << std::endl;
+        error_log("munmap failed.");
         return false;
       }
       ++num_nodes; // one page appendiing
@@ -840,12 +849,12 @@ namespace DBM {
     bool alloc_page(uint32_t num_nodes, uint16_t node_size)
     {
       if (ftruncate(fd_, node_size * num_nodes) < 0) {
-        std::cout << "ftruncate failed" << std::endl;
+        error_log("ftruncate failed.");
         return false;
       }
       map_ = (char *) _mmap(fd_, node_size * num_nodes, oflags_);
       if (map_ == NULL) {
-        std::cerr << "map failed" << std::endl;
+        error_log("mmap failed.");
         return false;
       }
       dh_ = (btree_header_t *) map_;
@@ -866,7 +875,7 @@ namespace DBM {
 
       // [SPEC] a node must contain at least 4 entries
       if (num_stays <= 2 || num_moves <= 2) {
-        std::cerr << "[error] the number of entries in a node is too small." << std::endl;
+        error_log("the number of entries in one node is too small.");
         return false;
       }
 
@@ -1016,12 +1025,12 @@ namespace DBM {
     {
       uint32_t num_nodes = dh_->num_nodes;
       if (munmap(map_, node_size_ * num_nodes_) < 0) {
-        std::cerr << "munmap failed" << std::endl;
+        error_log("munmap failed.");
         return false;
       }
       map_ = (char *) _mmap(fd_, node_size_ * num_nodes, oflags_);
       if (map_ == NULL) {
-        std::cerr << "map failed" << std::endl;
+        error_log("mmap failed");
         return false;
       }
       dh_ = (btree_header_t *) map_;
@@ -1054,7 +1063,7 @@ namespace DBM {
       } else {
         // process level locking
         if (flock(fd_, LOCK_SH) != 0) { 
-          std::cerr << "flock failed in get" << std::endl;
+          error_log("flock failed.");
           return false;
         }
         if (num_resized_ != dh_->num_resized) {
@@ -1073,7 +1082,7 @@ namespace DBM {
       } else {
         // process level locking
         if (flock(fd_, LOCK_EX) != 0) { 
-          std::cerr << "flock failed in get" << std::endl;
+          error_log("flock failed.");
           return false;
         }
         if (num_resized_ != dh_->num_resized) {
