@@ -19,8 +19,9 @@ int main(int argc, char *argv[])
     exit(1);
   }
 
-  Lux::DBM::Array *ary = new Lux::DBM::Array(Lux::DBM::CLUSTER);
-  ary->open("arraydb", Lux::DB_CREAT);
+  Lux::DBM::Array *ary = new Lux::DBM::Array(Lux::DBM::NONCLUSTER);
+  ary->set_noncluster_params(Lux::DBM::Padded);
+  ary->open("anoc", Lux::DB_CREAT);
 
   int index = atoi(argv[2]);
   double t1, t2;
@@ -52,7 +53,9 @@ int main(int argc, char *argv[])
   } else if (strcmp(argv[1], "del") == 0) {
     Lux::DBM::data_t *data = ary->get(index);
     if (data != NULL) {
-      std::cout << "before: " << *(uint32_t *) data->data << std::endl;
+      //std::cout << "before: " << *(uint32_t *) data->data << std::endl;
+      std::cout.write((char *) data->data, data->size); 
+      std::cout << std::endl;
       ary->clean_data(data);
     } else {
       std::cout << "returned NULL" << std::endl;

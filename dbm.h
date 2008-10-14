@@ -25,6 +25,7 @@
 #include "util.h"
 #include <unistd.h>
 #include <stdint.h>
+#include <sys/file.h>
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
@@ -51,6 +52,23 @@ namespace DBM {
     const void *data;
     uint32_t size;
   } data_t;
+
+  typedef enum {
+    NONCLUSTER,
+    CLUSTER
+  } db_index_t;
+
+  typedef enum {
+    OVERWRITE,
+    NOOVERWRITE,
+    APPEND // it's only supported in non-cluster index
+  } insert_mode_t;
+
+  typedef enum {
+    NO_LOCK,
+    LOCK_THREAD,
+    LOCK_PROCESS
+  } lock_type_t;
 
 }
 }
