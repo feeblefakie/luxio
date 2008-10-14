@@ -116,6 +116,15 @@ namespace Lux {
     return p;
   }
 
+  void error_log(std::string msg)
+  {
+#ifdef DEBUG
+    std::cerr << "[error] " << msg
+              << " in " << __FILE__ << ":" << __LINE__
+              << std::endl;
+#endif
+  }
+
 }
 
 #endif
