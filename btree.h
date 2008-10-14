@@ -31,7 +31,11 @@ namespace Lux {
 namespace DBM {
 
   const char *MAGIC = "LUXBT001";
-  const int DEFAULT_PAGESIZE = getpagesize();
+  static const uint32_t MIN_PAGESIZE = 1024;
+  static const uint32_t MAX_PAGESIZE = 65536;
+  static const uint32_t MAX_KSIZE = 256;
+  static const uint32_t CLUSTER_MAX_VSIZE = 256;
+  static const uint32_t NONCLUSTER_MAX_VSIZE = UINT32_MAX;
 
   // global header
   typedef struct {
@@ -126,6 +130,7 @@ namespace DBM {
           uint8_t data_size = sizeof(uint32_t))
     : cmp_(str_cmp_func),
       index_type_(index_type),
+      page_size_(getpagesize()),
       dt_(index_type == NONCLUSTER ? new LinkedData(NOPADDING) : NULL),
       data_size_(index_type == NONCLUSTER ? sizeof(data_ptr_t) : data_size)
     {
@@ -186,6 +191,7 @@ namespace DBM {
     bool put(const void *key, uint32_t key_size,
              const void *val, uint32_t val_size, insert_mode_t flags = OVERWRITE)
     {
+      if (!check_limit(key_size, val_size)) { return false; }
       wlock_db();
       entry_t entry = {(char *) key, key_size,
                        (char *) val, val_size,
@@ -208,6 +214,15 @@ namespace DBM {
       unlock_db();
 
       return true;
+    }
+
+    void set_page_size(uint32_t page_size)
+    {
+      if (page_size > MAX_PAGESIZE || 
+          page_size < MIN_PAGESIZE) {
+        return;
+      }
+      page_size_ = page_size;
     }
 
     bool set_lock_type(lock_type_t lock_type)
@@ -301,6 +316,7 @@ namespace DBM {
     btree_header_t *dh_;
     db_index_t index_type_;
     uint8_t data_size_;
+    uint32_t page_size_;
     CMP cmp_;
     Data *dt_;
     pthread_rwlock_t rwlock_;
@@ -337,7 +353,7 @@ namespace DBM {
         dh.num_keys = 0;
         // one for db_header, one for root node and one for leaf node
         dh.num_nodes = 3;
-        dh.node_size = getpagesize();
+        dh.node_size = page_size_;
         dh.init_data_size = dh.node_size - sizeof(node_header_t);
         dh.root_id = 1;
         dh.num_leaves = 0;
@@ -1065,6 +1081,24 @@ namespace DBM {
         }
       }
     }
+
+    bool check_limit(uint32_t key_size, uint32_t val_size)
+    {
+      if (key_size > MAX_KSIZE) {
+        return false;
+      }
+      if (dh_->index_type == CLUSTER) {
+        if (val_size > CLUSTER_MAX_VSIZE) {
+          return false;
+        }
+      } else {
+        if (val_size > NONCLUSTER_MAX_VSIZE) {
+          return false;
+        }
+      }
+      return true;
+    }
+
   };
 
 }
