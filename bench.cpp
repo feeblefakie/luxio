@@ -43,7 +43,9 @@ int main(int argc, char *argv[])
       sprintf(key,"%08d", i);
       //std::cout << "[" << key << "]" << std::endl;
 
-      bt->put(key, strlen(key), &i, sizeof(uint32_t));
+      if (!bt->put(key, strlen(key), &i, sizeof(uint32_t))) {
+        std::cerr << "put failed." << std::endl;
+      }
     }
     t2 = gettimeofday_sec();
     std::cout << "put time: " << t2 - t1 << std::endl;
