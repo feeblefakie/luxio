@@ -216,7 +216,7 @@ namespace DBM {
       if (!res && atype == SYSTEM) {
         clean_data(val_data);
       }
-      if (!unlock_db()) { res = false; }
+      if (!unlock_db()) { return false; }
       return res;
     }
 
@@ -224,7 +224,7 @@ namespace DBM {
              const void *val, uint32_t val_size, insert_mode_t flags = OVERWRITE)
     {
       if (!check_limit(key_size, val_size)) { return false; }
-      wlock_db();
+      if (!wlock_db()) { return false; }
       entry_t entry = {(char *) key, key_size,
                        (char *) val, val_size,
                        key_size + dh_->data_size,
@@ -232,7 +232,7 @@ namespace DBM {
       up_entry_t *up_entry = NULL;
     
       insert(dh_->root_id, &entry, &up_entry);
-      unlock_db();
+      if (!unlock_db()) { return false; }
 
       return true;
     }
@@ -594,6 +594,7 @@ namespace DBM {
 
       _insert(dh_->root_id, entry, up_entry, is_split);
 
+      // when split happens, the entry is not inserted.
       if (is_split) {
         up_entry_t *e = NULL;
         bool is_split = false;
