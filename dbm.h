@@ -39,6 +39,8 @@
 namespace Lux {
 namespace DBM {
 
+  static const uint32_t MIN_PAGESIZE = 1024;
+  static const uint32_t MAX_PAGESIZE = 65536;
   typedef uint32_t block_id_t;
 
 #pragma pack(2)
