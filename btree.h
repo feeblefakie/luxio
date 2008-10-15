@@ -303,35 +303,35 @@ namespace DBM {
 
     void show_db_header()
     {
-      std::cout << "========= SHOW ROOT ==========" << std::endl;
-      std::cout << "num_keys: " << dh_->num_keys << std::endl;
-      std::cout << "num_nodes: " << dh_->num_nodes << std::endl;
-      std::cout << "node_size: " << dh_->node_size << std::endl;
-      std::cout << "init_data_size: " << dh_->init_data_size << std::endl;
-      std::cout << "root_id: " << dh_->root_id << std::endl;
-      std::cout << "num_leaves: " << dh_->num_leaves << std::endl;
-      std::cout << "num_nonleaves: " << dh_->num_nonleaves << std::endl;
-      std::cout << "index_type: " << (int) dh_->index_type << std::endl;
-      std::cout << "data_size: " << (int) dh_->data_size << std::endl;
+      std::cout << "----- ROOT -----" << std::endl
+                << "num_keys: " << dh_->num_keys << std::endl
+                << "num_nodes: " << dh_->num_nodes << std::endl
+                << "node_size: " << dh_->node_size << std::endl
+                << "init_data_size: " << dh_->init_data_size << std::endl
+                << "root_id: " << dh_->root_id << std::endl
+                << "num_leaves: " << dh_->num_leaves << std::endl
+                << "num_nonleaves: " << dh_->num_nonleaves << std::endl
+                << "index_type: " << (int) dh_->index_type << std::endl
+                << "data_size: " << (int) dh_->data_size << std::endl;
     }
 
     // debug method
     void show_node(uint32_t id)
     {
       std::cout << std::endl;
-      std::cout << "========= SHOW NODE " << id << " ==========" << std::endl;
+      std::cout << "----- NODE " << id << " -----" << std::endl;
       node_t *node = _alloc_node(id);
       if (node == NULL) {
         std::cout << "node[ " << id << "] is not allocated, yet" << std::endl;
         return;
       }
-      std::cout << "is_root: " << node->h->is_root << std::endl;
-      std::cout << "is_leaf: " << node->h->is_leaf << std::endl;
-      std::cout << "id: " << node->h->id << std::endl;
-      std::cout << "num_keys: " << node->h->num_keys << std::endl;
-      std::cout << "data_off: "<< node->h->data_off << std::endl;
-      std::cout << "free_off: " << node->h->free_off << std::endl;
-      std::cout << "free_size: " << node->h->free_size << std::endl;
+      std::cout << "is_root: " << node->h->is_root << std::endl
+                << "is_leaf: " << node->h->is_leaf << std::endl
+                << "id: " << node->h->id << std::endl
+                << "num_keys: " << node->h->num_keys << std::endl
+                << "data_off: "<< node->h->data_off << std::endl
+                << "free_off: " << node->h->free_off << std::endl
+                << "free_size: " << node->h->free_size << std::endl;
 
       if (!node->h->is_leaf) {
         node_id_t leftmost; 
