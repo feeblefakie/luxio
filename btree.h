@@ -31,8 +31,6 @@ namespace Lux {
 namespace DBM {
 
   const char *MAGIC = "LUXBT001";
-  static const uint32_t MIN_PAGESIZE = 1024;
-  static const uint32_t MAX_PAGESIZE = 65536;
   static const uint32_t MAX_KSIZE = 256;
   static const uint32_t CLUSTER_MAX_VSIZE = 256;
   static const uint32_t NONCLUSTER_MAX_VSIZE = UINT32_MAX;
@@ -174,13 +172,15 @@ namespace DBM {
     bool close()
     {
       if (!wlock_db()) { return false; }
-      if (msync(map_, dh_->node_size * dh_->num_nodes, MS_SYNC) < 0) {
-        error_log("msync failed.");
-        return false;
-      }
-      if (munmap(map_, dh_->node_size * dh_->num_nodes) < 0) {
-        error_log("munmap failed.");
-        return false;
+      if (map_ != NULL) {
+        if (msync(map_, dh_->node_size * dh_->num_nodes, MS_SYNC) < 0) {
+          error_log("msync failed.");
+          return false;
+        }
+        if (munmap(map_, dh_->node_size * dh_->num_nodes) < 0) {
+          error_log("munmap failed.");
+          return false;
+        }
       }
       map_ = NULL;
       if (::close(fd_) < 0) {
@@ -242,11 +242,11 @@ namespace DBM {
     {
       entry_t entry = {key, key_size, NULL, 0, 0};
 
-      wlock_db();
-      _del(dh_->root_id, &entry);
-      unlock_db();
+      if (!wlock_db()) { return false; }
+      bool res = _del(dh_->root_id, &entry);
+      if (!unlock_db()) { return false; }
 
-      return true;
+      return res;
     }
 
     void set_page_size(uint32_t page_size)
@@ -258,13 +258,13 @@ namespace DBM {
       page_size_ = page_size;
     }
 
-    bool set_lock_type(lock_type_t lock_type)
+    void set_lock_type(lock_type_t lock_type)
     {
       lock_type_ = lock_type;
     }
 
     // only for noncluster database
-    bool set_noncluster_params(store_mode_t smode,
+    void set_noncluster_params(store_mode_t smode,
                                padding_mode_t pmode = RATIO, uint32_t padding = 20)
     {
       smode_ = smode;
@@ -272,12 +272,12 @@ namespace DBM {
       padding_ = padding;
     }
 
-    bool set_cmp_func(CMP cmp)
+    void set_cmp_func(CMP cmp)
     {
       cmp_ = cmp;
     }
 
-    bool clean_data(data_t *d)
+    void clean_data(data_t *d)
     {
       if ((char *) (d->data) != NULL) {
         delete [] (char *) (d->data);
@@ -729,9 +729,12 @@ namespace DBM {
         delete r;
       } else {
         node_id_t next_id = _find_next(node, entry);
-        _del(next_id, entry);
+        if (!_del(next_id, entry)) {
+          return false;
+        }
       }
       delete node;
+      return true;
     }
 
     node_id_t _find_next(node_t *node, entry_t *entry)
