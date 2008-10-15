@@ -173,21 +173,31 @@ namespace DBM {
 
     bool close()
     {
-      wlock_db();
-      msync(map_, dh_->node_size * dh_->num_nodes, MS_SYNC);
-      munmap(map_, dh_->node_size * dh_->num_nodes);
+      if (!wlock_db()) { return false; }
+      if (msync(map_, dh_->node_size * dh_->num_nodes, MS_SYNC) < 0) {
+        error_log("msync failed.");
+        return false;
+      }
+      if (munmap(map_, dh_->node_size * dh_->num_nodes) < 0) {
+        error_log("munmap failed.");
+        return false;
+      }
       map_ = NULL;
-      ::close(fd_);
-      unlock_db();
+      if (::close(fd_) < 0) {
+        error_log("close failed.");
+        return false;
+      }
+      if (!unlock_db()) { return false; }
+      return true;
     }
 
     data_t *get(const void *key, uint32_t key_size)
     {
       data_t key_data = {key, key_size};
       data_t *val_data = NULL;
-      rlock_db();
+      if (!rlock_db()) { return NULL; }
       find(dh_->root_id, &key_data, &val_data);
-      unlock_db();
+      if (!unlock_db()) { return NULL; }
       return val_data;
     }
 
