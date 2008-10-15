@@ -1136,6 +1136,7 @@ namespace DBM {
         // process level locking
         if (flock(fd_, LOCK_UN) != 0) { return false; }
       }
+      return true;
     }
 
     bool rlock_db(void)
@@ -1152,9 +1153,12 @@ namespace DBM {
           return false;
         }
         if (num_resized_ != dh_->num_resized) {
-          remap();
+          if (!remap()) {
+            return false;
+          }
         }
       }
+      return true;
     }
 
     bool wlock_db(void)
@@ -1171,9 +1175,12 @@ namespace DBM {
           return false;
         }
         if (num_resized_ != dh_->num_resized) {
-          remap();
+          if (!remap()) {
+            return false;
+          }
         }
       }
+      return true;
     }
 
     bool check_limit(uint32_t key_size, uint32_t val_size)
