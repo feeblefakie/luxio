@@ -195,7 +195,9 @@ namespace DBM {
     {
       data_t *val_data = NULL;
       if (!rlock_db()) { return NULL; }
-      find(dh_->root_id, key_data, &val_data, SYSTEM);
+      if (!find(dh_->root_id, key_data, &val_data, SYSTEM)) {
+        clean_data(val_data);
+      }
       if (!unlock_db()) { return NULL; }
       return val_data;
     }
@@ -208,10 +210,14 @@ namespace DBM {
 
     bool get(data_t *key_data, data_t *val_data, alloc_type_t atype = USER)
     {
+      bool res = true;
       if (!rlock_db()) { return false; }
-      find(dh_->root_id, key_data, &val_data, atype);
-      if (!unlock_db()) { return false; }
-      return true;
+      res = find(dh_->root_id, key_data, &val_data, atype);
+      if (!res && atype == SYSTEM) {
+        clean_data(val_data);
+      }
+      if (!unlock_db()) { res = false; }
+      return res;
     }
 
     bool put(const void *key, uint32_t key_size,
@@ -272,8 +278,13 @@ namespace DBM {
 
     bool clean_data(data_t *d)
     {
-      delete [] (char *) (d->data);
-      delete d;
+      if ((char *) (d->data) != NULL) {
+        delete [] (char *) (d->data);
+      }
+      if (d != NULL) {
+        delete d;
+      }
+      d = NULL;
     }
 
     void show_node(void)
@@ -513,6 +524,7 @@ namespace DBM {
 
     bool find(node_id_t id, data_t *key_data, data_t **val_data, alloc_type_t atype)
     {
+      bool res = true;;
       entry_t entry = {key_data->data, key_data->size, NULL, 0, 0};
       entry_t *e = &entry;
 
@@ -521,14 +533,15 @@ namespace DBM {
         find_res_t *r = find_key(node, entry.key, entry.key_size);
         if (r->type == KEY_FOUND) {
           //*val_data = get_data(r);
-          get_data(r, val_data, atype);
+          res = get_data(r, val_data, atype);
         }
         delete r;
       } else {
         node_id_t next_id = _find_next(node, &entry);
-        find(next_id, key_data, val_data, atype);
+        res = find(next_id, key_data, val_data, atype);
       }
       delete node;
+      return res;
     }
 
     bool get_data(find_res_t *r, data_t **data, alloc_type_t atype)
