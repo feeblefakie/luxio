@@ -191,14 +191,27 @@ namespace DBM {
       return true;
     }
 
+    data_t *get(data_t *key_data)
+    {
+      data_t *val_data = NULL;
+      if (!rlock_db()) { return NULL; }
+      find(dh_->root_id, key_data, &val_data, SYSTEM);
+      if (!unlock_db()) { return NULL; }
+      return val_data;
+    }
+
     data_t *get(const void *key, uint32_t key_size)
     {
       data_t key_data = {key, key_size};
-      data_t *val_data = NULL;
-      if (!rlock_db()) { return NULL; }
-      find(dh_->root_id, &key_data, &val_data);
-      if (!unlock_db()) { return NULL; }
-      return val_data;
+      return get(&key_data);
+    }
+
+    bool get(data_t *key_data, data_t *val_data, alloc_type_t atype = USER)
+    {
+      if (!rlock_db()) { return false; }
+      find(dh_->root_id, key_data, &val_data, atype);
+      if (!unlock_db()) { return false; }
+      return true;
     }
 
     bool put(const void *key, uint32_t key_size,
@@ -498,7 +511,7 @@ namespace DBM {
       return node;
     }
 
-    bool find(node_id_t id, data_t *key_data, data_t **val_data)
+    bool find(node_id_t id, data_t *key_data, data_t **val_data, alloc_type_t atype)
     {
       entry_t entry = {key_data->data, key_data->size, NULL, 0, 0};
       entry_t *e = &entry;
@@ -507,14 +520,41 @@ namespace DBM {
       if (node->h->is_leaf) {
         find_res_t *r = find_key(node, entry.key, entry.key_size);
         if (r->type == KEY_FOUND) {
-          *val_data = get_data(r);
+          //*val_data = get_data(r);
+          get_data(r, val_data, atype);
         }
         delete r;
       } else {
         node_id_t next_id = _find_next(node, &entry);
-        find(next_id, key_data, val_data);
+        find(next_id, key_data, val_data, atype);
       }
       delete node;
+    }
+
+    bool get_data(find_res_t *r, data_t **data, alloc_type_t atype)
+    {
+      slot_t *slot = (slot_t *) r->slot_p;
+      if (dh_->index_type == CLUSTER) {
+        if (atype == SYSTEM) {
+          *data = new data_t;
+          (*data)->data = (char *) new char[dh_->data_size];
+        }
+        (*data)->size = dh_->data_size;
+        memcpy((void *) (*data)->data, 
+               (const char *) r->data_p + slot->size, dh_->data_size);
+      } else {
+        data_ptr_t data_ptr;
+        memcpy(&data_ptr, (const char *) r->data_p + slot->size, sizeof(data_ptr_t));
+        if (atype == SYSTEM) {
+          *data = dt_->get(&data_ptr);
+          if (*data == NULL) { return false; }
+        } else {
+          if (!dt_->get(&data_ptr, *data, &(*data)->size)) {
+            return false;
+          }
+        }
+      }
+      return true;
     }
 
     data_t *get_data(find_res_t *r)
