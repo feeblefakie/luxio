@@ -70,6 +70,11 @@ namespace DBM {
     LOCK_PROCESS
   } lock_type_t;
 
+  typedef enum {
+    USER,
+    SYSTEM
+  } alloc_type_t;
+
 }
 }
 
