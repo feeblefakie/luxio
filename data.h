@@ -560,6 +560,7 @@ namespace DBM {
     }
 
     // uses user allocated data
+    // [TODO] arguments must be reconsidered. third argument size is kind of confusing.
     virtual bool get(data_ptr_t *data_ptr, data_t *data, uint32_t *size)
     {
       record_header_t h;
