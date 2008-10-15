@@ -131,7 +131,10 @@ namespace DBM {
     : cmp_(str_cmp_func),
       index_type_(index_type),
       page_size_(getpagesize()),
-      dt_(index_type == NONCLUSTER ? new LinkedData(NOPADDING) : NULL),
+      dt_(NULL),
+      smode_(Linked),
+      pmode_(PO2),
+      padding_(0),
       data_size_(index_type == NONCLUSTER ? sizeof(data_ptr_t) : data_size)
     {
       if (pthread_rwlock_init(&rwlock_, NULL) != 0) {
@@ -230,6 +233,15 @@ namespace DBM {
       lock_type_ = lock_type;
     }
 
+    // only for noncluster database
+    bool set_noncluster_params(store_mode_t smode,
+                               padding_mode_t pmode = RATIO, uint32_t padding = 20)
+    {
+      smode_ = smode;
+      pmode_ = pmode;
+      padding_ = padding;
+    }
+
     bool set_cmp_func(CMP cmp)
     {
       cmp_ = cmp;
@@ -324,6 +336,9 @@ namespace DBM {
     uint16_t node_size_;
     uint32_t num_resized_;
     lock_type_t lock_type_;
+    store_mode_t smode_;
+    padding_mode_t pmode_;
+    uint32_t padding_;
 
     bool open_(std::string db_name, db_flags_t oflags)
     {
@@ -411,8 +426,14 @@ namespace DBM {
       }
 
       if (dh_->index_type == NONCLUSTER) {
+        if(smode_ == Padded) {
+          dt_ = new PaddedData(pmode_, padding_);
+        } else {
+          dt_ = new LinkedData(pmode_, padding_);
+        }
         std::string data_db_name = db_name + ".data";
         if (!dt_->open(data_db_name.c_str(), oflags)) {
+          error_log("opening data database failed.");
           return false;
         }
       }
@@ -423,6 +444,7 @@ namespace DBM {
           return false;
         }
       }
+      return true;
     }
 
     node_t *_init_node(uint32_t id, bool is_root, bool is_leaf)
