@@ -407,17 +407,16 @@ namespace DBM {
     }
 
     template<typename T>
-    ssize_t write_header_and_data(T *h, data_t *d, off_t off)
+    bool write_header_and_data(T *h, data_t *d, off_t off)
     {
       // write headers and data
-      int bytes_write = _pwrite(fd_, h, sizeof(T), off);
-      bytes_write += _pwrite(fd_, d->data, d->size, off + sizeof(T));
-
-      if (bytes_write != sizeof(T) + d->size) {
-        error_log("write_header_and_data failed.");
-        return 0;
+      if (!_pwrite(fd_, h, sizeof(T), off)) {
+        return false;
       }
-      return bytes_write;
+      if (!_pwrite(fd_, d->data, d->size, off + sizeof(T))) {
+        return false;
+      }
+      return true;
     }
 
     data_ptr_t *alloc_space(uint32_t size)
@@ -501,11 +500,12 @@ namespace DBM {
 
       if (h.padded_size - h.size >= data->size) {
         // if the padding is big enough
-        int bytes_write = _pwrite(fd_, data->data, data->size, off + h.size);
-        if (bytes_write != data->size) { return NULL; }
+        if (!_pwrite(fd_, data->data, data->size, off + h.size)) {
+          return NULL;
+        }
 
         // update the header
-        h.size += bytes_write;
+        h.size += data->size;
         _pwrite(fd_, &h, sizeof(record_header_t), off);
 
         // pointer unchanged
@@ -539,9 +539,10 @@ namespace DBM {
 
       if (h.padded_size - sizeof(record_header_t) >= data->size) {
         // if the padding is big enough
-        int bytes_write = _pwrite(fd_, data->data, data->size,
-                                  off + sizeof(record_header_t)); 
-        if (bytes_write != data->size) { return NULL; }
+        if (!_pwrite(fd_, data->data, data->size,
+                     off + sizeof(record_header_t))) {
+          return NULL;
+        }
 
         // update the header
         h.size = data->size + sizeof(record_header_t);
@@ -769,9 +770,10 @@ namespace DBM {
       if (h.num_units == 1 && 
           u.padded_size - sizeof(unit_header_t) >= data->size) {
         // if the padding is big enough
-        int bytes_write = _pwrite(fd_, data->data, data->size,
-                                  off + sizeof(unit_header_t));
-        if (bytes_write != data->size) { return NULL; }
+        if (!_pwrite(fd_, data->data, data->size,
+                     off + sizeof(unit_header_t))) {
+          return NULL;
+        }
 
         // update the header
         u.size = sizeof(unit_header_t) + data->size;
@@ -942,11 +944,11 @@ namespace DBM {
     bool write_record(record_t *r, data_ptr_t *dp)
     {
       off_t off = calc_off(dp->id, dp->off);
-      int bytes_write = _pwrite(fd_, r->h, sizeof(record_header_t), off);
-      bytes_write += write_header_and_data(r->u->h, r->u->d,
-                                           off + sizeof(record_header_t));
-
-      if (bytes_write != sizeof(record_header_t) + sizeof(unit_header_t) + r->u->d->size) {
+      if (!_pwrite(fd_, r->h, sizeof(record_header_t), off)) {
+        return false;
+      }
+      if (!write_header_and_data(r->u->h, r->u->d,
+                                 off + sizeof(record_header_t))) {
         return false;
       }
       return true;
@@ -955,9 +957,7 @@ namespace DBM {
     bool write_unit(unit_t *u, data_ptr_t *dp)
     {
       off_t off = calc_off(dp->id, dp->off);
-      int bytes_write = write_header_and_data(u->h, u->d, off);
-
-      if (bytes_write != sizeof(unit_header_t) + u->d->size) {
+      if (!write_header_and_data(u->h, u->d, off)) {
         return false;
       }
       return true;
