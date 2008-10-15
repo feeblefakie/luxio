@@ -87,17 +87,23 @@ namespace Lux {
     return count;
   }
 
-  ssize_t _pwrite(int fd, const void *buf, size_t nbyte, off_t offset)
+  bool _pwrite(int fd, const void *buf, size_t nbyte, off_t offset)
   {
     lseek(fd, offset, SEEK_SET);
-    return _write(fd, buf, nbyte);
+    if (_write(fd, buf, nbyte) < 0) {
+      return false; 
+    }
+    return true;
     // [TODO] pwrite 
   }
 
-  ssize_t _pread(int fd, void *buf, size_t nbyte, off_t offset)
+  bool _pread(int fd, void *buf, size_t nbyte, off_t offset)
   {
     lseek(fd, offset, SEEK_SET);
-    return _read(fd, buf, nbyte);
+    if (_read(fd, buf, nbyte) < 0) {
+      return false; 
+    } 
+    return true;
     // [TODO] pread
   }
 
