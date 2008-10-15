@@ -615,11 +615,8 @@ namespace DBM {
           // there is enough space, then just put the entry
           put_entry_in_leaf(node, entry);
         } else {
-          if (update_if_exists(node, entry)) {
-            delete node;
-            return;
-          }
-
+          // no updating if the entry key exists
+          
           if (!append_page()) {
             error_log("append_page failed.");
           }
@@ -730,20 +727,6 @@ namespace DBM {
       }
       delete r;
       return id;
-    }
-
-    bool update_if_exists(node_t *node, entry_t *entry)
-    {
-      bool is_found = false;
-      find_res_t *r = find_key(node, entry->key, entry->key_size);
-      if (r->type == KEY_FOUND) {
-        // update the value
-        // [TODO] append
-        memcpy((char *) r->data_p + entry->key_size, entry->val, entry->val_size);
-        is_found = true;
-      }
-      delete r;
-      return is_found;
     }
 
     void put_entry_in_leaf(node_t *node, entry_t *entry)
