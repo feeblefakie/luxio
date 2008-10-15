@@ -25,7 +25,10 @@ int main(int argc, char *argv[])
   }
 
   Lux::DBM::Btree *bt = new Lux::DBM::Btree(Lux::DBM::NONCLUSTER);
-  bt->open("benchdb", Lux::DB_CREAT);
+  if (!bt->open("benchdb", Lux::DB_CREAT)) {
+    std::cerr << "opening database failed." << std::endl;
+    exit(-1);
+  }
 
   int rnum = atoi(argv[1]);
   double t1, t2;
