@@ -223,6 +223,7 @@ namespace DBM {
     bool put(const void *key, uint32_t key_size,
              const void *val, uint32_t val_size, insert_mode_t flags = OVERWRITE)
     {
+      bool res = true;
       if (!check_limit(key_size, val_size)) { return false; }
       if (!wlock_db()) { return false; }
       entry_t entry = {(char *) key, key_size,
@@ -231,10 +232,10 @@ namespace DBM {
                        flags};
       up_entry_t *up_entry = NULL;
     
-      insert(dh_->root_id, &entry, &up_entry);
+      res = insert(dh_->root_id, &entry, &up_entry);
       if (!unlock_db()) { return false; }
 
-      return true;
+      return res;
     }
 
     bool del(const void *key, uint32_t key_size)
@@ -592,13 +593,19 @@ namespace DBM {
     {
       bool is_split = false;
 
-      _insert(dh_->root_id, entry, up_entry, is_split);
+      if (!_insert(dh_->root_id, entry, up_entry, is_split)) {
+        error_log("_insert failed.");
+        return false;
+      }
 
       // when split happens, the entry is not inserted.
       if (is_split) {
         up_entry_t *e = NULL;
         bool is_split = false;
-        _insert(dh_->root_id, entry, &e, is_split);
+        if (!_insert(dh_->root_id, entry, &e, is_split)) {
+          error_log("_insert failed.");
+          return false;
+        }
         if (is_split) {
           // try couple of times (not forever)
           return false;
@@ -607,7 +614,7 @@ namespace DBM {
       return true;
     }
 
-    void _insert(node_id_t id, entry_t *entry, up_entry_t **up_entry, bool &is_split)
+    bool _insert(node_id_t id, entry_t *entry, up_entry_t **up_entry, bool &is_split)
     {
       node_t *node = _alloc_node(id);
       if (node->h->is_leaf) {
@@ -619,6 +626,7 @@ namespace DBM {
           
           if (!append_page()) {
             error_log("append_page failed.");
+            return false;
           }
           // must reallocate after remapped
           delete node;
@@ -626,17 +634,22 @@ namespace DBM {
 
           // create new leaf node
           node_t *new_node = _init_node(dh_->num_nodes-1, false, true);
-          split_node(node, new_node, up_entry);
+          if (!split_node(node, new_node, up_entry)) {
+            error_log("split_node failed.");
+            return false;
+          }
 
           delete new_node;
           is_split = true;
         }
       } else {
         node_id_t next_id = _find_next(node, entry);
-        _insert(next_id, entry, up_entry, is_split);
+        if (!_insert(next_id, entry, up_entry, is_split)) {
+          return false;
+        }
 
         delete node;
-        if (*up_entry == NULL) { return; }
+        if (*up_entry == NULL) { return true; }
 
         // must reallocate after remapped
         node = _alloc_node(id);
@@ -647,6 +660,7 @@ namespace DBM {
         } else {
           if (!append_page()) {
             error_log("append_page failed.");
+            return false;
           }
           // must reallocate after remapped
           delete node;
@@ -657,7 +671,10 @@ namespace DBM {
           *up_entry = NULL;
 
           node_t *new_node = _init_node(dh_->num_nodes-1, false, false);
-          split_node(node, new_node, up_entry);
+          if (!split_node(node, new_node, up_entry)) {
+            error_log("split_node failed.");
+            return false;
+          }
 
           // compare e with up_e to decide which node putting e into
           data_t e_data = {e->key, e->key_size};
@@ -673,6 +690,7 @@ namespace DBM {
           if (node->h->is_root) {
             if (!append_page()) {
               error_log("append_page failed.");
+              return false;
             }
             delete node;
             node = _alloc_node(id);
@@ -689,6 +707,7 @@ namespace DBM {
         }
       }
       delete node;
+      return true;
     }
 
     bool _del(node_id_t id, entry_t *entry)
