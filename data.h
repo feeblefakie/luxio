@@ -554,6 +554,7 @@ namespace DBM {
                               off + sizeof(record_header_t));
 
       if (bytes_read != data->size) {
+        clean_data(data);
         return NULL;
       }
       return data;
