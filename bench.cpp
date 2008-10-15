@@ -47,10 +47,6 @@ int main(int argc, char *argv[])
     }
     t2 = gettimeofday_sec();
     std::cout << "put time: " << t2 - t1 << std::endl;
-   
-    if (argc != 3) {
-      return 0;
-    }
   }
 
   if (mode == 2 || mode == 3) {
