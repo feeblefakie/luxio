@@ -107,13 +107,13 @@ namespace DBM {
     {
       fd_ = _open(db_name.c_str(), oflags, 00644);
       if (fd_ < 0) {
-        error_log("open failed.");
+        ERROR_LOG("open failed.");
         return false;
       }
 
       struct stat stat_buf;
       if (fstat(fd_, &stat_buf) == -1 || !S_ISREG(stat_buf.st_mode)) {
-        error_log("fstat failed.");
+        ERROR_LOG("fstat failed.");
         return false;
       }
 
@@ -136,18 +136,18 @@ namespace DBM {
         }
 
         if (_write(fd_, &dh, sizeof(db_header_t)) < 0) {
-          error_log("write failed.");
+          ERROR_LOG("write failed.");
           return false;
         }
 
       } else {
         if (_read(fd_, &dh, sizeof(db_header_t)) < 0) {
-          error_log("read failed");
+          ERROR_LOG("read failed");
           return false;
         }
 
         if (dh.smode != smode_) {
-          error_log("opening wrong database type");
+          ERROR_LOG("opening wrong database type");
           return false;
         }
       }
@@ -163,16 +163,16 @@ namespace DBM {
     {
       if (map_ != NULL) {
         if (msync(map_, header_size_, MS_SYNC) < 0) {
-          error_log("msync failed.");
+          ERROR_LOG("msync failed.");
           return false;
         }
         if (munmap(map_, header_size_) < 0) {
-          error_log("munmap failed.");
+          ERROR_LOG("munmap failed.");
           return false;
         }
       }
       if (::close(fd_) < 0) {
-        error_log("close failed.");
+        ERROR_LOG("close failed.");
         return false;
       }
       return true;
@@ -400,7 +400,7 @@ namespace DBM {
       dh_->cur_block_id = dh_->num_blocks + 1;
       dh_->num_blocks += append_num_blocks;
       if (ftruncate(fd_, header_size_ + dh_->block_size * dh_->num_blocks) < 0) {
-        error_log("ftruncate failed.");
+        ERROR_LOG("ftruncate failed.");
         return false;
       }
       return true;
@@ -494,7 +494,7 @@ namespace DBM {
       off_t off = calc_off(data_ptr->id, data_ptr->off);
       _pread(fd_, &h, sizeof(record_header_t), off);
       if (h.type == AREA_FREE) {
-        error_log("data_ptr area is not marked free.");
+        ERROR_LOG("data_ptr area is not marked free.");
         return NULL;
       }
 
