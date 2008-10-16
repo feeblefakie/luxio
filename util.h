@@ -9,6 +9,15 @@
 #include <string>
 #include <iostream>
 
+#ifdef DEBUG
+#define ERROR_LOG(msg) \
+  std::cerr << "[error] " << msg \
+            << " in " << __FILE__ << ":" << __LINE__ \
+            << std::endl; 
+#else
+#define ERROR_LOG(msg) msg
+#endif
+
 namespace Lux {
 
   void _mkdir(const char *str)
@@ -120,15 +129,6 @@ namespace Lux {
         return NULL;
     }
     return p;
-  }
-
-  void error_log(std::string msg)
-  {
-#ifdef DEBUG
-    std::cerr << "[error] " << msg
-              << " in " << __FILE__ << ":" << __LINE__
-              << std::endl;
-#endif
   }
 
 }
