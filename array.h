@@ -54,7 +54,7 @@ namespace DBM {
       data_size_(index_type == NONCLUSTER ? sizeof(data_ptr_t) : data_size)
     {
       if (pthread_rwlock_init(&rwlock_, NULL) != 0) {
-        std::cerr << "pthread_rwlock_init failed" << std::endl;
+        ERROR_LOG("pthread_rwlock_init failed.");
         exit(-1);
       }
     }
@@ -69,7 +69,7 @@ namespace DBM {
         close();
       }
       if (pthread_rwlock_destroy(&rwlock_) != 0) {
-        std::cerr << "pthread_rwlock_destroy failed" << std::endl;
+        ERROR_LOG("pthread_rwlock_destroy failed.");
         exit(-1);
       }
     }
@@ -129,7 +129,7 @@ namespace DBM {
 
       if (dh_->index_type == CLUSTER) {
         if (data->size < dh_->data_size) {
-          std::cerr << "allocated size is too small for the data" << std::endl;
+          ERROR_LOG("allocated size is too small for the data.");
           return false;
         }
         memcpy((char *) data->data, map_ + off, dh_->data_size);
@@ -262,7 +262,7 @@ namespace DBM {
       oflags_ = oflags;
       if (lock_type_ == LOCK_PROCESS) {
         if (flock(fd_, LOCK_EX) != 0) { 
-          std::cerr << "flock failed in open_" << std::endl;
+          ERROR_LOG("flock failed.");
           return false;
         }
       }
@@ -287,12 +287,12 @@ namespace DBM {
           return false;
         }
         if (!alloc_pages(dh.num_pages, dh.page_size)) {
-          std::cerr << "alloc_page failed in open" << std::endl;    
+          ERROR_LOG("alloc_page failed.");
         }
 
       } else {
         if (_read(fd_, &dh, sizeof(array_header_t)) < 0) {
-          std::cerr << "read failed" << std::endl;
+          ERROR_LOG("read failed");
           return false;
         }
 
@@ -310,7 +310,7 @@ namespace DBM {
 
 
       if (index_type_ != dh_->index_type) {
-        std::cerr << "wrong index type" << std::endl;
+        ERROR_LOG("wrong index type");
         return false;
       }
 
