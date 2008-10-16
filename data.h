@@ -509,7 +509,9 @@ namespace DBM {
         _pwrite(fd_, &h, sizeof(record_header_t), off);
 
         // pointer unchanged
-        ptr = data_ptr;
+        ptr = new data_ptr_t;
+        memcpy(ptr, data_ptr, sizeof(data_ptr_t));
+
       } else {
         data_t d;
         uint32_t prev_size = h.size - sizeof(record_header_t);
@@ -549,7 +551,9 @@ namespace DBM {
         _pwrite(fd_, &h, sizeof(record_header_t), off);
 
         // pointer unchanged
-        ptr = data_ptr;
+        ptr = new data_ptr_t;
+        memcpy(ptr, data_ptr, sizeof(data_ptr_t));
+
       } else {
         // record moved, so pointing another place
         ptr = put(data);
@@ -751,7 +755,11 @@ namespace DBM {
       }
       _pwrite(fd_, &u, sizeof(unit_header_t), last_off);
 
-      return data_ptr;
+      // pointer value unchanged in append in LinkedData 
+      data_ptr_t *n_data_ptr = new data_ptr_t;
+      memcpy(n_data_ptr, data_ptr, sizeof(data_ptr_t));
+
+      return n_data_ptr;
     }
 
     virtual data_ptr_t *update(data_ptr_t *data_ptr, data_t *data)
@@ -780,7 +788,8 @@ namespace DBM {
         _pwrite(fd_, &u, sizeof(unit_header_t), off);
 
         // pointer unchanged
-        ptr = data_ptr;
+        ptr = new data_ptr_t;
+        memcpy(ptr, data_ptr, sizeof(data_ptr_t));
 
       } else {
         // record moved, so pointing another place
