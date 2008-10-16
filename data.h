@@ -282,7 +282,9 @@ namespace DBM {
       // organize free pool pointers
       free_pool_header_t pool_header;
       off_t off = calc_off(first_pool->id, first_pool->off);
-      _pread(fd_, &pool_header, sizeof(free_pool_header_t), off);
+      if (!_pread(fd_, &pool_header, sizeof(free_pool_header_t), off)) {
+        return false;
+      }
       if (pool_header.is_last) {
         dh_->is_pool_empty[pow-1] = true;  
       } else {
@@ -442,22 +444,28 @@ namespace DBM {
       if (search_free_pool(size, &pool)) {
         data_ptr->id = pool.id;
         data_ptr->off = pool.off;
-        add_free_pool(pool.id, pool.off + size, pool.size - size);
+        if (!add_free_pool(pool.id, pool.off + size, pool.size - size)) {
+          return NULL;
+        }
       } else {
         div_t d = div(size, dh_->block_size);
         uint32_t num_blocks = d.rem > 0 ? d.quot + 1 : d.quot;
-        extend_blocks(num_blocks);
+        if (!extend_blocks(num_blocks)) { return NULL; }
 
         //write a record into the head of the block
         data_ptr->id = dh_->cur_block_id;
         data_ptr->off = 0;
 
         if (size < dh_->block_size) {
-          add_free_pool(dh_->cur_block_id, size, dh_->block_size - size);
+          if (!add_free_pool(dh_->cur_block_id, size, dh_->block_size - size)) {
+            return NULL;
+          }
         } else {
           if (d.rem > 0) {
-            add_free_pool(dh_->cur_block_id + d.quot,
-                          d.rem, dh_->block_size - d.rem);
+            if (!add_free_pool(dh_->cur_block_id + d.quot,
+                               d.rem, dh_->block_size - d.rem)) {
+              return NULL;
+            }
           }
         }
       }
@@ -494,6 +502,10 @@ namespace DBM {
       record_t *r = init_record(data);
 
       data_ptr_t *data_ptr = alloc_space(r->h->padded_size);
+      if (data_ptr == NULL) {
+        ERROR_LOG("alloc_space failed.");
+        return NULL;
+      }
       //write a record into the head of the block
       if (!write_record(r, data_ptr)) {
         return NULL;
@@ -508,7 +520,9 @@ namespace DBM {
       data_ptr_t *ptr;
       record_header_t h;
       off_t off = calc_off(data_ptr->id, data_ptr->off);
-      _pread(fd_, &h, sizeof(record_header_t), off);
+      if (!_pread(fd_, &h, sizeof(record_header_t), off)) {
+        return NULL;
+      }
       if (h.type == AREA_FREE) {
         ERROR_LOG("data_ptr area is not marked free.");
         return NULL;
@@ -519,11 +533,11 @@ namespace DBM {
         if (!_pwrite(fd_, data->data, data->size, off + h.size)) {
           return NULL;
         }
-
         // update the header
         h.size += data->size;
-        _pwrite(fd_, &h, sizeof(record_header_t), off);
-
+        if (!_pwrite(fd_, &h, sizeof(record_header_t), off)) {
+          return NULL;
+        }
         // pointer unchanged
         ptr = new data_ptr_t;
         memcpy(ptr, data_ptr, sizeof(data_ptr_t));
@@ -533,14 +547,18 @@ namespace DBM {
         uint32_t prev_size = h.size - sizeof(record_header_t);
         d.size = prev_size + data->size;
         d.data = new char[d.size];
-        _pread(fd_, (char *) d.data, prev_size, off + sizeof(record_header_t));
+        if (!_pread(fd_, (char *) d.data, prev_size, off + sizeof(record_header_t))) {
+          return NULL;
+        }
         memcpy((char *) d.data + prev_size, data->data, data->size);
 
         // record moved, so pointing another place
         ptr = put(&d);
 
         // previously used area is put into free pools
-        add_free_pool(data_ptr->id, data_ptr->off, h.padded_size);
+        if (!add_free_pool(data_ptr->id, data_ptr->off, h.padded_size)) {
+          return NULL;
+        }
 
         delete [] (char *) d.data;
       }
@@ -552,7 +570,9 @@ namespace DBM {
       data_ptr_t *ptr;
       record_header_t h;
       off_t off = calc_off(data_ptr->id, data_ptr->off);
-      _pread(fd_, &h, sizeof(record_header_t), off);
+      if (!_pread(fd_, &h, sizeof(record_header_t), off)) {
+        return NULL;
+      }
       if (h.type == AREA_FREE) { return NULL; }
 
       if (h.padded_size - sizeof(record_header_t) >= data->size) {
@@ -561,11 +581,11 @@ namespace DBM {
                      off + sizeof(record_header_t))) {
           return NULL;
         }
-
         // update the header
         h.size = data->size + sizeof(record_header_t);
-        _pwrite(fd_, &h, sizeof(record_header_t), off);
-
+        if (!_pwrite(fd_, &h, sizeof(record_header_t), off)) {
+          return NULL;
+        }
         // pointer unchanged
         ptr = new data_ptr_t;
         memcpy(ptr, data_ptr, sizeof(data_ptr_t));
@@ -575,7 +595,9 @@ namespace DBM {
         ptr = put(data);
 
         // previously used area is put into free pools
-        add_free_pool(data_ptr->id, data_ptr->off, h.padded_size);
+        if (!add_free_pool(data_ptr->id, data_ptr->off, h.padded_size)) {
+          return NULL;
+        }
       }
       return ptr;
     }
@@ -585,10 +607,14 @@ namespace DBM {
       // deleted chunk is put into free pools
       record_header_t h;
       off_t off = calc_off(data_ptr->id, data_ptr->off);
-      _pread(fd_, &h, sizeof(record_header_t), off);
+      if (!_pread(fd_, &h, sizeof(record_header_t), off)) {
+        return false;
+      }
       if (h.type == AREA_FREE) { return false; }
 
-      add_free_pool(data_ptr->id, data_ptr->off, h.padded_size);
+      if (!add_free_pool(data_ptr->id, data_ptr->off, h.padded_size)) {
+        return false;
+      }
       return true;
     }
 
@@ -596,7 +622,9 @@ namespace DBM {
     {
       record_header_t h;
       off_t off = calc_off(data_ptr->id, data_ptr->off);
-      _pread(fd_, &h, sizeof(record_header_t), off);
+      if (!_pread(fd_, &h, sizeof(record_header_t), off)) {
+        return false;
+      }
       if (h.type == AREA_FREE) { return NULL; }
 
       data_t *data = new data_t;
@@ -616,7 +644,9 @@ namespace DBM {
     {
       record_header_t h;
       off_t off = calc_off(data_ptr->id, data_ptr->off);
-      _pread(fd_, &h, sizeof(record_header_t), off);
+      if (!_pread(fd_, &h, sizeof(record_header_t), off)) {
+        return false;
+      }
       if (h.type == AREA_FREE) { return false; }
 
       *size = h.size - sizeof(record_header_t);
@@ -708,6 +738,7 @@ namespace DBM {
       record_t *r = init_record(data);
 
       data_ptr_t *data_ptr = alloc_space(r->h->padded_size);
+      if (data_ptr == NULL) { return NULL; }
       if (!write_record(r, data_ptr)) {
         return NULL;
       }
@@ -722,7 +753,9 @@ namespace DBM {
     {
       record_header_t h;
       off_t off = calc_off(data_ptr->id, data_ptr->off);
-      _pread(fd_, &h, sizeof(record_header_t), off);
+      if (!_pread(fd_, &h, sizeof(record_header_t), off)) {
+        return NULL;
+      }
       if (h.type == AREA_FREE) { return NULL; }
 
       unit_header_t u;
@@ -733,12 +766,16 @@ namespace DBM {
       } else {
         last_off = calc_off(h.last_block_id, h.last_off);
       }
-      _pread(fd_, &u, sizeof(unit_header_t), last_off);
+      if (!_pread(fd_, &u, sizeof(unit_header_t), last_off)) {
+        return NULL;
+      }
 
       // if the padding is big enough, then no big deal. just put the data into it.
       uint32_t unused_size = u.padded_size - u.size;
       if (unused_size >= data->size) {
-        _pwrite(fd_, data->data, data->size, last_off + u.size);
+        if (!_pwrite(fd_, data->data, data->size, last_off + u.size)) {
+          return NULL;
+        }
         u.size += data->size;
       } else {
         if (h.num_units == UINT8_MAX) {
@@ -746,7 +783,9 @@ namespace DBM {
           return NULL;
         }
         // write as much as possible into the padding
-        _pwrite(fd_, data->data, unused_size, last_off + u.size);
+        if (!_pwrite(fd_, data->data, unused_size, last_off + u.size)) {
+          return NULL;
+        }
 
         // create a new unit and put the rest of the data into the unit
         data_t new_data = {(char *) data->data + unused_size, data->size - unused_size};
@@ -765,11 +804,15 @@ namespace DBM {
         h.last_block_id = dp->id;
         h.last_off = dp->off;
         h.padded_size += unit->h->padded_size;
-        _pwrite(fd_, &h, sizeof(record_header_t), off);
+        if (!_pwrite(fd_, &h, sizeof(record_header_t), off)) {
+          return NULL;
+        }
 
         clear_unit(unit);
       }
-      _pwrite(fd_, &u, sizeof(unit_header_t), last_off);
+      if (!_pwrite(fd_, &u, sizeof(unit_header_t), last_off)) {
+        return NULL;
+      }
 
       // pointer value unchanged in append in LinkedData 
       data_ptr_t *n_data_ptr = new data_ptr_t;
@@ -783,12 +826,16 @@ namespace DBM {
       data_ptr_t *ptr;
       record_header_t h;
       off_t off = calc_off(data_ptr->id, data_ptr->off);
-      _pread(fd_, &h, sizeof(record_header_t), off);
+      if (!_pread(fd_, &h, sizeof(record_header_t), off)) {
+        return NULL;
+      }
       if (h.type == AREA_FREE) { return NULL; }
 
       unit_header_t u;
       off += sizeof(record_header_t);
-      _pread(fd_, &u, sizeof(unit_header_t), off);
+      if (!_pread(fd_, &u, sizeof(unit_header_t), off)) {
+        return NULL;
+      }
 
       // checking the first one only (not checking succeeding blocks)
       if (h.num_units == 1 && 
@@ -798,11 +845,11 @@ namespace DBM {
                      off + sizeof(unit_header_t))) {
           return NULL;
         }
-
         // update the header
         u.size = sizeof(unit_header_t) + data->size;
-        _pwrite(fd_, &u, sizeof(unit_header_t), off);
-
+        if (!_pwrite(fd_, &u, sizeof(unit_header_t), off)) {
+          return NULL;
+        }
         // pointer unchanged
         ptr = new data_ptr_t;
         memcpy(ptr, data_ptr, sizeof(data_ptr_t));
@@ -821,7 +868,9 @@ namespace DBM {
     {
       record_header_t h;
       off_t g_off = calc_off(data_ptr->id, data_ptr->off);
-      _pread(fd_, &h, sizeof(record_header_t), g_off);
+      if (!_pread(fd_, &h, sizeof(record_header_t), g_off)) {
+        return false; 
+      }
       if (h.type == AREA_FREE) { return false; }
 
       int cnt = 0;
@@ -830,15 +879,16 @@ namespace DBM {
       g_off += sizeof(record_header_t);
       do {
         unit_header_t u;
-        _pread(fd_, &u, sizeof(unit_header_t), g_off);
+        if (!_pread(fd_, &u, sizeof(unit_header_t), g_off)) {
+          return false;
+        }
 
         uint32_t size = u.padded_size;
         // for the first unit
         if (cnt == 0) {
           size += sizeof(record_header_t);
         }
-        //std::cout << "in del: id:" << id << ", off:" << off << ", size:" << size << std::endl;
-        add_free_pool(id, off, size);
+        if (!add_free_pool(id, off, size)) { return false; }
 
         // next unit
         id = u.next_block_id;
@@ -853,7 +903,9 @@ namespace DBM {
     {
       record_header_t h;
       off_t off = calc_off(data_ptr->id, data_ptr->off);
-      _pread(fd_, &h, sizeof(record_header_t), off);
+      if (!_pread(fd_, &h, sizeof(record_header_t), off)) {
+        return NULL;
+      }
       if (h.type == AREA_FREE) { return NULL; }
 
       data_t *data = new data_t;
@@ -865,7 +917,10 @@ namespace DBM {
       off += sizeof(record_header_t);
       unit_header_t u;
       do {
-        _pread(fd_, &u, sizeof(unit_header_t), off);
+        if (!_pread(fd_, &u, sizeof(unit_header_t), off)) {
+          delete [] d; 
+          return NULL;
+        }
 
         off += sizeof(unit_header_t);
         if (!_pread(fd_, p, u.size - sizeof(unit_header_t), off)) {
@@ -887,7 +942,10 @@ namespace DBM {
     {
       record_header_t h;
       off_t off = calc_off(data_ptr->id, data_ptr->off);
-      _pread(fd_, &h, sizeof(record_header_t), off);
+      if (!_pread(fd_, &h, sizeof(record_header_t), off)) {
+        return false;
+      }
+
       if (h.type == AREA_FREE) { return false; }
 
       char *p = (char *) data->data;
@@ -898,7 +956,9 @@ namespace DBM {
       off += sizeof(record_header_t);
       unit_header_t u;
       do {
-        _pread(fd_, &u, sizeof(unit_header_t), off);
+        if (!_pread(fd_, &u, sizeof(unit_header_t), off)) {
+          return false;
+        }
 
         data_size = u.size - sizeof(unit_header_t);
         *size += data_size;
