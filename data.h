@@ -316,12 +316,14 @@ namespace DBM {
       return padded_size;
     }
 
-    void add_free_pool(block_id_t block_id, uint16_t off_in_block, uint32_t size)
+    bool add_free_pool(block_id_t block_id, uint16_t off_in_block, uint32_t size)
     {
       bool is_appended = false;
       for (int i = 32; i >= 5; --i) { 
         if (size >= pows_[i-1]) {
-          _prepend_free_pool(block_id, off_in_block, size, i);
+          if (!_prepend_free_pool(block_id, off_in_block, size, i)) {
+            return false;
+          }
           is_appended = true;
           break;
         }
@@ -332,9 +334,11 @@ namespace DBM {
         // [TODO]
         //std::cout << size << " bytes in block id: " << block_id << " is unused." << std::endl;
       }
+
+      return true;
     }
 
-    void _prepend_free_pool(block_id_t id, uint16_t off_in_block, uint32_t size, int pow)
+    bool _prepend_free_pool(block_id_t id, uint16_t off_in_block, uint32_t size, int pow)
     {
       free_pool_ptr_t ptr = {id, off_in_block, size};
       off_t off = calc_off(id, off_in_block);
@@ -345,7 +349,9 @@ namespace DBM {
 
         // write the header of the pool
         free_pool_header_t header = {AREA_FREE, size, 0, 0, 0, true};
-        _pwrite(fd_, &header, sizeof(free_pool_header_t), off);
+        if (!_pwrite(fd_, &header, sizeof(free_pool_header_t), off)) {
+          return false;
+        }
       } else {
         free_pool_ptr_t first_ptr;
         memcpy(&first_ptr, &(dh_->first_pool_ptr[pow-1]), sizeof(free_pool_ptr_t));
@@ -353,12 +359,16 @@ namespace DBM {
         // write the header of the pool
         free_pool_header_t header = {AREA_FREE, size, first_ptr.id,
                                      first_ptr.off, first_ptr.size, false};
-        _pwrite(fd_, &header, sizeof(free_pool_header_t), off);
+        if (!_pwrite(fd_, &header, sizeof(free_pool_header_t), off)) {
+          return false;
+        }
       }
       memcpy(&(dh_->first_pool_ptr[pow-1]), &ptr, sizeof(free_pool_ptr_t));
+
+      return true;
     }
   
-    void _append_free_pool(block_id_t id, uint16_t off_in_block, uint32_t size, int pow)
+    bool _append_free_pool(block_id_t id, uint16_t off_in_block, uint32_t size, int pow)
     {
       // added size to free_pool_header_t
       free_pool_ptr_t ptr = {id, off_in_block, size};
@@ -371,13 +381,19 @@ namespace DBM {
         // put ptr to the next(last) pool
         off_t off = calc_off(last_ptr.id, last_ptr.off);
         free_pool_header_t header = {AREA_FREE, last_ptr.size, id, off_in_block, size, false};
-        _pwrite(fd_, &header, sizeof(free_pool_header_t), off);
+        if (!_pwrite(fd_, &header, sizeof(free_pool_header_t), off)) {
+          return false;
+        }
       }
       // last pool
       free_pool_header_t header = {AREA_FREE, size, 0, 0, 0, true};
       off_t off = calc_off(id, off_in_block);
-      _pwrite(fd_, &header, sizeof(free_pool_header_t), off);
+      if (!_pwrite(fd_, &header, sizeof(free_pool_header_t), off)) {
+        return false;
+      }
       memcpy(&(dh_->last_pool_ptr[pow-1]), &ptr, sizeof(free_pool_ptr_t));
+
+      return true;
     }
 
     off_t calc_off(block_id_t id, uint16_t off)
