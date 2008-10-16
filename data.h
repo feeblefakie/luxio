@@ -605,7 +605,7 @@ namespace DBM {
 
       *size = h.size - sizeof(record_header_t);
       if (data->size < *size) {
-        std::cerr << "allocated size is too small for the data " << size << std::endl;
+        ERROR_LOG("allocated size is too small for the data.");
         return false;
       }
       if (!_pread(fd_, (char *) data->data, *size, 
@@ -726,7 +726,7 @@ namespace DBM {
         u.size += data->size;
       } else {
         if (h.num_units == UINT8_MAX) {
-          std::cerr << "[error] exceeds link limitation." << std::endl;
+          ERROR_LOG("exceeds link limitation.");
           return NULL;
         }
         // write as much as possible into the padding
@@ -887,7 +887,7 @@ namespace DBM {
         data_size = u.size - sizeof(unit_header_t);
         *size += data_size;
         if (data->size < *size) {
-          std::cerr << "allocated size is too small for the data" << std::endl;
+          ERROR_LOG("allocated size is too small for the data");
           return false;
         }
 
