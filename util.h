@@ -15,7 +15,7 @@
             << " in " << __FILE__ << ":" << __LINE__ \
             << std::endl; 
 #else
-#define ERROR_LOG(msg) msg
+#define ERROR_LOG(msg)
 #endif
 
 namespace Lux {
