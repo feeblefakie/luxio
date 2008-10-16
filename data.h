@@ -220,9 +220,9 @@ namespace DBM {
 
     void show_db_header(void)
     {
-      std::cout << "=== DATABASE HEADER ===" << std::endl;
-      std::cout << "num_blocks: " << dh_->num_blocks << std::endl;
-      std::cout << "current block id: " << dh_->cur_block_id << std::endl;
+      std::cout << "----- DATABASE HEADER -----" << std::endl
+                << "num_blocks: " << dh_->num_blocks << std::endl
+                << "current block id: " << dh_->cur_block_id << std::endl;
     }
 
     void clean_data_ptr(data_ptr_t *data_ptr)
