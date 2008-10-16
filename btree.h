@@ -784,6 +784,7 @@ namespace DBM {
           } else { // OVERWRITE
             res_data_ptr = dt_->update(&data_ptr, &data);
           }
+          // [TODO] only update the value because the key exists
         } else {
           // put the data, get the ptr to the data and update the index
           res_data_ptr = dt_->put(&data);
