@@ -776,7 +776,8 @@ namespace DBM {
 
         if (r->type == KEY_FOUND) {
           data_ptr_t data_ptr;
-          memcpy(&data_ptr, (char *) r->data_p + entry->key_size, sizeof(data_ptr_t));
+          char *val_ptr = (char *) r->data_p + entry->key_size;
+          memcpy(&data_ptr, val_ptr, sizeof(data_ptr_t));
 
           // append or update the data, get the ptr to the data and update the index
           if (entry->mode == APPEND) {
@@ -784,13 +785,13 @@ namespace DBM {
           } else { // OVERWRITE
             res_data_ptr = dt_->update(&data_ptr, &data);
           }
-          // [TODO] only update the value because the key exists
+          memcpy(val_ptr, res_data_ptr, sizeof(data_ptr_t));
         } else {
           // put the data, get the ptr to the data and update the index
           res_data_ptr = dt_->put(&data);
+          _entry.val = res_data_ptr;
+          put_entry(node, &_entry, r);
         }
-        _entry.val = res_data_ptr;
-        put_entry(node, &_entry, r);
         dt_->clean_data_ptr(res_data_ptr);
       }
       delete r;
