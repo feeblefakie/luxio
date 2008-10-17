@@ -499,6 +499,7 @@ namespace DBM {
 
     virtual data_ptr_t *put(data_t *data)
     {
+      assert(data->data != NULL);
       record_t *r = init_record(data);
 
       data_ptr_t *data_ptr = alloc_space(r->h->padded_size);
@@ -517,6 +518,8 @@ namespace DBM {
 
     virtual data_ptr_t *append(data_ptr_t *data_ptr, data_t *data)
     {
+      assert(data->data != NULL && 
+             data_ptr->id >= 1 && data_ptr->id <= dh_->cur_block_id);
       data_ptr_t *ptr;
       record_header_t h;
       off_t off = calc_off(data_ptr->id, data_ptr->off);
@@ -567,6 +570,8 @@ namespace DBM {
 
     virtual data_ptr_t *update(data_ptr_t *data_ptr, data_t *data)
     {
+      assert(data->data != NULL &&
+             data_ptr->id >= 1 && data_ptr->id <= dh_->cur_block_id);
       data_ptr_t *ptr;
       record_header_t h;
       off_t off = calc_off(data_ptr->id, data_ptr->off);
@@ -604,6 +609,7 @@ namespace DBM {
 
     virtual bool del(data_ptr_t *data_ptr)
     {
+      assert(data_ptr->id >= 1 && data_ptr->id <= dh_->cur_block_id);
       // deleted chunk is put into free pools
       record_header_t h;
       off_t off = calc_off(data_ptr->id, data_ptr->off);
@@ -620,6 +626,7 @@ namespace DBM {
 
     virtual data_t *get(data_ptr_t *data_ptr)
     {
+      assert(data_ptr->id >= 1 && data_ptr->id <= dh_->cur_block_id);
       record_header_t h;
       off_t off = calc_off(data_ptr->id, data_ptr->off);
       if (!_pread(fd_, &h, sizeof(record_header_t), off)) {
@@ -642,6 +649,7 @@ namespace DBM {
     // [TODO] arguments must be reconsidered. third argument size is kind of confusing.
     virtual bool get(data_ptr_t *data_ptr, data_t *data, uint32_t *size)
     {
+      assert(data_ptr->id >= 1 && data_ptr->id <= dh_->cur_block_id);
       record_header_t h;
       off_t off = calc_off(data_ptr->id, data_ptr->off);
       if (!_pread(fd_, &h, sizeof(record_header_t), off)) {
@@ -735,6 +743,7 @@ namespace DBM {
 
     virtual data_ptr_t *put(data_t *data)
     {
+      assert(data->data != NULL);
       record_t *r = init_record(data);
 
       data_ptr_t *data_ptr = alloc_space(r->h->padded_size);
@@ -751,6 +760,8 @@ namespace DBM {
 
     virtual data_ptr_t *append(data_ptr_t *data_ptr, data_t *data)
     {
+      assert(data->data != NULL && 
+             data_ptr->id >= 1 && data_ptr->id <= dh_->cur_block_id);
       record_header_t h;
       off_t off = calc_off(data_ptr->id, data_ptr->off);
       if (!_pread(fd_, &h, sizeof(record_header_t), off)) {
@@ -823,6 +834,8 @@ namespace DBM {
 
     virtual data_ptr_t *update(data_ptr_t *data_ptr, data_t *data)
     {
+      assert(data->data != NULL &&
+             data_ptr->id >= 1 && data_ptr->id <= dh_->cur_block_id);
       data_ptr_t *ptr;
       record_header_t h;
       off_t off = calc_off(data_ptr->id, data_ptr->off);
@@ -866,6 +879,7 @@ namespace DBM {
 
     virtual bool del(data_ptr_t *data_ptr)
     {
+      assert(data_ptr->id >= 1 && data_ptr->id <= dh_->cur_block_id);
       record_header_t h;
       off_t g_off = calc_off(data_ptr->id, data_ptr->off);
       if (!_pread(fd_, &h, sizeof(record_header_t), g_off)) {
@@ -901,6 +915,7 @@ namespace DBM {
 
     virtual data_t *get(data_ptr_t *data_ptr)
     {
+      assert(data_ptr->id >= 1 && data_ptr->id <= dh_->cur_block_id);
       record_header_t h;
       off_t off = calc_off(data_ptr->id, data_ptr->off);
       if (!_pread(fd_, &h, sizeof(record_header_t), off)) {
@@ -940,6 +955,7 @@ namespace DBM {
 
     virtual bool get(data_ptr_t *data_ptr, data_t *data, uint32_t *size)
     {
+      assert(data_ptr->id >= 1 && data_ptr->id <= dh_->cur_block_id);
       record_header_t h;
       off_t off = calc_off(data_ptr->id, data_ptr->off);
       if (!_pread(fd_, &h, sizeof(record_header_t), off)) {
