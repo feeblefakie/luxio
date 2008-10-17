@@ -314,74 +314,6 @@ namespace DBM {
       d = NULL;
     }
 
-    void show_node(void)
-    {
-      show_db_header();
-      for (int i = 1; i < dh_->num_nodes; ++i) {
-        show_node(i);
-      }
-    }
-
-    void show_root(void)
-    {
-      show_node(dh_->root_id);
-    }
-
-    void show_db_header()
-    {
-      std::cout << "----- ROOT -----" << std::endl
-                << "num_keys: " << dh_->num_keys << std::endl
-                << "num_nodes: " << dh_->num_nodes << std::endl
-                << "node_size: " << dh_->node_size << std::endl
-                << "init_data_size: " << dh_->init_data_size << std::endl
-                << "root_id: " << dh_->root_id << std::endl
-                << "num_leaves: " << dh_->num_leaves << std::endl
-                << "num_nonleaves: " << dh_->num_nonleaves << std::endl
-                << "index_type: " << (int) dh_->index_type << std::endl
-                << "data_size: " << (int) dh_->data_size << std::endl;
-    }
-
-    // debug method
-    void show_node(uint32_t id)
-    {
-      std::cout << std::endl;
-      std::cout << "----- NODE " << id << " -----" << std::endl;
-      node_t *node = _alloc_node(id);
-      if (node == NULL) {
-        std::cout << "node[ " << id << "] is not allocated, yet" << std::endl;
-        return;
-      }
-      std::cout << "is_root: " << node->h->is_root << std::endl
-                << "is_leaf: " << node->h->is_leaf << std::endl
-                << "id: " << node->h->id << std::endl
-                << "num_keys: " << node->h->num_keys << std::endl
-                << "data_off: "<< node->h->data_off << std::endl
-                << "free_off: " << node->h->free_off << std::endl
-                << "free_size: " << node->h->free_size << std::endl;
-
-      if (!node->h->is_leaf) {
-        node_id_t leftmost; 
-        memcpy(&leftmost, (char *) node->b, sizeof(node_id_t));
-        std::cout << "leftmost[" << leftmost << "]" << std::endl;
-      }
-
-      char *slot_p = (char *) node->h + dh_->node_size; // point to the tail of the node
-      char *body_p = (char *) node->b;
-      for (int i = 1; i <= node->h->num_keys; ++i) {
-        slot_p -= sizeof(slot_t);
-        slot_t *slot = (slot_t *) slot_p;
-        std::cout << "off[" << slot->off << "], size[" << slot->size << "]" << std::endl;
-
-        char key_buf[256];
-        uint32_t val;
-        memset(key_buf, 0, 256);
-        memcpy(key_buf, body_p + slot->off, slot->size);
-        memcpy(&val, body_p + slot->off + slot->size, sizeof(node_id_t));
-        std::cout << "key[" << key_buf << "]" << std::endl;
-        std::cout << "val[" << val << "]" << std::endl;
-      }
-    }
-
     /* cursors */
     cursor_t *cursor_init(void)
     {
@@ -396,42 +328,6 @@ namespace DBM {
         delete c;
         c = NULL;
       }
-    }
-
-    bool cursor_find_node(cursor_t *c, node_id_t id,
-                          data_t *key, op_mode_t op_mode)
-    {
-      bool res = true;
-      entry_t entry;
-      if (key != NULL) {
-        entry.key = key->data;
-        entry.key_size = key->size;
-        entry.val = NULL;
-        entry.val_size = 0;
-        entry.size = 0;
-      }
-
-      node_t *node = _alloc_node(id);
-      if (node->h->is_leaf) {
-        if (node->h->num_keys == 0) {
-          res = false;
-        } else {
-          c->node_id = id;
-          if (op_mode == OP_CUR_FIRST) {
-            c->slot_index = node->h->num_keys - 1;
-          } else if (op_mode == OP_CUR_LAST) {
-            c->slot_index = 0;
-          } else {
-            error_log("operation not supported");
-            res = false;
-          }
-        }
-      } else {
-        node_id_t next_id = _find_next(node, &entry, op_mode);
-        res = cursor_find_node(c, next_id, key, op_mode);
-      }
-      delete node;
-      return res;
     }
 
     bool first(cursor_t *c) 
@@ -502,12 +398,6 @@ namespace DBM {
       return true;
     }
 
-    void print_cursor(cursor_t *c)
-    {
-      std::cout << "id: " << c->node_id << std::endl;
-      std::cout << "slot_index: " << c->slot_index << std::endl;
-    }
-
     bool cursor_get(cursor_t *c, data_t **key, data_t **val, alloc_type_t atype)
     {
       node_t *node = _alloc_node(c->node_id);
@@ -524,6 +414,74 @@ namespace DBM {
       (*key)->size = slot->size;
       res = get_data(p + slot->size, val, atype);
       return res;
+    }
+
+    void show_node(void)
+    {
+      show_db_header();
+      for (int i = 1; i < dh_->num_nodes; ++i) {
+        show_node(i);
+      }
+    }
+
+    void show_root(void)
+    {
+      show_node(dh_->root_id);
+    }
+
+    void show_db_header()
+    {
+      std::cout << "----- ROOT -----" << std::endl
+                << "num_keys: " << dh_->num_keys << std::endl
+                << "num_nodes: " << dh_->num_nodes << std::endl
+                << "node_size: " << dh_->node_size << std::endl
+                << "init_data_size: " << dh_->init_data_size << std::endl
+                << "root_id: " << dh_->root_id << std::endl
+                << "num_leaves: " << dh_->num_leaves << std::endl
+                << "num_nonleaves: " << dh_->num_nonleaves << std::endl
+                << "index_type: " << (int) dh_->index_type << std::endl
+                << "data_size: " << (int) dh_->data_size << std::endl;
+    }
+
+    // debug method
+    void show_node(uint32_t id)
+    {
+      std::cout << std::endl;
+      std::cout << "----- NODE " << id << " -----" << std::endl;
+      node_t *node = _alloc_node(id);
+      if (node == NULL) {
+        std::cout << "node[ " << id << "] is not allocated, yet" << std::endl;
+        return;
+      }
+      std::cout << "is_root: " << node->h->is_root << std::endl
+                << "is_leaf: " << node->h->is_leaf << std::endl
+                << "id: " << node->h->id << std::endl
+                << "num_keys: " << node->h->num_keys << std::endl
+                << "data_off: "<< node->h->data_off << std::endl
+                << "free_off: " << node->h->free_off << std::endl
+                << "free_size: " << node->h->free_size << std::endl;
+
+      if (!node->h->is_leaf) {
+        node_id_t leftmost; 
+        memcpy(&leftmost, (char *) node->b, sizeof(node_id_t));
+        std::cout << "leftmost[" << leftmost << "]" << std::endl;
+      }
+
+      char *slot_p = (char *) node->h + dh_->node_size; // point to the tail of the node
+      char *body_p = (char *) node->b;
+      for (int i = 1; i <= node->h->num_keys; ++i) {
+        slot_p -= sizeof(slot_t);
+        slot_t *slot = (slot_t *) slot_p;
+        std::cout << "off[" << slot->off << "], size[" << slot->size << "]" << std::endl;
+
+        char key_buf[256];
+        uint32_t val;
+        memset(key_buf, 0, 256);
+        memcpy(key_buf, body_p + slot->off, slot->size);
+        memcpy(&val, body_p + slot->off + slot->size, sizeof(node_id_t));
+        std::cout << "key[" << key_buf << "]" << std::endl;
+        std::cout << "val[" << val << "]" << std::endl;
+      }
     }
 
   private:
@@ -1383,6 +1341,43 @@ namespace DBM {
       }
       return true;
     }
+
+    bool cursor_find_node(cursor_t *c, node_id_t id,
+                          data_t *key, op_mode_t op_mode)
+    {
+      bool res = true;
+      entry_t entry;
+      if (key != NULL) {
+        entry.key = key->data;
+        entry.key_size = key->size;
+        entry.val = NULL;
+        entry.val_size = 0;
+        entry.size = 0;
+      }
+
+      node_t *node = _alloc_node(id);
+      if (node->h->is_leaf) {
+        if (node->h->num_keys == 0) {
+          res = false;
+        } else {
+          c->node_id = id;
+          if (op_mode == OP_CUR_FIRST) {
+            c->slot_index = node->h->num_keys - 1;
+          } else if (op_mode == OP_CUR_LAST) {
+            c->slot_index = 0;
+          } else {
+            error_log("operation not supported");
+            res = false;
+          }
+        }
+      } else {
+        node_id_t next_id = _find_next(node, &entry, op_mode);
+        res = cursor_find_node(c, next_id, key, op_mode);
+      }
+      delete node;
+      return res;
+    }
+
   };
 
 }
