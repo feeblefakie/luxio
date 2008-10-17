@@ -86,7 +86,7 @@ namespace DBM {
     : smode_(smode),
       pmode_(pmode),
       padding_(padding),
-      page_size_(getpagesize()),
+      block_size_(0),
       header_size_(getpagesize()),
       map_(NULL)
     {
@@ -121,7 +121,7 @@ namespace DBM {
       memset(&dh, 0, sizeof(db_header_t));
       if (stat_buf.st_size == 0 && oflags & DB_CREAT) {
         dh.num_blocks = 0;
-        dh.block_size = page_size_;
+        dh.block_size = (block_size_ == 0) ? stat_buf.st_blksize : block_size_;
         dh.bytes_used = 0;
         dh.cur_block_id = 0;
         dh.pmode = pmode_;
@@ -184,13 +184,13 @@ namespace DBM {
       padding_ = padding;
     }
 
-    void set_page_size(uint32_t page_size)
+    void set_block_size(uint32_t block_size)
     {
-      if (page_size > MAX_PAGESIZE || 
-          page_size < MIN_PAGESIZE) {
+      if (block_size > MAX_BLOCKSIZE || 
+          block_size < MIN_BLOCKSIZE) {
         return;
       }
-      page_size_ = page_size;
+      block_size_ = block_size;
     }
 
     void show_free_pools(void)
@@ -255,7 +255,7 @@ namespace DBM {
     padding_mode_t pmode_;
     uint32_t padding_;
     store_mode_t smode_;
-    uint32_t page_size_;
+    uint32_t block_size_;
     uint32_t header_size_;
     double pows_[32];
 
