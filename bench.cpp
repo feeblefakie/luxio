@@ -36,6 +36,7 @@ int main(int argc, char *argv[])
 
   if (mode == 1 || mode == 3) {
 
+    //bt->set_bulk_loading(true);
     t1 = gettimeofday_sec();
     for (int i = 0; i < rnum; ++i) {
       char key[9];
@@ -48,6 +49,7 @@ int main(int argc, char *argv[])
       }
     }
     t2 = gettimeofday_sec();
+    bt->set_bulk_loading(false);
     std::cout << "put time: " << t2 - t1 << std::endl;
   }
 
