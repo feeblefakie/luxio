@@ -55,7 +55,7 @@ namespace DBM {
       data_size_(index_type == NONCLUSTER ? sizeof(data_ptr_t) : data_size)
     {
       if (pthread_rwlock_init(&rwlock_, NULL) != 0) {
-        ERROR_LOG("pthread_rwlock_init failed.");
+        error_log("pthread_rwlock_init failed.");
         exit(-1);
       }
     }
@@ -70,7 +70,7 @@ namespace DBM {
         close();
       }
       if (pthread_rwlock_destroy(&rwlock_) != 0) {
-        ERROR_LOG("pthread_rwlock_destroy failed.");
+        error_log("pthread_rwlock_destroy failed.");
         exit(-1);
       }
     }
@@ -93,17 +93,17 @@ namespace DBM {
       if (!wlock_db()) { return false; }
       if (map_ != NULL) {
         if (msync(map_, dh_->page_size * dh_->num_pages, MS_SYNC) < 0) {
-          ERROR_LOG("msync failed.");
+          error_log("msync failed.");
           return false;
         }
         if (munmap(map_, dh_->page_size * dh_->num_pages) < 0) {
-          ERROR_LOG("munmap failed.");
+          error_log("munmap failed.");
           return false;
         }
         map_ = NULL;
       }
       if (::close(fd_) < 0) {
-        ERROR_LOG("close failed.");
+        error_log("close failed.");
         return false;
       }
       if (!unlock_db()) { return false; }
@@ -142,7 +142,7 @@ namespace DBM {
 
       if (dh_->index_type == CLUSTER) {
         if (data->size < dh_->data_size) {
-          ERROR_LOG("allocated size is too small for the data.");
+          error_log("allocated size is too small for the data.");
           return false;
         }
         memcpy((char *) data->data, map_ + off, dh_->data_size);
@@ -281,7 +281,7 @@ namespace DBM {
       oflags_ = oflags;
       if (lock_type_ == LOCK_PROCESS) {
         if (flock(fd_, LOCK_EX) != 0) { 
-          ERROR_LOG("flock failed.");
+          error_log("flock failed.");
           return false;
         }
       }
@@ -307,12 +307,12 @@ namespace DBM {
           return false;
         }
         if (!alloc_pages(dh.num_pages, dh.page_size)) {
-          ERROR_LOG("alloc_page failed.");
+          error_log("alloc_page failed.");
         }
 
       } else {
         if (_read(fd_, &dh, sizeof(array_header_t)) < 0) {
-          ERROR_LOG("read failed");
+          error_log("read failed");
           return false;
         }
 
@@ -330,7 +330,7 @@ namespace DBM {
 
 
       if (index_type_ != dh_->index_type) {
-        ERROR_LOG("wrong index type");
+        error_log("wrong index type");
         return false;
       }
 
@@ -355,12 +355,12 @@ namespace DBM {
     {
       allocated_size_ = page_size * num_pages;
       if (ftruncate(fd_, allocated_size_) < 0) {
-        ERROR_LOG("ftruncate failed.");
+        error_log("ftruncate failed.");
         return false;
       }
       map_ = (char *) _mmap(fd_, allocated_size_, oflags_);
       if (map_ == NULL) {
-        ERROR_LOG("mmap failed.");
+        error_log("mmap failed.");
         return false;
       }
 
@@ -373,7 +373,7 @@ namespace DBM {
 
       if (map_ != NULL) {
         if (munmap(map_, dh_->page_size * dh_->num_pages) < 0) {
-          ERROR_LOG("munmap failed in realloc_pages");
+          error_log("munmap failed in realloc_pages");
           return false;
         }
       }
@@ -397,12 +397,12 @@ namespace DBM {
     {
       uint32_t num_pages = dh_->num_pages;
       if (munmap(map_, page_size_ * num_pages_) < 0) {
-        ERROR_LOG("munmap failed.");
+        error_log("munmap failed.");
         return false;
       }
       map_ = (char *) _mmap(fd_, page_size_ * num_pages, oflags_);
       if (map_ == NULL) {
-        ERROR_LOG("mmap failed.");
+        error_log("mmap failed.");
         return false;
       }
       dh_ = (array_header_t *) map_;
@@ -436,7 +436,7 @@ namespace DBM {
       } else {
         // process level locking
         if (flock(fd_, LOCK_SH) != 0) { 
-          ERROR_LOG("flock failed.");
+          error_log("flock failed.");
           return false;
         }
         if (num_resized_ != dh_->num_resized) {
@@ -458,7 +458,7 @@ namespace DBM {
       } else {
         // process level locking
         if (flock(fd_, LOCK_EX) != 0) { 
-          ERROR_LOG("flock failed.");
+          error_log("flock failed.");
           return false;
         }
         if (num_resized_ != dh_->num_resized) {

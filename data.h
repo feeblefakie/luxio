@@ -107,13 +107,13 @@ namespace DBM {
     {
       fd_ = _open(db_name.c_str(), oflags, 00644);
       if (fd_ < 0) {
-        ERROR_LOG("open failed.");
+        error_log("open failed.");
         return false;
       }
 
       struct stat stat_buf;
       if (fstat(fd_, &stat_buf) == -1 || !S_ISREG(stat_buf.st_mode)) {
-        ERROR_LOG("fstat failed.");
+        error_log("fstat failed.");
         return false;
       }
 
@@ -136,18 +136,18 @@ namespace DBM {
         }
 
         if (_write(fd_, &dh, sizeof(db_header_t)) < 0) {
-          ERROR_LOG("write failed.");
+          error_log("write failed.");
           return false;
         }
 
       } else {
         if (_read(fd_, &dh, sizeof(db_header_t)) < 0) {
-          ERROR_LOG("read failed");
+          error_log("read failed");
           return false;
         }
 
         if (dh.smode != smode_) {
-          ERROR_LOG("opening wrong database type");
+          error_log("opening wrong database type");
           return false;
         }
       }
@@ -163,16 +163,16 @@ namespace DBM {
     {
       if (map_ != NULL) {
         if (msync(map_, header_size_, MS_SYNC) < 0) {
-          ERROR_LOG("msync failed.");
+          error_log("msync failed.");
           return false;
         }
         if (munmap(map_, header_size_) < 0) {
-          ERROR_LOG("munmap failed.");
+          error_log("munmap failed.");
           return false;
         }
       }
       if (::close(fd_) < 0) {
-        ERROR_LOG("close failed.");
+        error_log("close failed.");
         return false;
       }
       return true;
@@ -418,7 +418,7 @@ namespace DBM {
       dh_->cur_block_id = dh_->num_blocks + 1;
       dh_->num_blocks += append_num_blocks;
       if (ftruncate(fd_, header_size_ + dh_->block_size * dh_->num_blocks) < 0) {
-        ERROR_LOG("ftruncate failed.");
+        error_log("ftruncate failed.");
         return false;
       }
       return true;
@@ -504,7 +504,7 @@ namespace DBM {
 
       data_ptr_t *data_ptr = alloc_space(r->h->padded_size);
       if (data_ptr == NULL) {
-        ERROR_LOG("alloc_space failed.");
+        error_log("alloc_space failed.");
         return NULL;
       }
       //write a record into the head of the block
@@ -527,7 +527,7 @@ namespace DBM {
         return NULL;
       }
       if (h.type == AREA_FREE) {
-        ERROR_LOG("data_ptr area is not marked free.");
+        error_log("data_ptr area is not marked free.");
         return NULL;
       }
 
@@ -659,7 +659,7 @@ namespace DBM {
 
       *size = h.size - sizeof(record_header_t);
       if (data->size < *size) {
-        ERROR_LOG("allocated size is too small for the data.");
+        error_log("allocated size is too small for the data.");
         return false;
       }
       if (!_pread(fd_, (char *) data->data, *size, 
@@ -790,7 +790,7 @@ namespace DBM {
         u.size += data->size;
       } else {
         if (h.num_units == UINT8_MAX) {
-          ERROR_LOG("exceeds link limitation.");
+          error_log("exceeds link limitation.");
           return NULL;
         }
         // write as much as possible into the padding
@@ -979,7 +979,7 @@ namespace DBM {
         data_size = u.size - sizeof(unit_header_t);
         *size += data_size;
         if (data->size < *size) {
-          ERROR_LOG("allocated size is too small for the data");
+          error_log("allocated size is too small for the data");
           return false;
         }
 

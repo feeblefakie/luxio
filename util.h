@@ -10,12 +10,12 @@
 #include <iostream>
 
 #ifdef DEBUG
-#define ERROR_LOG(msg) \
+#define error_log(msg) \
   std::cerr << "[error] " << msg \
             << " in " << __FILE__ << ":" << __LINE__ \
             << std::endl; 
 #else
-#define ERROR_LOG(msg)
+#define error_log(msg)
 #endif
 
 namespace Lux {
