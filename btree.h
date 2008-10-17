@@ -484,6 +484,7 @@ namespace DBM {
 
     node_t *_init_node(uint32_t id, bool is_root, bool is_leaf)
     {
+      assert(id >= 1 && id <= dh_->num_nodes - 1);
       char *node_p = (char *) &(map_[dh_->node_size * id]);
 
       node_header_t *node_hdr_p = (node_header_t *) node_p;
@@ -513,9 +514,7 @@ namespace DBM {
 
     node_t *_alloc_node(uint32_t id)
     {
-      if (id > dh_->num_nodes - 1) {
-        return NULL;
-      }
+      assert(id >= 1 && id <= dh_->num_nodes - 1);
       char *node_p = (char *) &(map_[dh_->node_size * id]);
       node_t *node = new node_t;
       node->h = (node_header_t *) node_p;
@@ -525,6 +524,7 @@ namespace DBM {
 
     bool find(node_id_t id, data_t *key_data, data_t **val_data, alloc_type_t atype)
     {
+      assert(id >= 1 && id <= dh_->num_nodes - 1);
       bool res = true;;
       entry_t entry = {key_data->data, key_data->size, NULL, 0, 0};
       entry_t *e = &entry;
@@ -616,6 +616,7 @@ namespace DBM {
 
     bool _insert(node_id_t id, entry_t *entry, up_entry_t **up_entry, bool &is_split)
     {
+      assert(id >= 1 && id <= dh_->num_nodes - 1);
       node_t *node = _alloc_node(id);
       if (node->h->is_leaf) {
         if (node->h->free_size >= entry->size + sizeof(slot_t)) {
@@ -712,6 +713,7 @@ namespace DBM {
 
     bool _del(node_id_t id, entry_t *entry)
     {
+      assert(id >= 1 && id <= dh_->num_nodes - 1);
       node_t *node = _alloc_node(id);
       if (node->h->is_leaf) {
         find_res_t *r = find_key(node, entry->key, entry->key_size);
@@ -843,7 +845,7 @@ namespace DBM {
       ++(node->h->num_keys);
     }
 
-    // [TODO] API should change : take data_t instead of key and key_size
+    // [TODO] API should be changed ? : take data_t instead of key and key_size
     find_res_t *find_key(node_t *node, const void *key, uint32_t key_size)
     {
       find_res_t *r = new find_res_t;
@@ -855,7 +857,7 @@ namespace DBM {
         return r;
       }
 
-      // [TODO] API should change : take data_t instead of key and key_size
+      // [TODO] API should be changed ? : take data_t instead of key and key_size
       data_t key_data = {key, key_size};
 
       char checked[node->h->num_keys];
@@ -924,7 +926,6 @@ namespace DBM {
       return r;
     }
 
-    // [TODO] append_node is better naming ?
     bool append_page(void)
     {
       uint32_t num_nodes = dh_->num_nodes;
@@ -938,7 +939,6 @@ namespace DBM {
       return alloc_page(num_nodes, node_size);
     }
 
-    // [TODO] alloc_node is better naming ?
     bool alloc_page(uint32_t num_nodes, uint16_t node_size)
     {
       if (ftruncate(fd_, node_size * num_nodes) < 0) {
@@ -1048,12 +1048,9 @@ namespace DBM {
     void copy_entries(char *dp, char *sp, node_t *node, slot_t *slots,
                       uint16_t &data_off, int slot_from, int slot_to)
     {
-      //sp = (char *) node->b + dh_->init_data_size;
       for (int i = slot_from; i >= slot_to; --i) {
-        // [TODO] value size is sizeof(uint32_t) for now
         uint32_t entry_size = (slots+i)->size + dh_->data_size;
         memcpy(dp + data_off, (char *) node->b + (slots+i)->off, entry_size);
-        //dp += entry_size;
         // new slot for the entry above
         slot_t slot = { data_off, (slots+i)->size };
         sp -= sizeof(slot_t);
@@ -1207,7 +1204,6 @@ namespace DBM {
       }
       return true;
     }
-
   };
 
 }
