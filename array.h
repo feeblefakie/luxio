@@ -30,6 +30,7 @@ namespace DBM {
 
   // global header
   typedef struct {
+    char magic[8];
     uint32_t num_keys;
     uint32_t num_pages;
     uint16_t page_size;
@@ -54,7 +55,7 @@ namespace DBM {
       data_size_(index_type == NONCLUSTER ? sizeof(data_ptr_t) : data_size)
     {
       if (pthread_rwlock_init(&rwlock_, NULL) != 0) {
-        std::cerr << "pthread_rwlock_init failed" << std::endl;
+        error_log("pthread_rwlock_init failed.");
         exit(-1);
       }
     }
@@ -69,7 +70,7 @@ namespace DBM {
         close();
       }
       if (pthread_rwlock_destroy(&rwlock_) != 0) {
-        std::cerr << "pthread_rwlock_destroy failed" << std::endl;
+        error_log("pthread_rwlock_destroy failed.");
         exit(-1);
       }
     }
@@ -89,13 +90,23 @@ namespace DBM {
 
     bool close()
     {
-      wlock_db();
-      msync(map_, dh_->page_size * dh_->num_pages, MS_SYNC);
-      munmap(map_, dh_->page_size * dh_->num_pages);
-      map_ = NULL;
-      ::close(fd_);
-      unlock_db();
-
+      if (!wlock_db()) { return false; }
+      if (map_ != NULL) {
+        if (msync(map_, dh_->page_size * dh_->num_pages, MS_SYNC) < 0) {
+          error_log("msync failed.");
+          return false;
+        }
+        if (munmap(map_, dh_->page_size * dh_->num_pages) < 0) {
+          error_log("munmap failed.");
+          return false;
+        }
+        map_ = NULL;
+      }
+      if (::close(fd_) < 0) {
+        error_log("close failed.");
+        return false;
+      }
+      if (!unlock_db()) { return false; }
       return true;
     }
 
@@ -103,8 +114,9 @@ namespace DBM {
     {
       data_t *data;
       
-      rlock_db();
+      if (!rlock_db()) { return NULL; }
       off_t off = index * dh_->data_size + dh_->page_size;
+      assert(off + dh_->data_size <= allocated_size_);
       if (off + dh_->data_size > allocated_size_) { return NULL; }
 
       if (dh_->index_type == CLUSTER) {
@@ -117,19 +129,20 @@ namespace DBM {
         memcpy(&data_ptr, map_ + off, sizeof(data_ptr_t));
         data = dt_->get(&data_ptr);
       }
-      unlock_db();
+      if (!unlock_db()) { return NULL; }
       return data;
     }
 
     bool get(uint32_t index, data_t *data, uint32_t *size)
     {
-      rlock_db();
+      if (!rlock_db()) { return false; }
       off_t off = index * dh_->data_size + dh_->page_size;
+      assert(off + dh_->data_size <= allocated_size_);
       if (off + dh_->data_size > allocated_size_) { return false; }
 
       if (dh_->index_type == CLUSTER) {
         if (data->size < dh_->data_size) {
-          std::cerr << "allocated size is too small for the data" << std::endl;
+          error_log("allocated size is too small for the data.");
           return false;
         }
         memcpy((char *) data->data, map_ + off, dh_->data_size);
@@ -141,7 +154,7 @@ namespace DBM {
           return false;
         }
       }
-      unlock_db();
+      if (!unlock_db()) { return false; }
       return true;
     }
 
@@ -154,12 +167,14 @@ namespace DBM {
 
     bool put(uint32_t index, data_t *data, insert_mode_t flags = OVERWRITE)
     {
-      wlock_db();
+      if (!wlock_db()) { return false; }
       off_t off = index * dh_->data_size + dh_->page_size;
       if (off + dh_->data_size > allocated_size_) {
         div_t d = div(off + dh_->data_size, dh_->page_size);
         uint32_t page_num = d.rem > 0 ? d.quot + 1 : d.quot;
-        realloc_pages(page_num, dh_->page_size);
+        if (!realloc_pages(page_num, dh_->page_size)) {
+          return false;
+        }
       }
 
       if (dh_->index_type == CLUSTER) {
@@ -182,14 +197,15 @@ namespace DBM {
         memcpy(map_ + off, res_data_ptr, sizeof(data_ptr_t));
         dt_->clean_data_ptr(res_data_ptr);
       }
-      unlock_db();
+      if (!unlock_db()) { return false; }
       return true;
     }
 
     bool del(uint32_t index)
     {
-      wlock_db();
+      if (!wlock_db()) { return false; }
       off_t off = index * dh_->data_size + dh_->page_size;
+      assert(off + dh_->data_size <= allocated_size_);
       if (off + dh_->data_size > allocated_size_) { return false; }
 
       if (dh_->index_type == CLUSTER) {
@@ -200,17 +216,17 @@ namespace DBM {
         memcpy(&data_ptr, map_ + off, sizeof(data_ptr_t));
         dt_->del(&data_ptr);
       }
-      unlock_db();
+      if (!unlock_db()) { return false; }
       return true;
     }
 
-    bool set_lock_type(lock_type_t lock_type)
+    void set_lock_type(lock_type_t lock_type)
     {
       lock_type_ = lock_type;
     }
 
     // only for noncluster database
-    bool set_noncluster_params(store_mode_t smode,
+    void set_noncluster_params(store_mode_t smode,
                                padding_mode_t pmode = RATIO, uint32_t padding = 20)
     {
       smode_ = smode;
@@ -218,10 +234,13 @@ namespace DBM {
       padding_ = padding;
     }
 
-    bool clean_data(data_t *d)
+    void clean_data(data_t *d)
     {
-      delete [] (char *) (d->data);
-      delete d;
+      if (d != NULL) {
+        delete [] (char *) (d->data);
+        delete d;
+        d = NULL;
+      }
     }
 
     void show_db_header()
@@ -262,7 +281,7 @@ namespace DBM {
       oflags_ = oflags;
       if (lock_type_ == LOCK_PROCESS) {
         if (flock(fd_, LOCK_EX) != 0) { 
-          std::cerr << "flock failed in open_" << std::endl;
+          error_log("flock failed.");
           return false;
         }
       }
@@ -275,6 +294,7 @@ namespace DBM {
       array_header_t dh;
       memset(&dh, 0, sizeof(array_header_t));
       if (stat_buf.st_size == 0 && oflags & DB_CREAT) {
+        memcpy(dh.magic, MAGIC, strlen(MAGIC));
         dh.num_keys = 0;
         // one for db_header
         dh.num_pages = 1;
@@ -287,12 +307,12 @@ namespace DBM {
           return false;
         }
         if (!alloc_pages(dh.num_pages, dh.page_size)) {
-          std::cerr << "alloc_page failed in open" << std::endl;    
+          error_log("alloc_page failed.");
         }
 
       } else {
         if (_read(fd_, &dh, sizeof(array_header_t)) < 0) {
-          std::cerr << "read failed" << std::endl;
+          error_log("read failed");
           return false;
         }
 
@@ -310,7 +330,7 @@ namespace DBM {
 
 
       if (index_type_ != dh_->index_type) {
-        std::cerr << "wrong index type" << std::endl;
+        error_log("wrong index type");
         return false;
       }
 
@@ -335,11 +355,14 @@ namespace DBM {
     {
       allocated_size_ = page_size * num_pages;
       if (ftruncate(fd_, allocated_size_) < 0) {
-        std::cerr << "ftruncate failed" << std::endl;
+        error_log("ftruncate failed.");
         return false;
       }
       map_ = (char *) _mmap(fd_, allocated_size_, oflags_);
-      if (map_ == NULL) { return false; }
+      if (map_ == NULL) {
+        error_log("mmap failed.");
+        return false;
+      }
 
       return true;
     }
@@ -350,7 +373,7 @@ namespace DBM {
 
       if (map_ != NULL) {
         if (munmap(map_, dh_->page_size * dh_->num_pages) < 0) {
-          std::cerr << "munmap failed in realloc_pages" << std::endl;
+          error_log("munmap failed in realloc_pages");
           return false;
         }
       }
@@ -374,12 +397,12 @@ namespace DBM {
     {
       uint32_t num_pages = dh_->num_pages;
       if (munmap(map_, page_size_ * num_pages_) < 0) {
-        std::cerr << "munmap failed in remap" << std::endl;
+        error_log("munmap failed.");
         return false;
       }
       map_ = (char *) _mmap(fd_, page_size_ * num_pages, oflags_);
       if (map_ == NULL) {
-        std::cerr << "map failed" << std::endl;
+        error_log("mmap failed.");
         return false;
       }
       dh_ = (array_header_t *) map_;
@@ -400,6 +423,7 @@ namespace DBM {
         // process level locking
         if (flock(fd_, LOCK_UN) != 0) { return false; }
       }
+      return true;
     }
 
     bool rlock_db(void)
@@ -412,13 +436,16 @@ namespace DBM {
       } else {
         // process level locking
         if (flock(fd_, LOCK_SH) != 0) { 
-          std::cerr << "flock failed in get" << std::endl;
+          error_log("flock failed.");
           return false;
         }
         if (num_resized_ != dh_->num_resized) {
-          remap();
+          if (!remap()) {
+            return false;
+          }
         }
       }
+      return true;
     }
 
     bool wlock_db(void)
@@ -431,13 +458,16 @@ namespace DBM {
       } else {
         // process level locking
         if (flock(fd_, LOCK_EX) != 0) { 
-          std::cerr << "flock failed in get" << std::endl;
+          error_log("flock failed.");
           return false;
         }
         if (num_resized_ != dh_->num_resized) {
-          remap();
+          if (!remap()) {
+            return false;
+          }
         }
       }
+      return true;
     }
   };
 

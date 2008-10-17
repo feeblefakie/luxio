@@ -33,12 +33,17 @@
 #include <string.h>
 #include <stdlib.h>
 #include <math.h>
+#include <assert.h>
 #include <iostream>
 #include <stdexcept>
 
 namespace Lux {
 namespace DBM {
 
+  static const uint32_t MIN_PAGESIZE = 1024;
+  static const uint32_t MAX_PAGESIZE = 65536;
+  static const uint32_t MIN_BLOCKSIZE = 1024;
+  static const uint32_t MAX_BLOCKSIZE = 65536;
   typedef uint32_t block_id_t;
 
 #pragma pack(2)
@@ -69,6 +74,11 @@ namespace DBM {
     LOCK_THREAD,
     LOCK_PROCESS
   } lock_type_t;
+
+  typedef enum {
+    USER,
+    SYSTEM
+  } alloc_type_t;
 
 }
 }

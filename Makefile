@@ -9,7 +9,7 @@ select: select.cpp btree.h data.h
 	g++ -g $< -o $@
 
 select-nocluster: select-nocluster.cpp btree.h data.h
-	g++ -g $< -o $@
+	g++ -g $< -o $@ -lpthread
 
 delete: delete.cpp btree.h
 	g++ -g $< -o $@
@@ -21,7 +21,7 @@ bench-read: bench-read.cpp btree.h data.h
 	g++ -g $< -o $@ -lpthread
 
 bench-nocluster: bench-nocluster.cpp btree.h data.h
-	g++ -g $< -o $@
+	g++ -g $< -o $@ -lpthread -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64
 
 bench-mt: bench-mt.cpp btree.h data.h
 	g++ -g $< -o $@ -lpthread
@@ -54,7 +54,7 @@ array-mt: array-mt.cpp array.h data.h
 	g++ -g $< -o $@ -lpthread
 
 array_test-nocluster: array_test-nocluster.cpp array.h data.h
-	g++ -g $< -o $@
+	g++ -g $< -o $@ -lpthread
 
 check:
 	./main

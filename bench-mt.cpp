@@ -34,7 +34,7 @@ int main(int argc, char *argv[])
   }
 
   bt = new Lux::DBM::Btree(Lux::DBM::CLUSTER);
-  //bt->set_lock_type(Lux::DBM::LOCK_THREAD);
+  bt->set_lock_type(Lux::DBM::LOCK_THREAD);
   bt->open("benchdb", Lux::DB_CREAT);
 
   rnum = atoi(argv[1]);

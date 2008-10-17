@@ -25,7 +25,10 @@ int main(int argc, char *argv[])
   }
 
   Lux::DBM::Btree *bt = new Lux::DBM::Btree(Lux::DBM::NONCLUSTER);
-  bt->open("benchdb", Lux::DB_CREAT);
+  if (!bt->open("benchdb", Lux::DB_CREAT)) {
+    std::cerr << "opening database failed." << std::endl;
+    exit(-1);
+  }
 
   int rnum = atoi(argv[1]);
   double t1, t2;
@@ -69,13 +72,15 @@ int main(int argc, char *argv[])
       //sprintf(key,"%08d", num);
       char val[VALSIZE+1];
       memset(val, 0, VALSIZE+1);
-      sprintf(val, "%016000d", i);
+      sprintf(val, "%0160000d", i);
 
       Lux::DBM::data_t *val_data = bt->get(key, strlen(key));
       if (val_data != NULL) {
-        memcpy(&val2, val_data->data, val_data->size);
-        if (strcmp(val, val2) != 0) {
-          std::cout << "[error] value incorrect." << std::endl;
+        //memcpy(&val2, val_data->data, val_data->size);
+        if (strncmp(val, (char *) val_data->data, val_data->size) != 0) {
+          std::cout << "[error] value incorrect.\n" 
+                    << val << "\n"
+                    << val2 << std::endl;
         }
         bt->clean_data(val_data);
       } else {
