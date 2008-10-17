@@ -508,18 +508,22 @@ namespace DBM {
       std::cout << "slot_index: " << c->slot_index << std::endl;
     }
 
-    void cursor_get(cursor_t *c)
+    bool cursor_get(cursor_t *c, data_t **key, data_t **val, alloc_type_t atype)
     {
-      char *val_data;
       node_t *node = _alloc_node(c->node_id);
       slot_t *slots = (slot_t *) ((char *) node->b + node->h->free_off);
+      slot_t *slot = slots + c->slot_index;
 
-      uint16_t off = (slots + c->slot_index)->off;
-      uint16_t size = (slots + c->slot_index)->size;
-      char buf[size+1];
-      memset(buf, 0, size+1);
-      memcpy(buf, (char *) node->b + off, size);
-      std::cout << "get: [" << buf << "] size: " << size << std::endl;
+      bool res;
+      char *p = (char *) node->b + slot->off;
+      if (atype == SYSTEM) {
+        *key = new data_t;
+        (*key)->data = new char[slot->size];
+      }
+      memcpy((char *) (*key)->data, p, slot->size);
+      (*key)->size = slot->size;
+      res = get_data(p + slot->size, val, atype);
+      return res;
     }
 
   private:
