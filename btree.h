@@ -382,10 +382,7 @@ namespace DBM {
       }
     }
 
-    /*
-     * CURSORS
-     * it's not well implemented yet.
-     */
+    /* cursors */
     cursor_t *cursor_init(void)
     {
       cursor_t *c = new cursor_t;
@@ -402,7 +399,7 @@ namespace DBM {
     }
 
     bool cursor_find_node(cursor_t *c, node_id_t id,
-                          op_mode_t op_mode, data_t *key = NULL)
+                          data_t *key, op_mode_t op_mode)
     {
       bool res = true;
       entry_t entry;
@@ -416,40 +413,57 @@ namespace DBM {
 
       node_t *node = _alloc_node(id);
       if (node->h->is_leaf) {
-        c->node_id = id;
-        if (op_mode == OP_CUR_FIRST) {
-          c->slot_index = node->h->num_keys - 1;
-        } else if (op_mode == OP_CUR_LAST) {
-          c->slot_index = 0;
-        } else {
-          error_log("operation not supported");
+        if (node->h->num_keys == 0) {
           res = false;
+        } else {
+          c->node_id = id;
+          if (op_mode == OP_CUR_FIRST) {
+            c->slot_index = node->h->num_keys - 1;
+          } else if (op_mode == OP_CUR_LAST) {
+            c->slot_index = 0;
+          } else {
+            error_log("operation not supported");
+            res = false;
+          }
         }
       } else {
         node_id_t next_id = _find_next(node, &entry, op_mode);
-        res = cursor_find_node(c, next_id, op_mode, key);
+        res = cursor_find_node(c, next_id, key, op_mode);
       }
       delete node;
       return res;
     }
 
-    void first(cursor_t *c) 
+    bool first(cursor_t *c) 
     {
-      cursor_find_node(c, dh_->root_id, OP_CUR_FIRST);
+      if (!cursor_find_node(c, dh_->root_id, NULL, OP_CUR_FIRST)) {
+        return false;
+      }
+      if (c->node_id == 0) {
+        return false;
+      }
       c->is_set = true;
+      return true;
     }
 
-    void last(cursor_t *c)
+    bool last(cursor_t *c)
     {
-      cursor_find_node(c, dh_->root_id, OP_CUR_LAST);
+      if (!cursor_find_node(c, dh_->root_id, NULL, OP_CUR_LAST)) {
+        return false;
+      }
+      if (c->node_id == 0) {
+        return false;
+      }
       c->is_set = true;
+      return true;
     }
 
     // next bigger key
     bool next(cursor_t *c) 
     {
       if (!c->is_set) {
-        first(c);
+        if (!first(c)) { return false; }
+        return true;
       }
       if (c->slot_index == 0) {
         node_t *node = _alloc_node(c->node_id);
@@ -471,7 +485,8 @@ namespace DBM {
     bool prev(cursor_t *c) 
     {
       if (!c->is_set) {
-        last(c);
+        if (!last(c)) { return false; }
+        return true;
       }
       node_t *node = _alloc_node(c->node_id);
       if (c->slot_index == node->h->num_keys - 1) {
