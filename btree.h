@@ -232,7 +232,7 @@ namespace DBM {
                        flags};
       up_entry_t *up_entry = NULL;
     
-      res = insert(dh_->root_id, &entry, &up_entry);
+      res = insert(&entry, &up_entry);
       if (!unlock_db()) { return false; }
 
       return res;
@@ -589,7 +589,7 @@ namespace DBM {
       return val_data;
     }
 
-    bool insert(node_id_t id, entry_t *entry, up_entry_t **up_entry)
+    bool insert(entry_t *entry, up_entry_t **up_entry)
     {
       bool is_split = false;
 
