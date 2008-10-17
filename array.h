@@ -30,6 +30,7 @@ namespace DBM {
 
   // global header
   typedef struct {
+    char magic[8];
     uint32_t num_keys;
     uint32_t num_pages;
     uint16_t page_size;
@@ -293,6 +294,7 @@ namespace DBM {
       array_header_t dh;
       memset(&dh, 0, sizeof(array_header_t));
       if (stat_buf.st_size == 0 && oflags & DB_CREAT) {
+        memcpy(dh.magic, MAGIC, strlen(MAGIC));
         dh.num_keys = 0;
         // one for db_header
         dh.num_pages = 1;
