@@ -250,6 +250,11 @@ namespace DBM {
       return res;
     }
 
+    uint32_t get_auto_increment_id(void)
+    {
+      return dh_->num_keys;
+    }
+
     void set_page_size(uint32_t page_size)
     {
       if (page_size > MAX_PAGESIZE || 
