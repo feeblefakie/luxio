@@ -283,6 +283,11 @@ namespace DBM {
       cmp_ = cmp;
     }
 
+    void set_bulk_loading(bool is_bulk_loading)
+    {
+      is_bulk_loading_ = is_bulk_loading;
+    }
+
     void clean_data(data_t *d)
     {
       if ((char *) (d->data) != NULL) {
@@ -380,6 +385,7 @@ namespace DBM {
     store_mode_t smode_;
     padding_mode_t pmode_;
     uint32_t padding_;
+    bool is_bulk_loading_;
 
     bool open_(std::string db_name, db_flags_t oflags)
     {
@@ -764,7 +770,14 @@ namespace DBM {
 
     void put_entry_in_leaf(node_t *node, entry_t *entry)
     {
-      find_res_t *r = find_key(node, entry->key, entry->key_size);
+      find_res_t *r;
+      if (!is_bulk_loading_) {
+        r = find_key(node, entry->key, entry->key_size);
+      } else {
+        r = new find_res_t;  
+        // always expect biggest keys in bulk loading
+        r->type = KEY_BIGGEST;
+      }
 
       if (r->type == KEY_FOUND && entry->mode == NOOVERWRITE) {
         delete r;
