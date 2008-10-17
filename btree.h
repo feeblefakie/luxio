@@ -37,6 +37,7 @@ namespace DBM {
 
   // global header
   typedef struct {
+    char magic[8];
     uint32_t num_keys;
     uint32_t num_nodes;
     uint16_t node_size;
@@ -401,7 +402,7 @@ namespace DBM {
       memset(&dh, 0, sizeof(btree_header_t));
       if (stat_buf.st_size == 0 && oflags & DB_CREAT) {
         // initialize the header for the newly created file
-        //strncpy(h.magic, MAGIC, strlen(MAGIC));
+        memcpy(dh.magic, MAGIC, strlen(MAGIC));
         dh.num_keys = 0;
         // one for db_header, one for root node and one for leaf node
         dh.num_nodes = 3;
