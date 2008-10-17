@@ -115,6 +115,7 @@ namespace DBM {
       
       if (!rlock_db()) { return NULL; }
       off_t off = index * dh_->data_size + dh_->page_size;
+      assert(off + dh_->data_size <= allocated_size_);
       if (off + dh_->data_size > allocated_size_) { return NULL; }
 
       if (dh_->index_type == CLUSTER) {
@@ -135,6 +136,7 @@ namespace DBM {
     {
       if (!rlock_db()) { return false; }
       off_t off = index * dh_->data_size + dh_->page_size;
+      assert(off + dh_->data_size <= allocated_size_);
       if (off + dh_->data_size > allocated_size_) { return false; }
 
       if (dh_->index_type == CLUSTER) {
@@ -202,6 +204,7 @@ namespace DBM {
     {
       if (!wlock_db()) { return false; }
       off_t off = index * dh_->data_size + dh_->page_size;
+      assert(off + dh_->data_size <= allocated_size_);
       if (off + dh_->data_size > allocated_size_) { return false; }
 
       if (dh_->index_type == CLUSTER) {
