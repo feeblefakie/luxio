@@ -454,15 +454,15 @@ namespace DBM {
       if (c->slot_index == 0) {
         node_t *node = _alloc_node(c->node_id);
         c->node_id = node->h->next_id;  
+        delete node;
+        if (c->node_id == 0) {
+          return false;
+        }
         node_t *next_node = _alloc_node(c->node_id);
         c->slot_index = next_node->h->num_keys - 1;
         delete next_node;
-        delete node;
       } else {
         --c->slot_index;
-      }
-      if (c->node_id == 0) {
-        return false;
       }
       return true;
     }
