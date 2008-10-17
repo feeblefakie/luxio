@@ -97,6 +97,13 @@ namespace DBM {
     find_key_t type;
   } find_res_t;
 
+  typedef enum {
+    OP_SELCT,
+    OP_INSERT,
+    OP_DELETE,
+    OP_UNSPECIFIED
+  } op_mode_t;
+
   // comparison functions
   int str_cmp_func(data_t &d1, data_t &d2)
   {
@@ -659,7 +666,7 @@ namespace DBM {
           is_split = true;
         }
       } else {
-        node_id_t next_id = _find_next(node, entry, true);
+        node_id_t next_id = _find_next(node, entry, OP_INSERT);
         if (!_insert(next_id, entry, up_entry, is_split)) {
           return false;
         }
@@ -754,12 +761,13 @@ namespace DBM {
       return true;
     }
 
-    node_id_t _find_next(node_t *node, entry_t *entry, bool in_insertion = false)
+    node_id_t _find_next(node_t *node, entry_t *entry,
+                         op_mode_t op_mode = OP_UNSPECIFIED)
     {
       node_id_t id;
       find_res_t *r;
 
-      if (is_bulk_loading_ && in_insertion) {
+      if (is_bulk_loading_ && op_mode == OP_INSERT) {
         // always expect biggest keys in bulk loading
         r = new find_res_t;  
         r->type = KEY_BIGGEST;
