@@ -659,7 +659,7 @@ namespace DBM {
           is_split = true;
         }
       } else {
-        node_id_t next_id = _find_next(node, entry);
+        node_id_t next_id = _find_next(node, entry, true);
         if (!_insert(next_id, entry, up_entry, is_split)) {
           return false;
         }
@@ -754,31 +754,44 @@ namespace DBM {
       return true;
     }
 
-    node_id_t _find_next(node_t *node, entry_t *entry)
+    node_id_t _find_next(node_t *node, entry_t *entry, bool in_insertion = false)
     {
       node_id_t id;
-      find_res_t *r = find_key(node, entry->key, entry->key_size);
-      if (r->type == KEY_SMALLEST) {
-          memcpy(&id, (char *) node->b, sizeof(node_id_t));
+      find_res_t *r;
+
+      if (is_bulk_loading_ && in_insertion) {
+        // always expect biggest keys in bulk loading
+        r = new find_res_t;  
+        r->type = KEY_BIGGEST;
       } else {
-        slot_t *slot = (slot_t *) r->slot_p;
+        r = find_key(node, entry->key, entry->key_size);
+      }
+
+      if (node->h->num_keys == 0 || r->type == KEY_SMALLEST) {
+        memcpy(&id, (char *) node->b, sizeof(node_id_t));
+      } else { 
+        slot_t *slot;
+        if (r->type == KEY_BIGGEST) {
+          char *free_p = (char *) node->b + node->h->free_off;
+          slot = (slot_t *) free_p;
+        } else {
+          slot = (slot_t *) r->slot_p;
+        }
         memcpy(&id, (char *) node->b + slot->off + slot->size, sizeof(node_id_t));
       }
-      delete r;
       return id;
     }
 
     void put_entry_in_leaf(node_t *node, entry_t *entry)
     {
       find_res_t *r;
-      if (!is_bulk_loading_) {
-        r = find_key(node, entry->key, entry->key_size);
-      } else {
-        r = new find_res_t;  
+      if (is_bulk_loading_) {
         // always expect biggest keys in bulk loading
+        r = new find_res_t;  
         r->type = KEY_BIGGEST;
+      } else {
+        r = find_key(node, entry->key, entry->key_size);
       }
-
       if (r->type == KEY_FOUND && entry->mode == NOOVERWRITE) {
         delete r;
         return;
