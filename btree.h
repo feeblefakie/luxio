@@ -441,8 +441,11 @@ namespace DBM {
           return false;
         }
 
-        // [TODO] read filesize and compare with num_nodes * node_size
-        // if they differ, gives alert and trust the filesize ?
+        if (stat_buf.st_size != dh.num_nodes * dh.node_size) {
+          ERROR_LOG("database corruption occured");
+          return false;
+        }
+
         map_ = (char *) _mmap(fd_, dh.node_size * dh.num_nodes, oflags);
         if (map_ == NULL) {
           ERROR_LOG("mmap failed.");
