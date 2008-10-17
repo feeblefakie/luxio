@@ -98,11 +98,19 @@ namespace DBM {
   } find_res_t;
 
   typedef enum {
+    OP_UNSPECIFIED,
     OP_SELCT,
     OP_INSERT,
     OP_DELETE,
-    OP_UNSPECIFIED
+    OP_CUR_FIRST,
+    OP_CUR_LAST,
   } op_mode_t;
+
+  typedef struct {
+    node_id_t node_id;
+    uint16_t slot_index; // 0: biggest, num_keys-1: smallest
+    bool is_set;
+  } cursor_t;
 
   // comparison functions
   int str_cmp_func(data_t &d1, data_t &d2)
@@ -372,6 +380,131 @@ namespace DBM {
         std::cout << "key[" << key_buf << "]" << std::endl;
         std::cout << "val[" << val << "]" << std::endl;
       }
+    }
+
+    /*
+     * CURSORS
+     * it's not well implemented yet.
+     */
+    cursor_t *cursor_init(void)
+    {
+      cursor_t *c = new cursor_t;
+      c->is_set = false;
+      return c;
+    }
+
+    cursor_t *cursor_fin(cursor_t *c)
+    {
+      if (c != NULL) {
+        delete c;
+        c = NULL;
+      }
+    }
+
+    bool cursor_find_node(cursor_t *c, node_id_t id,
+                          op_mode_t op_mode, data_t *key = NULL)
+    {
+      bool res = true;
+      entry_t entry;
+      if (key != NULL) {
+        entry.key = key->data;
+        entry.key_size = key->size;
+        entry.val = NULL;
+        entry.val_size = 0;
+        entry.size = 0;
+      }
+
+      node_t *node = _alloc_node(id);
+      if (node->h->is_leaf) {
+        c->node_id = id;
+        if (op_mode == OP_CUR_FIRST) {
+          c->slot_index = node->h->num_keys - 1;
+        } else if (op_mode == OP_CUR_LAST) {
+          c->slot_index = 0;
+        } else {
+          error_log("operation not supported");
+          res = false;
+        }
+      } else {
+        node_id_t next_id = _find_next(node, &entry, op_mode);
+        res = cursor_find_node(c, next_id, op_mode, key);
+      }
+      delete node;
+      return res;
+    }
+
+    void first(cursor_t *c) 
+    {
+      cursor_find_node(c, dh_->root_id, OP_CUR_FIRST);
+      c->is_set = true;
+    }
+
+    void last(cursor_t *c)
+    {
+      cursor_find_node(c, dh_->root_id, OP_CUR_LAST);
+      c->is_set = true;
+    }
+
+    // next bigger key
+    bool next(cursor_t *c) 
+    {
+      if (!c->is_set) {
+        first(c);
+      }
+      if (c->slot_index == 0) {
+        node_t *node = _alloc_node(c->node_id);
+        c->node_id = node->h->next_id;  
+        node_t *next_node = _alloc_node(c->node_id);
+        c->slot_index = next_node->h->num_keys - 1;
+        delete next_node;
+        delete node;
+      } else {
+        --c->slot_index;
+      }
+      if (c->node_id == 0) {
+        return false;
+      }
+      return true;
+    }
+
+    // next smaller key
+    bool prev(cursor_t *c) 
+    {
+      if (!c->is_set) {
+        last(c);
+      }
+      node_t *node = _alloc_node(c->node_id);
+      if (c->slot_index == node->h->num_keys - 1) {
+        c->node_id = node->h->prev_id;
+        c->slot_index = 0;
+      } else {
+        ++c->slot_index;
+      }
+      delete node;
+      if (c->node_id == 0) {
+        return false;
+      }
+      return true;
+    }
+
+    void print_cursor(cursor_t *c)
+    {
+      std::cout << "id: " << c->node_id << std::endl;
+      std::cout << "slot_index: " << c->slot_index << std::endl;
+    }
+
+    void cursor_get(cursor_t *c)
+    {
+      char *val_data;
+      node_t *node = _alloc_node(c->node_id);
+      slot_t *slots = (slot_t *) ((char *) node->b + node->h->free_off);
+
+      uint16_t off = (slots + c->slot_index)->off;
+      uint16_t size = (slots + c->slot_index)->size;
+      char buf[size+1];
+      memset(buf, 0, size+1);
+      memcpy(buf, (char *) node->b + off, size);
+      std::cout << "get: [" << buf << "] size: " << size << std::endl;
     }
 
   private:
@@ -767,7 +900,11 @@ namespace DBM {
       node_id_t id;
       find_res_t *r;
 
-      if (is_bulk_loading_ && op_mode == OP_INSERT) {
+      if (op_mode == OP_CUR_FIRST) {
+        r = new find_res_t;  
+        r->type = KEY_SMALLEST;
+      } else if (op_mode == OP_CUR_LAST || 
+                 (is_bulk_loading_ && op_mode == OP_INSERT)) {
         // always expect biggest keys in bulk loading
         r = new find_res_t;  
         r->type = KEY_BIGGEST;
