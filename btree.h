@@ -703,8 +703,8 @@ namespace DBM {
       if (node->h->is_leaf) {
         find_res_t *r = find_key(node, entry.key, entry.key_size);
         if (r->type == KEY_FOUND) {
-          //*val_data = get_data(r);
-          res = get_data(r, val_data, atype);
+          slot_t *slot = (slot_t *) r->slot_p;
+          res = get_data(r->data_p + slot->size, val_data, atype);
         }
         delete r;
       } else {
@@ -715,20 +715,18 @@ namespace DBM {
       return res;
     }
 
-    bool get_data(find_res_t *r, data_t **data, alloc_type_t atype)
+    bool get_data(char *p, data_t **data, alloc_type_t atype)
     {
-      slot_t *slot = (slot_t *) r->slot_p;
       if (dh_->index_type == CLUSTER) {
         if (atype == SYSTEM) {
           *data = new data_t;
           (*data)->data = (char *) new char[dh_->data_size];
         }
         (*data)->size = dh_->data_size;
-        memcpy((void *) (*data)->data, 
-               (const char *) r->data_p + slot->size, dh_->data_size);
+        memcpy((void *) (*data)->data, p, dh_->data_size);
       } else {
         data_ptr_t data_ptr;
-        memcpy(&data_ptr, (const char *) r->data_p + slot->size, sizeof(data_ptr_t));
+        memcpy(&data_ptr, p, sizeof(data_ptr_t));
         if (atype == SYSTEM) {
           *data = dt_->get(&data_ptr);
           if (*data == NULL) { return false; }
@@ -739,24 +737,6 @@ namespace DBM {
         }
       }
       return true;
-    }
-
-    data_t *get_data(find_res_t *r)
-    {
-      slot_t *slot = (slot_t *) r->slot_p;
-      data_t *val_data;
-      if (dh_->index_type == CLUSTER) {
-        val_data = new data_t;
-        val_data->data = (char *) new char[dh_->data_size];
-        val_data->size = dh_->data_size;
-        memcpy((void *) val_data->data, 
-               (const char *) r->data_p + slot->size, dh_->data_size);
-      } else {
-        data_ptr_t data_ptr;
-        memcpy(&data_ptr, (const char *) r->data_p + slot->size, sizeof(data_ptr_t));
-        val_data = dt_->get(&data_ptr);
-      }
-      return val_data;
     }
 
     bool insert(entry_t *entry, up_entry_t **up_entry)
