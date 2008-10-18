@@ -225,13 +225,13 @@ namespace DBM {
       return val_data;
     }
 
-    bool get(data_t *key_data, data_t *val_data, alloc_type_t atype = USER)
+    bool get(data_t *key_data, data_t **val_data, alloc_type_t atype = USER)
     {
       bool res = true;
       if (!rlock_db()) { return false; }
-      res = find(dh_->root_id, key_data, &val_data, atype);
+      res = find(dh_->root_id, key_data, val_data, atype);
       if (!res && atype == SYSTEM) {
-        clean_data(val_data);
+        clean_data(*val_data);
       }
       if (!unlock_db()) { return false; }
       return res;
@@ -248,11 +248,11 @@ namespace DBM {
     bool put(data_t *key_data, data_t *val_data, insert_mode_t flags = OVERWRITE)
     {
       bool res = true;
-      if (!check_limit(key_size, val_size)) { return false; }
+      if (!check_limit(key_data->size, val_data->size)) { return false; }
       if (!wlock_db()) { return false; }
-      entry_t entry = {(char *) key, key_size,
-                       (char *) val, val_size,
-                       key_size + dh_->data_size,
+      entry_t entry = {(char *) key_data->data, key_data->size,
+                       (char *) val_data->data, val_data->size,
+                       key_data->size + dh_->data_size,
                        flags};
       up_entry_t *up_entry = NULL;
     
