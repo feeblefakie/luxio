@@ -104,6 +104,7 @@ namespace DBM {
     OP_DELETE,
     OP_CUR_FIRST,
     OP_CUR_LAST,
+    OP_CUR_GET
   } op_mode_t;
 
   typedef struct {
@@ -332,7 +333,7 @@ namespace DBM {
 
     bool first(cursor_t *c) 
     {
-      if (!cursor_find_node(c, dh_->root_id, NULL, OP_CUR_FIRST)) {
+      if (!cursor_find(c, dh_->root_id, NULL, OP_CUR_FIRST)) {
         return false;
       }
       if (c->node_id == 0) {
@@ -344,7 +345,19 @@ namespace DBM {
 
     bool last(cursor_t *c)
     {
-      if (!cursor_find_node(c, dh_->root_id, NULL, OP_CUR_LAST)) {
+      if (!cursor_find(c, dh_->root_id, NULL, OP_CUR_LAST)) {
+        return false;
+      }
+      if (c->node_id == 0) {
+        return false;
+      }
+      c->is_set = true;
+      return true;
+    }
+
+    bool get(cursor_t *c, data_t *key)
+    {
+      if (!cursor_find(c, dh_->root_id, NULL, OP_CUR_GET)) {
         return false;
       }
       if (c->node_id == 0) {
@@ -1342,7 +1355,7 @@ namespace DBM {
       return true;
     }
 
-    bool cursor_find_node(cursor_t *c, node_id_t id,
+    bool cursor_find(cursor_t *c, node_id_t id,
                           data_t *key, op_mode_t op_mode)
     {
       bool res = true;
@@ -1365,6 +1378,13 @@ namespace DBM {
             c->slot_index = node->h->num_keys - 1;
           } else if (op_mode == OP_CUR_LAST) {
             c->slot_index = 0;
+          } else if (op_mode == OP_CUR_GET) {
+            find_res_t *r = find_key(node, key->data, key->size);
+            if (r->type == KEY_FOUND) {
+              std::cout << "KEY FOUND" << std::endl;
+              char *p = (char *) node->b + node->h->free_off;
+              c->slot_index = (r->slot_p - p) / sizeof(slot_t);
+            }
           } else {
             error_log("operation not supported");
             res = false;
@@ -1372,7 +1392,7 @@ namespace DBM {
         }
       } else {
         node_id_t next_id = _find_next(node, &entry, op_mode);
-        res = cursor_find_node(c, next_id, key, op_mode);
+        res = cursor_find(c, next_id, key, op_mode);
       }
       delete node;
       return res;
