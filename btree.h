@@ -357,7 +357,7 @@ namespace DBM {
 
     bool get(cursor_t *c, data_t *key)
     {
-      if (!cursor_find(c, dh_->root_id, NULL, OP_CUR_GET)) {
+      if (!cursor_find(c, dh_->root_id, key, OP_CUR_GET)) {
         return false;
       }
       if (c->node_id == 0) {
