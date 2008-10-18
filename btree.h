@@ -208,6 +208,12 @@ namespace DBM {
       return true;
     }
 
+    data_t *get(const void *key, uint32_t key_size)
+    {
+      data_t key_data = {key, key_size};
+      return get(&key_data);
+    }
+
     data_t *get(data_t *key_data)
     {
       data_t *val_data = NULL;
@@ -217,12 +223,6 @@ namespace DBM {
       }
       if (!unlock_db()) { return NULL; }
       return val_data;
-    }
-
-    data_t *get(const void *key, uint32_t key_size)
-    {
-      data_t key_data = {key, key_size};
-      return get(&key_data);
     }
 
     bool get(data_t *key_data, data_t *val_data, alloc_type_t atype = USER)
@@ -239,6 +239,13 @@ namespace DBM {
 
     bool put(const void *key, uint32_t key_size,
              const void *val, uint32_t val_size, insert_mode_t flags = OVERWRITE)
+    {
+      data_t key_data = {key, key_size};
+      data_t val_data = {val, val_size};
+      return put(&key_data, &val_data, flags);
+    }
+
+    bool put(data_t *key_data, data_t *val_data, insert_mode_t flags = OVERWRITE)
     {
       bool res = true;
       if (!check_limit(key_size, val_size)) { return false; }
