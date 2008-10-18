@@ -25,8 +25,9 @@ int main(int argc, char *argv[])
 
   Lux::DBM::cursor_t *c = bt->cursor_init();
   /*
-  bt->first(c); 
-  while (bt->next(c)) {
+  //bt->first(c); 
+  //while (bt->next(c)) {
+  while (bt->prev(c)) {
     //bt->print_cursor(c);
     Lux::DBM::data_t *key, *val;
     bt->cursor_get(c, &key, &val, Lux::DBM::SYSTEM);
@@ -37,6 +38,7 @@ int main(int argc, char *argv[])
     //usleep(10000);
   }
   */
+  ///*
   char buf[9] = "00030000";
   Lux::DBM::data_t key;
   key.data = buf;
@@ -44,14 +46,16 @@ int main(int argc, char *argv[])
   if (!bt->get(c, &key)) {
     std::cerr << "getting cursor failed." << std::endl;
   }
-  while (bt->next(c)) {
+  do {
     Lux::DBM::data_t *key, *val;
     bt->cursor_get(c, &key, &val, Lux::DBM::SYSTEM);
     std::cout.write((char *) key->data, key->size);
     std::cout << std::endl;
     std::cout << *(int *) val->data << std::endl;
-  }
+  //} while (bt->next(c));
+  } while (bt->prev(c));
   bt->cursor_fin(c);
+  //*/
 
   bt->close();
   delete bt;
