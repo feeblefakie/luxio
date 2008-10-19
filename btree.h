@@ -143,7 +143,8 @@ namespace DBM {
   public:
     Btree(db_index_t index_type = NONCLUSTER,
           uint8_t data_size = sizeof(uint32_t))
-    : cmp_(str_cmp_func),
+    : map_(NULL),
+      cmp_(str_cmp_func),
       index_type_(index_type),
       page_size_(getpagesize()),
       lock_type_(NO_LOCK),
