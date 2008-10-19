@@ -146,6 +146,7 @@ namespace DBM {
     : cmp_(str_cmp_func),
       index_type_(index_type),
       page_size_(getpagesize()),
+      lock_type_(NO_LOCK),
       dt_(NULL),
       smode_(Linked),
       pmode_(PO2),
@@ -189,7 +190,7 @@ namespace DBM {
     bool close()
     {
       if (!wlock_db()) { return false; }
-      if (map_ != NULL) {
+      if (oflags_ != O_RDONLY && map_ != NULL) {
         if (msync(map_, dh_->node_size * dh_->num_nodes, MS_SYNC) < 0) {
           error_log("msync failed.");
           return false;
@@ -200,11 +201,11 @@ namespace DBM {
         }
       }
       map_ = NULL;
+      if (!unlock_db()) { return false; }
       if (::close(fd_) < 0) {
         error_log("close failed.");
         return false;
       }
-      if (!unlock_db()) { return false; }
       return true;
     }
 
