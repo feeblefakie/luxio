@@ -26,6 +26,9 @@ bench-nocluster: bench-nocluster.cpp btree.h data.h
 bench-mt: bench-mt.cpp btree.h data.h
 	g++ -g $< -o $@ -lpthread
 
+btc-test: btc-test.cpp btree.h data.h
+	g++ -g $< -o $@ -lpthread
+
 ctest: ctest.cpp btree.h
 	g++ -g $< -o $@
 

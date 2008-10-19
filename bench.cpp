@@ -36,6 +36,7 @@ int main(int argc, char *argv[])
 
   if (mode == 1 || mode == 3) {
 
+    //bt->set_bulk_loading(true);
     t1 = gettimeofday_sec();
     for (int i = 0; i < rnum; ++i) {
       char key[9];
@@ -48,6 +49,7 @@ int main(int argc, char *argv[])
       }
     }
     t2 = gettimeofday_sec();
+    bt->set_bulk_loading(false);
     std::cout << "put time: " << t2 - t1 << std::endl;
   }
 
@@ -66,9 +68,14 @@ int main(int argc, char *argv[])
         uint32_t val;
         Lux::DBM::data_t key_data = {key, strlen(key)};
         Lux::DBM::data_t val_data = {&val, sizeof(uint32_t)};
+        Lux::DBM::data_t *val_p = &val_data;
+        //Lux::DBM::data_t *val_p;
 
-        if (bt->get(&key_data, &val_data)) { // Lux::DBM::USER omitted
+        if (bt->get(&key_data, &val_p)) { // Lux::DBM::USER omitted
+        //if (bt->get(&key_data, &val_p, Lux::DBM::SYSTEM)) { // Lux::DBM::USER omitted
+          //if (num != *(uint32_t *) val_p->data) {
           if (num != val) {
+          //if (num != *(uint32_t *) val_p) {
             std::cout << "[error] value incorrect." << std::endl;
           }
         } else {

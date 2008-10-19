@@ -97,6 +97,22 @@ namespace DBM {
     find_key_t type;
   } find_res_t;
 
+  typedef enum {
+    OP_UNSPECIFIED,
+    OP_SELCT,
+    OP_INSERT,
+    OP_DELETE,
+    OP_CUR_FIRST,
+    OP_CUR_LAST,
+    OP_CUR_GET
+  } op_mode_t;
+
+  typedef struct {
+    node_id_t node_id;
+    uint16_t slot_index; // 0: biggest, num_keys-1: smallest
+    bool is_set;
+  } cursor_t;
+
   // comparison functions
   int str_cmp_func(data_t &d1, data_t &d2)
   {
@@ -192,6 +208,12 @@ namespace DBM {
       return true;
     }
 
+    data_t *get(const void *key, uint32_t key_size)
+    {
+      data_t key_data = {key, key_size};
+      return get(&key_data);
+    }
+
     data_t *get(data_t *key_data)
     {
       data_t *val_data = NULL;
@@ -203,19 +225,13 @@ namespace DBM {
       return val_data;
     }
 
-    data_t *get(const void *key, uint32_t key_size)
-    {
-      data_t key_data = {key, key_size};
-      return get(&key_data);
-    }
-
-    bool get(data_t *key_data, data_t *val_data, alloc_type_t atype = USER)
+    bool get(data_t *key_data, data_t **val_data, alloc_type_t atype = USER)
     {
       bool res = true;
       if (!rlock_db()) { return false; }
-      res = find(dh_->root_id, key_data, &val_data, atype);
+      res = find(dh_->root_id, key_data, val_data, atype);
       if (!res && atype == SYSTEM) {
-        clean_data(val_data);
+        clean_data(*val_data);
       }
       if (!unlock_db()) { return false; }
       return res;
@@ -224,12 +240,19 @@ namespace DBM {
     bool put(const void *key, uint32_t key_size,
              const void *val, uint32_t val_size, insert_mode_t flags = OVERWRITE)
     {
+      data_t key_data = {key, key_size};
+      data_t val_data = {val, val_size};
+      return put(&key_data, &val_data, flags);
+    }
+
+    bool put(data_t *key_data, data_t *val_data, insert_mode_t flags = OVERWRITE)
+    {
       bool res = true;
-      if (!check_limit(key_size, val_size)) { return false; }
+      if (!check_limit(key_data->size, val_data->size)) { return false; }
       if (!wlock_db()) { return false; }
-      entry_t entry = {(char *) key, key_size,
-                       (char *) val, val_size,
-                       key_size + dh_->data_size,
+      entry_t entry = {(char *) key_data->data, key_data->size,
+                       (char *) val_data->data, val_data->size,
+                       key_data->size + dh_->data_size,
                        flags};
       up_entry_t *up_entry = NULL;
     
@@ -248,6 +271,11 @@ namespace DBM {
       if (!unlock_db()) { return false; }
 
       return res;
+    }
+
+    uint32_t get_auto_increment_id(void)
+    {
+      return dh_->num_keys;
     }
 
     void set_page_size(uint32_t page_size)
@@ -278,6 +306,11 @@ namespace DBM {
       cmp_ = cmp;
     }
 
+    void set_bulk_loading(bool is_bulk_loading)
+    {
+      is_bulk_loading_ = is_bulk_loading;
+    }
+
     void clean_data(data_t *d)
     {
       if ((char *) (d->data) != NULL) {
@@ -287,6 +320,120 @@ namespace DBM {
         delete d;
       }
       d = NULL;
+    }
+
+    /* cursors */
+    cursor_t *cursor_init(void)
+    {
+      cursor_t *c = new cursor_t;
+      c->is_set = false;
+      return c;
+    }
+
+    cursor_t *cursor_fin(cursor_t *c)
+    {
+      if (c != NULL) {
+        delete c;
+        c = NULL;
+      }
+    }
+
+    bool first(cursor_t *c) 
+    {
+      if (!cursor_find(c, dh_->root_id, NULL, OP_CUR_FIRST)) {
+        return false;
+      }
+      if (c->node_id == 0) {
+        return false;
+      }
+      c->is_set = true;
+      return true;
+    }
+
+    bool last(cursor_t *c)
+    {
+      if (!cursor_find(c, dh_->root_id, NULL, OP_CUR_LAST)) {
+        return false;
+      }
+      if (c->node_id == 0) {
+        return false;
+      }
+      c->is_set = true;
+      return true;
+    }
+
+    bool get(cursor_t *c, data_t *key)
+    {
+      if (!cursor_find(c, dh_->root_id, key, OP_CUR_GET)) {
+        return false;
+      }
+      if (c->node_id == 0) {
+        return false;
+      }
+      c->is_set = true;
+      return true;
+    }
+
+    // next bigger key
+    bool next(cursor_t *c) 
+    {
+      if (!c->is_set) {
+        if (!first(c)) { return false; }
+        return true;
+      }
+      if (c->slot_index == 0) {
+        node_t *node = _alloc_node(c->node_id);
+        c->node_id = node->h->next_id;  
+        delete node;
+        if (c->node_id == 0) {
+          return false;
+        }
+        node_t *next_node = _alloc_node(c->node_id);
+        c->slot_index = next_node->h->num_keys - 1;
+        delete next_node;
+      } else {
+        --c->slot_index;
+      }
+      return true;
+    }
+
+    // next smaller key
+    bool prev(cursor_t *c) 
+    {
+      if (!c->is_set) {
+        if (!last(c)) { return false; }
+        return true;
+      }
+      node_t *node = _alloc_node(c->node_id);
+      if (c->slot_index == node->h->num_keys - 1) {
+        c->node_id = node->h->prev_id;
+        c->slot_index = 0;
+      } else {
+        ++c->slot_index;
+      }
+      delete node;
+      if (c->node_id == 0) {
+        return false;
+      }
+      return true;
+    }
+
+    bool cursor_get(cursor_t *c, data_t **key, data_t **val, alloc_type_t atype)
+    {
+      node_t *node = _alloc_node(c->node_id);
+      slot_t *slots = (slot_t *) ((char *) node->b + node->h->free_off);
+      slot_t *slot = slots + c->slot_index;
+
+      bool res;
+      char *p = (char *) node->b + slot->off;
+      if (atype == SYSTEM) {
+        *key = new data_t;
+        (*key)->data = new char[slot->size];
+      }
+      memcpy((char *) (*key)->data, p, slot->size);
+      (*key)->size = slot->size;
+      res = get_data(p + slot->size, val, atype);
+      return res;
     }
 
     void show_node(void)
@@ -375,6 +522,7 @@ namespace DBM {
     store_mode_t smode_;
     padding_mode_t pmode_;
     uint32_t padding_;
+    bool is_bulk_loading_;
 
     bool open_(std::string db_name, db_flags_t oflags)
     {
@@ -537,8 +685,8 @@ namespace DBM {
       if (node->h->is_leaf) {
         find_res_t *r = find_key(node, entry.key, entry.key_size);
         if (r->type == KEY_FOUND) {
-          //*val_data = get_data(r);
-          res = get_data(r, val_data, atype);
+          slot_t *slot = (slot_t *) r->slot_p;
+          res = get_data(r->data_p + slot->size, val_data, atype);
         }
         delete r;
       } else {
@@ -549,20 +697,18 @@ namespace DBM {
       return res;
     }
 
-    bool get_data(find_res_t *r, data_t **data, alloc_type_t atype)
+    bool get_data(char *p, data_t **data, alloc_type_t atype)
     {
-      slot_t *slot = (slot_t *) r->slot_p;
       if (dh_->index_type == CLUSTER) {
         if (atype == SYSTEM) {
           *data = new data_t;
           (*data)->data = (char *) new char[dh_->data_size];
         }
         (*data)->size = dh_->data_size;
-        memcpy((void *) (*data)->data, 
-               (const char *) r->data_p + slot->size, dh_->data_size);
+        memcpy((void *) (*data)->data, p, dh_->data_size);
       } else {
         data_ptr_t data_ptr;
-        memcpy(&data_ptr, (const char *) r->data_p + slot->size, sizeof(data_ptr_t));
+        memcpy(&data_ptr, p, sizeof(data_ptr_t));
         if (atype == SYSTEM) {
           *data = dt_->get(&data_ptr);
           if (*data == NULL) { return false; }
@@ -573,24 +719,6 @@ namespace DBM {
         }
       }
       return true;
-    }
-
-    data_t *get_data(find_res_t *r)
-    {
-      slot_t *slot = (slot_t *) r->slot_p;
-      data_t *val_data;
-      if (dh_->index_type == CLUSTER) {
-        val_data = new data_t;
-        val_data->data = (char *) new char[dh_->data_size];
-        val_data->size = dh_->data_size;
-        memcpy((void *) val_data->data, 
-               (const char *) r->data_p + slot->size, dh_->data_size);
-      } else {
-        data_ptr_t data_ptr;
-        memcpy(&data_ptr, (const char *) r->data_p + slot->size, sizeof(data_ptr_t));
-        val_data = dt_->get(&data_ptr);
-      }
-      return val_data;
     }
 
     bool insert(entry_t *entry, up_entry_t **up_entry)
@@ -648,7 +776,7 @@ namespace DBM {
           is_split = true;
         }
       } else {
-        node_id_t next_id = _find_next(node, entry);
+        node_id_t next_id = _find_next(node, entry, OP_INSERT);
         if (!_insert(next_id, entry, up_entry, is_split)) {
           return false;
         }
@@ -743,24 +871,49 @@ namespace DBM {
       return true;
     }
 
-    node_id_t _find_next(node_t *node, entry_t *entry)
+    node_id_t _find_next(node_t *node, entry_t *entry,
+                         op_mode_t op_mode = OP_UNSPECIFIED)
     {
       node_id_t id;
-      find_res_t *r = find_key(node, entry->key, entry->key_size);
-      if (r->type == KEY_SMALLEST) {
-          memcpy(&id, (char *) node->b, sizeof(node_id_t));
+      find_res_t *r;
+
+      if (op_mode == OP_CUR_FIRST) {
+        r = new find_res_t;  
+        r->type = KEY_SMALLEST;
+      } else if (op_mode == OP_CUR_LAST || 
+                 (is_bulk_loading_ && op_mode == OP_INSERT)) {
+        // always expect biggest keys in bulk loading
+        r = new find_res_t;  
+        r->type = KEY_BIGGEST;
       } else {
-        slot_t *slot = (slot_t *) r->slot_p;
+        r = find_key(node, entry->key, entry->key_size);
+      }
+
+      if (node->h->num_keys == 0 || r->type == KEY_SMALLEST) {
+        memcpy(&id, (char *) node->b, sizeof(node_id_t));
+      } else { 
+        slot_t *slot;
+        if (r->type == KEY_BIGGEST) {
+          char *free_p = (char *) node->b + node->h->free_off;
+          slot = (slot_t *) free_p;
+        } else {
+          slot = (slot_t *) r->slot_p;
+        }
         memcpy(&id, (char *) node->b + slot->off + slot->size, sizeof(node_id_t));
       }
-      delete r;
       return id;
     }
 
     void put_entry_in_leaf(node_t *node, entry_t *entry)
     {
-      find_res_t *r = find_key(node, entry->key, entry->key_size);
-
+      find_res_t *r;
+      if (is_bulk_loading_) {
+        // always expect biggest keys in bulk loading
+        r = new find_res_t;  
+        r->type = KEY_BIGGEST;
+      } else {
+        r = find_key(node, entry->key, entry->key_size);
+      }
       if (r->type == KEY_FOUND && entry->mode == NOOVERWRITE) {
         delete r;
         return;
@@ -1208,6 +1361,50 @@ namespace DBM {
       }
       return true;
     }
+
+    bool cursor_find(cursor_t *c, node_id_t id,
+                          data_t *key, op_mode_t op_mode)
+    {
+      bool res = true;
+      entry_t entry;
+      if (key != NULL) {
+        entry.key = key->data;
+        entry.key_size = key->size;
+        entry.val = NULL;
+        entry.val_size = 0;
+        entry.size = 0;
+      }
+
+      node_t *node = _alloc_node(id);
+      if (node->h->is_leaf) {
+        if (node->h->num_keys == 0) {
+          res = false;
+        } else {
+          c->node_id = id;
+          if (op_mode == OP_CUR_FIRST) {
+            c->slot_index = node->h->num_keys - 1;
+          } else if (op_mode == OP_CUR_LAST) {
+            c->slot_index = 0;
+          } else if (op_mode == OP_CUR_GET) {
+            find_res_t *r = find_key(node, key->data, key->size);
+            if (r->type == KEY_FOUND) {
+              std::cout << "KEY FOUND" << std::endl;
+              char *p = (char *) node->b + node->h->free_off;
+              c->slot_index = (r->slot_p - p) / sizeof(slot_t);
+            }
+          } else {
+            error_log("operation not supported");
+            res = false;
+          }
+        }
+      } else {
+        node_id_t next_id = _find_next(node, &entry, op_mode);
+        res = cursor_find(c, next_id, key, op_mode);
+      }
+      delete node;
+      return res;
+    }
+
   };
 
 }
