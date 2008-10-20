@@ -40,12 +40,12 @@ namespace DBM {
     char magic[8];
     uint32_t num_keys;
     uint32_t num_nodes;
-    uint16_t node_size;
-    uint16_t init_data_size;
+    uint32_t node_size;
     uint32_t root_id;
     uint32_t num_leaves;
     uint32_t num_nonleaves;
     uint32_t num_resized;
+    uint16_t init_data_size;
     uint8_t index_type;
     uint8_t data_size; // for fixed length value in cluster index
   } btree_header_t;
@@ -518,7 +518,7 @@ namespace DBM {
     Data *dt_;
     pthread_rwlock_t rwlock_;
     uint32_t num_nodes_;
-    uint16_t node_size_;
+    uint32_t node_size_;
     uint32_t num_resized_;
     lock_type_t lock_type_;
     store_mode_t smode_;
@@ -1088,7 +1088,7 @@ namespace DBM {
     bool append_page(void)
     {
       uint32_t num_nodes = dh_->num_nodes;
-      uint16_t node_size = dh_->node_size;
+      uint32_t node_size = dh_->node_size;
 
       if (munmap(map_, node_size * num_nodes) < 0) {
         error_log("munmap failed.");
@@ -1098,7 +1098,7 @@ namespace DBM {
       return alloc_page(num_nodes, node_size);
     }
 
-    bool alloc_page(uint32_t num_nodes, uint16_t node_size)
+    bool alloc_page(uint32_t num_nodes, uint32_t node_size)
     {
       if (ftruncate(fd_, node_size * num_nodes) < 0) {
         error_log("ftruncate failed.");
