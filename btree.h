@@ -227,13 +227,13 @@ namespace DBM {
       return val_data;
     }
 
-    bool get(data_t *key_data, data_t **val_data, alloc_type_t atype = USER)
+    bool get(data_t *key_data, data_t *val_data, alloc_type_t atype = USER)
     {
       bool res = true;
       if (!rlock_db()) { return false; }
-      res = find(dh_->root_id, key_data, val_data, atype);
+      res = find(dh_->root_id, key_data, &val_data, atype);
       if (!res && atype == SYSTEM) {
-        clean_data(*val_data);
+        clean_data(val_data);
       }
       if (!unlock_db()) { return false; }
       return res;
@@ -332,12 +332,13 @@ namespace DBM {
       return c;
     }
 
-    cursor_t *cursor_fin(cursor_t *c)
+    bool cursor_fin(cursor_t *c)
     {
       if (c != NULL) {
         delete c;
         c = NULL;
       }
+      return true;
     }
 
     bool first(cursor_t *c) 
@@ -405,6 +406,9 @@ namespace DBM {
       if (!c->is_set) {
         if (!last(c)) { return false; }
         return true;
+      }
+      if (c->node_id == 0) {
+        return false;
       }
       node_t *node = _alloc_node(c->node_id);
       if (c->slot_index == node->h->num_keys - 1) {
@@ -1390,7 +1394,6 @@ namespace DBM {
           } else if (op_mode == OP_CUR_GET) {
             find_res_t *r = find_key(node, key->data, key->size);
             if (r->type == KEY_FOUND) {
-              std::cout << "KEY FOUND" << std::endl;
               char *p = (char *) node->b + node->h->free_off;
               c->slot_index = (r->slot_p - p) / sizeof(slot_t);
             }
