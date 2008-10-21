@@ -860,7 +860,13 @@ namespace DBM {
       if (node->h->is_leaf) {
         find_res_t *r = find_key(node, entry->key, entry->key_size);
         if (r->type == KEY_FOUND) {
-          // remove a slot
+          // remove the data in non-clustered
+          if (dh_->index_type == NONCLUSTER) {
+            slot_t *slot = (slot_t *) r->slot_p;
+            data_ptr_t *data_ptr = (data_ptr_t *) (r->data_p + slot->size);
+            dt_->del(data_ptr);
+          }
+          // remove the slot
           char *p = (char *) node->b + node->h->free_off;
           if (p != r->slot_p) {
             memmove(p + sizeof(slot_t), p, r->slot_p - p);
