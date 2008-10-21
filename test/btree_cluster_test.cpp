@@ -14,7 +14,7 @@ namespace {
     virtual void SetUp()
     {
       bt = new Lux::DBM::Btree(Lux::DBM::CLUSTER);
-      db_name_ = "bttest";
+      db_name_ = "btc_test";
       num_entries_ = SMALL_NUM_ENTRIES;
     }
     virtual void TearDown()
@@ -27,7 +27,6 @@ namespace {
       memset(buf, 0, 256);
       sprintf(buf, "%d", num);
       std::string db_name = db_name_ + buf; 
-      std::cout << db_name << std::endl;
       return db_name;
     }
    
@@ -318,12 +317,12 @@ namespace {
     ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::DB_CREAT));
 
     int key = 10;
-    char val1[Lux::DBM::MAX_KSIZE+1];
-    memset(val1, 0, Lux::DBM::MAX_KSIZE + 1);
-    memset(val1, 'a', Lux::DBM::MAX_KSIZE);
-    char val2[Lux::DBM::MAX_KSIZE+2];
-    memset(val2, 0, Lux::DBM::MAX_KSIZE + 2);
-    memset(val2, 'a', Lux::DBM::MAX_KSIZE + 1);
+    char val1[Lux::DBM::CLUSTER_MAX_VSIZE+1];
+    memset(val1, 0, Lux::DBM::CLUSTER_MAX_VSIZE + 1);
+    memset(val1, 'a', Lux::DBM::CLUSTER_MAX_VSIZE);
+    char val2[Lux::DBM::CLUSTER_MAX_VSIZE+2];
+    memset(val2, 0, Lux::DBM::CLUSTER_MAX_VSIZE + 2);
+    memset(val2, 'a', Lux::DBM::CLUSTER_MAX_VSIZE + 1);
 
     ASSERT_EQ(false, bt->put(&key, sizeof(int), val2, strlen(val2)));
     Lux::DBM::data_t *val_data = bt->get(&key, sizeof(int));
