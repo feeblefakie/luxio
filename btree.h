@@ -950,17 +950,14 @@ namespace DBM {
         data_ptr_t *res_data_ptr;
 
         if (r->type == KEY_FOUND) {
-          data_ptr_t data_ptr;
-          char *val_ptr = (char *) r->data_p + entry->key_size;
-          memcpy(&data_ptr, val_ptr, sizeof(data_ptr_t));
+          data_ptr_t *data_ptr = (data_ptr_t *) (r->data_p + entry->key_size);
 
           // append or update the data, get the ptr to the data and update the index
           if (entry->mode == APPEND) {
-            res_data_ptr = dt_->append(&data_ptr, &data);
+            res_data_ptr = dt_->append(data_ptr, &data);
           } else { // OVERWRITE
-            res_data_ptr = dt_->update(&data_ptr, &data);
+            res_data_ptr = dt_->update(data_ptr, &data);
           }
-          memcpy(val_ptr, res_data_ptr, sizeof(data_ptr_t));
         } else {
           // put the data, get the ptr to the data and update the index
           res_data_ptr = dt_->put(&data);
