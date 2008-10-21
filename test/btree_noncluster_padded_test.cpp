@@ -196,6 +196,60 @@ namespace {
     ASSERT_EQ(true, bt->close());
   }
 
+  /* 
+   * operation: put, append
+   * sequence: ordered
+   * key: string
+   * val: string
+   * omode: create
+   **/
+  TEST_F(BtreeTest, AppendPaddedTest) {
+    bt->set_noncluster_params(Lux::DBM::Padded);
+    std::string db_name = get_db_name(++db_num_);
+    ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::DB_CREAT));
+
+    for (int i = 0; i < num_entries_; ++i) {
+      char key[41];
+      memset(key, 0, 41);
+      sprintf(key, "%40d", i);
+      // put
+      ASSERT_EQ(true, bt->put(key, strlen(key),
+                key, strlen(key)));
+      // update
+      ASSERT_EQ(true, bt->put(key, strlen(key),
+                key, strlen(key), Lux::DBM::APPEND));
+    }
+    ASSERT_EQ(true, bt->close()); 
+  }
+
+  /* 
+   * operation: get
+   * sequence: ordered
+   * key: string
+   * val: binary
+   * omode: rdonly
+   **/
+  TEST_F(BtreeTest, GetAppendedPaddedTest) {
+    bt->set_noncluster_params(Lux::DBM::Padded);
+    std::string db_name = get_db_name(db_num_);
+    ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::DB_RDONLY));
+
+    for (int i = 0; i < num_entries_; ++i) {
+      char key[41];
+      memset(key, 0, 41);
+      sprintf(key, "%40d", i);
+      std::string correct = std::string(key) + std::string(key);
+
+      // sequential, system memory
+      Lux::DBM::data_t *val_data = bt->get(key, strlen(key));
+      ASSERT_TRUE(val_data != NULL);
+      ASSERT_TRUE(strncmp((char *) val_data->data, correct.c_str(), val_data->size) == 0);
+      ASSERT_EQ(80, val_data->size);
+      bt->clean_data(val_data);
+    }
+    ASSERT_EQ(true, bt->close()); 
+  }
+
 }
 
 int main(int argc, char *argv[])
