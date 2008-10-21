@@ -284,7 +284,7 @@ namespace {
    * val: binary
    * omode: create
    **/
-  TEST_F(BtreeTest, KeyValueSizeLimitationTest1) {
+  TEST_F(BtreeTest, KeySizeLimitationTest) {
     std::string db_name = get_db_name(++db_num_);
     ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::DB_CREAT));
 
@@ -312,7 +312,7 @@ namespace {
    * val: string
    * omode: create
    **/
-  TEST_F(BtreeTest, KeyValueSizeLimitationTest2) {
+  TEST_F(BtreeTest, ValueSizeLimitationTest) {
     std::string db_name = get_db_name(++db_num_);
     bt->set_cmp_func(Lux::DBM::int32_cmp_func);
     ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::DB_CREAT));
