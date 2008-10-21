@@ -20,6 +20,7 @@ namespace {
     virtual void TearDown()
     {
       delete bt;
+      bt = NULL;
     }
     std::string get_db_name(uint32_t num)
     {
