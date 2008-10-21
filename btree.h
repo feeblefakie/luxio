@@ -717,13 +717,12 @@ namespace DBM {
         (*data)->size = dh_->data_size;
         memcpy((void *) (*data)->data, p, dh_->data_size);
       } else {
-        data_ptr_t data_ptr;
-        memcpy(&data_ptr, p, sizeof(data_ptr_t));
+        data_ptr_t *data_ptr = (data_ptr_t *) p;
         if (atype == SYSTEM) {
-          *data = dt_->get(&data_ptr);
+          *data = dt_->get(data_ptr);
           if (*data == NULL) { return false; }
         } else {
-          if (!dt_->get(&data_ptr, *data, &(*data)->size)) {
+          if (!dt_->get(data_ptr, *data, &(*data)->size)) {
             return false;
           }
         }
