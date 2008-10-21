@@ -218,9 +218,7 @@ namespace {
       ASSERT_EQ(true, bt->put(key, strlen(key),
                 key, strlen(key), Lux::DBM::APPEND));
     }
-    if (!bt->close()) {
-      std::cerr << "close failed." << std::endl;
-    }
+    ASSERT_EQ(true, bt->close()); 
   }
 
   /* 
@@ -248,9 +246,7 @@ namespace {
       ASSERT_EQ(80, val_data->size);
       bt->clean_data(val_data);
     }
-    if (!bt->close()) {
-      std::cerr << "close failed." << std::endl;
-    }
+    ASSERT_EQ(true, bt->close()); 
   }
 
 }
