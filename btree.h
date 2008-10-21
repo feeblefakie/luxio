@@ -438,8 +438,10 @@ namespace DBM {
       }
       memcpy((char *) (*key)->data, p, slot->size);
       (*key)->size = slot->size;
-      res = get_data(p + slot->size, val, atype);
-      return res;
+      if (!get_data(p + slot->size, val, atype)) {
+        return false;
+      }
+      return true;
     }
 
     void show_node(void)
@@ -621,8 +623,10 @@ namespace DBM {
       if (dh_->index_type == NONCLUSTER) {
         if(smode_ == Padded) {
           dt_ = new PaddedData(pmode_, padding_);
-        } else {
+        } else if (smode_ == Linked) {
           dt_ = new LinkedData(pmode_, padding_);
+        } else {
+          error_log("specified store mode doesn't exitst.");
         }
         std::string data_db_name = db_name + ".data";
         if (!dt_->open(data_db_name.c_str(), oflags)) {
@@ -907,6 +911,7 @@ namespace DBM {
         }
         memcpy(&id, (char *) node->b + slot->off + slot->size, sizeof(node_id_t));
       }
+      delete r;
       return id;
     }
 
