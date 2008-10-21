@@ -44,7 +44,6 @@ namespace {
    * val: binary
    * omode: create
    **/
-  /*
   TEST_F(BtreeTest, PutLinkedTest) {
     bt->set_noncluster_params(Lux::DBM::Linked);
     std::string db_name = get_db_name(++db_num_);
@@ -66,7 +65,6 @@ namespace {
     }
     ASSERT_EQ(true, bt->close());
   }
-  */
 
   /* 
    * operation: get
@@ -75,7 +73,6 @@ namespace {
    * val: binary
    * omode: rdonly
    **/
-  /*
   TEST_F(BtreeTest, GetLinkedTest) {
     bt->set_noncluster_params(Lux::DBM::Linked);
     std::string db_name = get_db_name(db_num_);
@@ -114,7 +111,6 @@ namespace {
     }
     ASSERT_EQ(true, bt->close());
   }
-  */
 
   /* 
    * operation: cursor
@@ -123,7 +119,6 @@ namespace {
    * val: binary
    * omode: rdonly
    **/
-  /*
   TEST_F(BtreeTest, CursorLinkedTest) {
     bt->set_noncluster_params(Lux::DBM::Linked);
     std::string db_name = get_db_name(db_num_);
@@ -170,7 +165,6 @@ namespace {
 
     ASSERT_EQ(true, bt->close());
   }
-  */
 
   /* 
    * operation: del
@@ -178,7 +172,6 @@ namespace {
    * val: binary
    * omode: rdwr
    **/
-  /*
   TEST_F(BtreeTest, DelLinkedTest) {
     bt->set_noncluster_params(Lux::DBM::Linked);
     std::string db_name = get_db_name(db_num_);
@@ -201,7 +194,6 @@ namespace {
     }
     ASSERT_EQ(true, bt->close());
   }
-  */
 
   /* 
    * operation: put, append
@@ -216,20 +208,16 @@ namespace {
     ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::DB_CREAT));
 
     for (int i = 0; i < num_entries_; ++i) {
-      char key[9];
-      memset(key, 0, 9);
+      char key[41];
+      memset(key, 0, 41);
       sprintf(key, "%40d", i);
       // put
       ASSERT_EQ(true, bt->put(key, strlen(key),
                 key, strlen(key)));
       // update
-      /*
       ASSERT_EQ(true, bt->put(key, strlen(key),
                 key, strlen(key), Lux::DBM::APPEND));
-      */
-      std::cout << "hello" << std::endl;
     }
-    std::cout << "end" << std::endl;
     if (!bt->close()) {
       std::cerr << "close failed." << std::endl;
     }
@@ -248,8 +236,8 @@ namespace {
     ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::DB_RDONLY));
 
     for (int i = 0; i < num_entries_; ++i) {
-      char key[9];
-      memset(key, 0, 9);
+      char key[41];
+      memset(key, 0, 41);
       sprintf(key, "%40d", i);
       std::string correct = std::string(key) + std::string(key);
 
