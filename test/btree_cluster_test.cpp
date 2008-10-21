@@ -6,23 +6,34 @@
 #define LARGE_NUM_ENTRIES 10000000
 
 namespace {
+  
+  static uint32_t db_num_ = 0;
 
   class BtreeTest : public testing::Test {
   protected:  
-    virtual void SetUp() {
+    virtual void SetUp()
+    {
       bt = new Lux::DBM::Btree(Lux::DBM::CLUSTER);
       db_name_ = "bttest";
       num_entries_ = SMALL_NUM_ENTRIES;
-      db_num_ = 0;
     }
-    virtual void TearDown() {
+    virtual void TearDown()
+    {
       delete bt;
+    }
+    std::string get_db_name(uint32_t num)
+    {
+      char buf[256];
+      memset(buf, 0, 256);
+      sprintf(buf, "%d", num);
+      std::string db_name = db_name_ + buf; 
+      std::cout << db_name << std::endl;
+      return db_name;
     }
    
     Lux::DBM::Btree *bt; 
     std::string db_name_;
     uint32_t num_entries_;
-    uint32_t db_num_;
   };
 
   /* 
@@ -32,18 +43,21 @@ namespace {
    * val: binary
    * omode: create
    **/
-  TEST_F(BtreeTest, PutTest1) {
-    std::string db_name = db_name_ + "_1";
+  TEST_F(BtreeTest, PutTest) {
+    std::string db_name = get_db_name(++db_num_);
     ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::DB_CREAT));
 
     for (int i = 0; i < num_entries_; ++i) {
       char key[9];
       memset(key, 0, 9);
       sprintf(key, "%08d", i);
+      // put
       ASSERT_EQ(true, bt->put(key, strlen(key),
                 &i, sizeof(int)));
+      // update
       ASSERT_EQ(true, bt->put(key, strlen(key),
                 &i, sizeof(int)));
+      // no updae
       ASSERT_EQ(true, bt->put(key, strlen(key),
                 &i, sizeof(int), Lux::DBM::NOOVERWRITE));
     }
@@ -57,8 +71,8 @@ namespace {
    * val: binary
    * omode: rdonly
    **/
-  TEST_F(BtreeTest, GetTest1) {
-    std::string db_name = db_name_ + "_1";
+  TEST_F(BtreeTest, GetTest) {
+    std::string db_name = get_db_name(db_num_);
     ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::DB_RDONLY));
 
     for (int i = 0; i < num_entries_; ++i) {
@@ -102,8 +116,8 @@ namespace {
    * val: binary
    * omode: rdonly
    **/
-  TEST_F(BtreeTest, CursorTest1) {
-    std::string db_name = db_name_ + "_1";
+  TEST_F(BtreeTest, CursorTest) {
+    std::string db_name = get_db_name(db_num_);
     ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::DB_RDONLY));
 
     char buf[9] = "00001000";
@@ -147,8 +161,8 @@ namespace {
    * val: binary
    * omode: rdwr
    **/
-  TEST_F(BtreeTest, DelTest1) {
-    std::string db_name = db_name_ + "_1";
+  TEST_F(BtreeTest, DelTest) {
+    std::string db_name = get_db_name(db_num_);
     ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::DB_RDWR));
 
     for (int i = 0; i < num_entries_; ++i) {
@@ -176,8 +190,8 @@ namespace {
    * val: binary
    * omode: create
    **/
-  TEST_F(BtreeTest, PutTest2) {
-    std::string db_name = db_name_ + "_2";
+  TEST_F(BtreeTest, PutTestRandom) {
+    std::string db_name = get_db_name(++db_num_);
     ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::DB_CREAT));
 
     for (int i = 0; i < num_entries_; ++i) {
@@ -198,8 +212,8 @@ namespace {
    * val: binary
    * omode: rdonly
    **/
-  TEST_F(BtreeTest, GetTest2) {
-    std::string db_name = db_name_ + "_2";
+  TEST_F(BtreeTest, GetTestRandom) {
+    std::string db_name = get_db_name(db_num_);
     ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::DB_RDONLY));
 
     for (int i = 0; i < num_entries_; ++i) {
@@ -224,8 +238,8 @@ namespace {
    * val: string
    * omode: create
    **/
-  TEST_F(BtreeTest, PutTest3) {
-    std::string db_name = db_name_ + "_3";
+  TEST_F(BtreeTest, PutTestKeyBinary) {
+    std::string db_name = get_db_name(++db_num_);
     bt->set_cmp_func(Lux::DBM::int32_cmp_func);
     ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::DB_CREAT));
 
@@ -242,12 +256,12 @@ namespace {
   /* 
    * operation: get
    * sequence: random
-   * key: string
-   * val: binary
+   * key: binary
+   * val: string
    * omode: rdonly
    **/
-  TEST_F(BtreeTest, GetTest3) {
-    std::string db_name = db_name_ + "_3";
+  TEST_F(BtreeTest, GetTestKeyBinary) {
+    std::string db_name = get_db_name(db_num_);
     bt->set_cmp_func(Lux::DBM::int32_cmp_func);
     ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::DB_RDONLY));
 
@@ -271,7 +285,7 @@ namespace {
    * omode: create
    **/
   TEST_F(BtreeTest, KeyValueSizeLimitationTest1) {
-    std::string db_name = db_name_ + "_4";
+    std::string db_name = get_db_name(++db_num_);
     ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::DB_CREAT));
 
     char key1[Lux::DBM::MAX_KSIZE+1];
@@ -299,7 +313,7 @@ namespace {
    * omode: create
    **/
   TEST_F(BtreeTest, KeyValueSizeLimitationTest2) {
-    std::string db_name = db_name_ + "_5";
+    std::string db_name = get_db_name(++db_num_);
     bt->set_cmp_func(Lux::DBM::int32_cmp_func);
     ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::DB_CREAT));
 
@@ -323,15 +337,14 @@ namespace {
   }
 
   /* 
-   * operation: put
    * sequence: ordered
    * key: string
    * val: binary
    * omode: create
    * concurrency: process
    **/
-  TEST_F(BtreeTest, PutTestProcess) {
-    std::string db_name = db_name_ + "_6";
+  TEST_F(BtreeTest, ProcessTest) {
+    std::string db_name = get_db_name(++db_num_);
     bt->set_lock_type(Lux::DBM::LOCK_PROCESS);
     ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::DB_CREAT));
 
@@ -341,22 +354,6 @@ namespace {
       sprintf(key, "%08d", i);
       ASSERT_EQ(true, bt->put(key, strlen(key), &i, sizeof(int)));
     }
-    ASSERT_EQ(true, bt->close());
-  }
-
-  /* 
-   * operation: get
-   * sequence: ordered
-   * key: string
-   * val: binary
-   * omode: rdonly
-   * concurrency: process
-   **/
-  TEST_F(BtreeTest, GetTestProcess) {
-    std::string db_name = db_name_ + "_6";
-    bt->set_lock_type(Lux::DBM::LOCK_PROCESS);
-    ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::DB_RDONLY));
-
     for (int i = 0; i < num_entries_; ++i) {
       char key[9];
       memset(key, 0, 9);
@@ -367,19 +364,19 @@ namespace {
       ASSERT_TRUE(i == *(int *) val_data->data);
       bt->clean_data(val_data);
     }
+
     ASSERT_EQ(true, bt->close());
   }
 
   /* 
-   * operation: put
    * sequence: ordered
    * key: string
    * val: binary
    * omode: create
    * concurrency: thread
    **/
-  TEST_F(BtreeTest, PutTestThread) {
-    std::string db_name = db_name_ + "_7";
+  TEST_F(BtreeTest, ThreadTest) {
+    std::string db_name = get_db_name(++db_num_);
     bt->set_lock_type(Lux::DBM::LOCK_THREAD);
     ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::DB_CREAT));
 
@@ -389,22 +386,6 @@ namespace {
       sprintf(key, "%08d", i);
       ASSERT_EQ(true, bt->put(key, strlen(key), &i, sizeof(int)));
     }
-    ASSERT_EQ(true, bt->close());
-  }
-
-  /* 
-   * operation: get
-   * sequence: ordered
-   * key: string
-   * val: binary
-   * omode: rdonly
-   * concurrency: thread
-   **/
-  TEST_F(BtreeTest, GetTestThread) {
-    std::string db_name = db_name_ + "_7";
-    bt->set_lock_type(Lux::DBM::LOCK_THREAD);
-    ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::DB_RDONLY));
-
     for (int i = 0; i < num_entries_; ++i) {
       char key[9];
       memset(key, 0, 9);
@@ -427,7 +408,7 @@ namespace {
    * pagesize: 1024
    **/
   TEST_F(BtreeTest, PutTestPageSizeSmallest) {
-    std::string db_name = db_name_ + "_8";
+    std::string db_name = get_db_name(++db_num_);
     bt->set_page_size(1024);
     ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::DB_CREAT));
 
@@ -458,7 +439,7 @@ namespace {
    * pagesize: 65536
    **/
   TEST_F(BtreeTest, PutTestPageSizeBiggest) {
-    std::string db_name = db_name_ + "_9";
+    std::string db_name = get_db_name(++db_num_);
     bt->set_page_size(65536);
     ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::DB_CREAT));
 
@@ -478,6 +459,29 @@ namespace {
       ASSERT_TRUE(i == *(int *) val_data->data);
       bt->clean_data(val_data);
     }
+    ASSERT_EQ(true, bt->close());
+  }
+
+  /* 
+   * operation: put with bulk loading
+   * sequence: ordered
+   * key: string
+   * val: binary
+   * omode: create
+   **/
+  TEST_F(BtreeTest, PutTestWithBulkLoading) {
+    std::string db_name = get_db_name(++db_num_);
+    ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::DB_CREAT));
+
+    bt->set_bulk_loading(true);
+    for (int i = 0; i < num_entries_; ++i) {
+      char key[9];
+      memset(key, 0, 9);
+      sprintf(key, "%08d", i);
+      ASSERT_EQ(true, bt->put(key, strlen(key), &i, sizeof(int)));
+    }
+    bt->set_bulk_loading(false);
+
     ASSERT_EQ(true, bt->close());
   }
 
