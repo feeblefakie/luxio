@@ -315,10 +315,10 @@ namespace DBM {
 
     void clean_data(data_t *d)
     {
-      if ((char *) (d->data) != NULL) {
-        delete [] (char *) (d->data);
-      }
       if (d != NULL) {
+        if ((char *) (d->data) != NULL) {
+          delete [] (char *) (d->data);
+        }
         delete d;
       }
       d = NULL;
@@ -950,7 +950,8 @@ namespace DBM {
         data_ptr_t *res_data_ptr;
 
         if (r->type == KEY_FOUND) {
-          data_ptr_t *data_ptr = (data_ptr_t *) (r->data_p + entry->key_size);
+          char *val_ptr = (char *) r->data_p + entry->key_size;
+          data_ptr_t *data_ptr = (data_ptr_t *) val_ptr;
 
           // append or update the data, get the ptr to the data and update the index
           if (entry->mode == APPEND) {
@@ -958,6 +959,7 @@ namespace DBM {
           } else { // OVERWRITE
             res_data_ptr = dt_->update(data_ptr, &data);
           }
+          memcpy(val_ptr, res_data_ptr, sizeof(data_ptr_t));
         } else {
           // put the data, get the ptr to the data and update the index
           res_data_ptr = dt_->put(&data);
