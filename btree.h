@@ -438,10 +438,10 @@ namespace DBM {
       }
       memcpy((char *) (*key)->data, p, slot->size);
       (*key)->size = slot->size;
-      if (!get_data(p + slot->size, val, atype)) {
-        return false;
-      }
-      return true;
+      res = get_data(p + slot->size, val, atype);
+      delete node;
+
+      return res;
     }
 
     void show_node(void)
@@ -1402,6 +1402,7 @@ namespace DBM {
               char *p = (char *) node->b + node->h->free_off;
               c->slot_index = (r->slot_p - p) / sizeof(slot_t);
             }
+            delete r;
           } else {
             error_log("operation not supported");
             res = false;
