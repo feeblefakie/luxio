@@ -56,6 +56,7 @@ namespace DBM {
   typedef struct {
     const void *data;
     uint32_t size;
+    uint32_t user_alloc_size;
   } data_t;
 
   typedef enum {
