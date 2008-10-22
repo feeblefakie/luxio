@@ -247,6 +247,7 @@ namespace DBM {
     virtual data_t *get(data_ptr_t *data_ptr) = 0;
     // using user memory
     virtual bool get(data_ptr_t *data_ptr, data_t *data, uint32_t *size) = 0;
+    virtual bool get(data_ptr_t *data_ptr, data_t **data, alloc_type_t atype) = 0;
 
   protected:
     int fd_;
@@ -672,6 +673,35 @@ namespace DBM {
       return true;
     }
 
+    virtual bool get(data_ptr_t *data_ptr, data_t **data, alloc_type_t atype)
+    {
+      assert(data_ptr->id >= 1 && data_ptr->id <= dh_->num_blocks);
+      record_header_t h;
+      off_t off = calc_off(data_ptr->id, data_ptr->off);
+      if (!_pread(fd_, &h, sizeof(record_header_t), off)) {
+        return false;
+      }
+      if (h.type == AREA_FREE) { return false; }
+
+      uint32_t size = h.size - sizeof(record_header_t);
+      if (atype == SYSTEM) {
+        *data = new data_t;
+        (*data)->data = new char[size];
+      } else {
+        if ((*data)->user_alloc_size < size) {
+          error_log("allocated size is too small for the data.");
+          return false;
+        }
+      }
+      if (!_pread(fd_, (char *) (*data)->data, size, 
+                  off + sizeof(record_header_t))) {
+        return false;
+      }
+      (*data)->size = size;
+
+      return true;
+    }
+
   private:
 
     record_t *init_record(data_t *data)
@@ -994,6 +1024,53 @@ namespace DBM {
         off = calc_off(u.next_block_id, u.next_off); 
       } while (++cnt < h.num_units);
 
+      return true;
+    }
+
+    virtual bool get(data_ptr_t *data_ptr, data_t **data, alloc_type_t atype)
+    {
+      assert(data_ptr->id >= 1 && data_ptr->id <= dh_->num_blocks);
+      record_header_t h;
+      off_t off = calc_off(data_ptr->id, data_ptr->off);
+      if (!_pread(fd_, &h, sizeof(record_header_t), off)) {
+        return false;
+      }
+
+      if (h.type == AREA_FREE) { return false; }
+
+      if (atype == SYSTEM) {
+        *data = new data_t;
+        (*data)->data = new char[h.padded_size]; // must be more than data size
+      } else {
+        // user mem
+      }
+      char *p = (char *) (*data)->data;
+      uint32_t size = 0;
+
+      int cnt = 0;
+      off += sizeof(record_header_t);
+      unit_header_t u;
+      do {
+        if (!_pread(fd_, &u, sizeof(unit_header_t), off)) {
+          return false;
+        }
+
+        uint32_t data_size = u.size - sizeof(unit_header_t);
+        size += data_size;
+        if ((*data)->user_alloc_size < size) {
+          error_log("allocated size is too small for the data");
+          return false;
+        }
+
+        off += sizeof(unit_header_t);
+        if (!_pread(fd_, p, data_size, off)) { return false; }
+        p += data_size;
+
+        // next unit
+        off = calc_off(u.next_block_id, u.next_off); 
+      } while (++cnt < h.num_units);
+
+      (*data)->size = size;
       return true;
     }
 
