@@ -445,14 +445,6 @@ namespace DBM {
       return res;
     }
 
-    void show_node(void)
-    {
-      show_db_header();
-      for (int i = 1; i < dh_->num_nodes; ++i) {
-        show_node(i);
-      }
-    }
-
     void show_root(void)
     {
       show_node(dh_->root_id);
