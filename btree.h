@@ -297,7 +297,7 @@ namespace DBM {
 
     // only for noncluster database
     void set_noncluster_params(store_mode_t smode,
-                               padding_mode_t pmode = RATIO, uint32_t padding = 20)
+                               padding_mode_t pmode = PO2, uint32_t padding = 20)
     {
       smode_ = smode;
       pmode_ = pmode;
