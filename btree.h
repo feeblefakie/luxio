@@ -152,6 +152,7 @@ namespace DBM {
       smode_(Linked),
       pmode_(PO2),
       padding_(0),
+      is_bulk_loading_(false),
       data_size_(index_type == NONCLUSTER ? sizeof(data_ptr_t) : data_size)
     {
       if (pthread_rwlock_init(&rwlock_, NULL) != 0) {
