@@ -170,6 +170,7 @@ namespace DBM {
           error_log("munmap failed.");
           return false;
         }
+        map_ = NULL;
       }
       if (::close(fd_) < 0) {
         error_log("close failed.");
@@ -370,6 +371,7 @@ namespace DBM {
       return true;
     }
   
+    /*
     bool _append_free_pool(block_id_t id, uint16_t off_in_block, uint32_t size, int pow)
     {
       // added size to free_pool_header_t
@@ -397,6 +399,7 @@ namespace DBM {
 
       return true;
     }
+    */
 
     off_t calc_off(block_id_t id, uint16_t off)
     {
