@@ -17,14 +17,11 @@ namespace {
       bt = new Lux::DBM::Btree(Lux::DBM::NONCLUSTER);
       db_name_ = "btncp_test";
       num_entries_ = TINY_NUM_ENTRIES;
-      bt2 = new Lux::DBM::Btree(Lux::DBM::NONCLUSTER);
     }
     virtual void TearDown()
     {
       delete bt;
       bt = NULL;
-      delete bt2;
-      bt2 = NULL;
     }
     std::string get_db_name(uint32_t num)
     {
@@ -211,14 +208,13 @@ namespace {
     for (int i = 0; i < num_entries_; ++i) {
       char key[41];
       memset(key, 0, 41);
-      sprintf(key, "%40d", i);
+      sprintf(key, "%040d", i);
       // put
-      ASSERT_EQ(true, bt->put(key, strlen(key),
-                key, strlen(key)));
-      // update
-      ASSERT_EQ(true, bt->put(key, strlen(key),
-                key, strlen(key), Lux::DBM::APPEND));
+      ASSERT_EQ(true, bt->put(key, strlen(key), key, strlen(key)));
+      // append
+      ASSERT_EQ(true, bt->put(key, strlen(key), key, strlen(key), Lux::DBM::APPEND));
     }
+
     ASSERT_EQ(true, bt->close()); 
   }
 
@@ -237,7 +233,7 @@ namespace {
     for (int i = 0; i < num_entries_; ++i) {
       char key[41];
       memset(key, 0, 41);
-      sprintf(key, "%40d", i);
+      sprintf(key, "%040d", i);
       std::string correct = std::string(key) + std::string(key);
 
       // sequential, system memory
@@ -247,6 +243,7 @@ namespace {
       ASSERT_EQ(80, val_data->size);
       bt->clean_data(val_data);
     }
+
     ASSERT_EQ(true, bt->close()); 
   }
 

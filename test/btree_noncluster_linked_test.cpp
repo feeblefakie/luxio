@@ -210,11 +210,11 @@ namespace {
     for (int i = 0; i < num_entries_; ++i) {
       char key[41];
       memset(key, 0, 41);
-      sprintf(key, "%40d", i);
+      sprintf(key, "%040d", i);
       // put
       ASSERT_EQ(true, bt->put(key, strlen(key),
                 key, strlen(key)));
-      // update
+      // append
       ASSERT_EQ(true, bt->put(key, strlen(key),
                 key, strlen(key), Lux::DBM::APPEND));
     }
@@ -236,7 +236,7 @@ namespace {
     for (int i = 0; i < num_entries_; ++i) {
       char key[41];
       memset(key, 0, 41);
-      sprintf(key, "%40d", i);
+      sprintf(key, "%040d", i);
       std::string correct = std::string(key) + std::string(key);
 
       // sequential, system memory

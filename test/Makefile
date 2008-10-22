@@ -1,5 +1,7 @@
 LDFLAGS=-L/usr/local/lib -lgtest -DDEBUG -fprofile-arcs -ftest-coverage
-progs=btree_cluster_test btree_noncluster_padded_test btree_noncluster_linked_test
+progs=btree_cluster_test \
+	  btree_noncluster_padded_test \
+	  btree_noncluster_linked_test \
 
 all: clean $(progs) check
 
@@ -14,8 +16,8 @@ btree_noncluster_linked_test: btree_noncluster_linked_test.cpp
 
 check:
 	./btree_cluster_test
-	./btree_noncluster_padded_test
 	./btree_noncluster_linked_test
+	./btree_noncluster_padded_test
 
 clean:
 	rm -rf $(progs) *.bidx *.data
