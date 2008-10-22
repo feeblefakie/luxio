@@ -99,6 +99,16 @@ namespace {
     ASSERT_EQ(true, dt->close());
   }
 
+  TEST_F(DataTest, LinkedDataTest) {
+    dt = new Lux::DBM::LinkedData();
+    std::string db_name = get_db_name(++db_num_);
+    ASSERT_EQ(true, dt->open(db_name.c_str(), Lux::DB_CREAT));
+
+    data_test(dt);
+
+    ASSERT_EQ(true, dt->close());
+  }
+
 }
 
 int main(int argc, char *argv[])
