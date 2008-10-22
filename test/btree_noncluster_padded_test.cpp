@@ -33,7 +33,6 @@ namespace {
     }
    
     Lux::DBM::Btree *bt; 
-    Lux::DBM::Btree *bt2; 
     std::string db_name_;
     uint32_t num_entries_;
   };
