@@ -9,7 +9,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define APPEND_LINES 10
+#define APPEND_LINES 100
 
 namespace {
   
