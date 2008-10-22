@@ -9,7 +9,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define APPEND_LINES 100
+#define APPEND_LINES 10
 
 namespace {
   
@@ -31,7 +31,7 @@ namespace {
       char buf[256];
       memset(buf, 0, 256);
       sprintf(buf, "%d", num);
-      std::string db_name = db_name_ + buf; 
+      std::string db_name = db_name_ + buf + ".data";
       return db_name;
     }
    
@@ -79,6 +79,8 @@ namespace {
         Lux::DBM::data_t *data = dt->get(*itr);
         ASSERT_EQ(chunks[i].size(), data->size);
         ASSERT_TRUE(strncmp(chunks[i].c_str(), (char *) data->data, data->size) == 0);
+        dt->clean_data(data);
+        dt->clean_data_ptr(*itr);
         ++itr;
         ++i;
       }
@@ -95,12 +97,83 @@ namespace {
     ASSERT_EQ(true, dt->open(db_name.c_str(), Lux::DB_CREAT));
 
     data_test(dt);
+    //dt->show_db_header();
+    //dt->show_free_pools();
+
+    ASSERT_EQ(true, dt->close());
+  }
+
+  TEST_F(DataTest, NoPaddedDataTest) {
+    dt = new Lux::DBM::PaddedData();
+    dt->set_padding(Lux::DBM::NOPADDING);
+    std::string db_name = get_db_name(++db_num_);
+    ASSERT_EQ(true, dt->open(db_name.c_str(), Lux::DB_CREAT));
+
+    data_test(dt);
+
+    ASSERT_EQ(true, dt->close());
+  }
+
+  TEST_F(DataTest, FixedPaddedDataTest) {
+    dt = new Lux::DBM::PaddedData();
+    dt->set_padding(Lux::DBM::FIXEDLEN);
+    std::string db_name = get_db_name(++db_num_);
+    ASSERT_EQ(true, dt->open(db_name.c_str(), Lux::DB_CREAT));
+
+    data_test(dt);
+
+    ASSERT_EQ(true, dt->close());
+  }
+
+  TEST_F(DataTest, RatioPaddedDataTest) {
+    dt = new Lux::DBM::PaddedData();
+    dt->set_padding(Lux::DBM::RATIO);
+    std::string db_name = get_db_name(++db_num_);
+    ASSERT_EQ(true, dt->open(db_name.c_str(), Lux::DB_CREAT));
+
+    data_test(dt);
 
     ASSERT_EQ(true, dt->close());
   }
 
   TEST_F(DataTest, LinkedDataTest) {
     dt = new Lux::DBM::LinkedData();
+    dt->set_padding(Lux::DBM::PO2);
+    std::string db_name = get_db_name(++db_num_);
+    ASSERT_EQ(true, dt->open(db_name.c_str(), Lux::DB_CREAT));
+
+    data_test(dt);
+    //dt->show_db_header();
+    //dt->show_free_pools();
+
+    ASSERT_EQ(true, dt->close());
+  }
+
+  TEST_F(DataTest, NoLinkedDataTest) {
+    dt = new Lux::DBM::LinkedData();
+    dt->set_padding(Lux::DBM::NOPADDING);
+    std::string db_name = get_db_name(++db_num_);
+    ASSERT_EQ(true, dt->open(db_name.c_str(), Lux::DB_CREAT));
+
+    data_test(dt);
+
+    ASSERT_EQ(true, dt->close());
+  }
+
+  TEST_F(DataTest, FixedLinkedDataTest) {
+    dt = new Lux::DBM::LinkedData();
+    dt->set_padding(Lux::DBM::FIXEDLEN);
+    std::string db_name = get_db_name(++db_num_);
+    ASSERT_EQ(true, dt->open(db_name.c_str(), Lux::DB_CREAT));
+
+    data_test(dt);
+
+    ASSERT_EQ(true, dt->close());
+  }
+
+  TEST_F(DataTest, RatioLinkedDataTest) {
+    dt = new Lux::DBM::LinkedData();
+    dt->set_padding(Lux::DBM::RATIO);
     std::string db_name = get_db_name(++db_num_);
     ASSERT_EQ(true, dt->open(db_name.c_str(), Lux::DB_CREAT));
 
