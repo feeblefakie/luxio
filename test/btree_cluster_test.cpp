@@ -110,6 +110,23 @@ namespace {
   }
 
   /* 
+   * operation: debug print
+   * sequence: ordered
+   * key: string
+   * val: binary
+   * omode: create
+   **/
+  TEST_F(BtreeTest, DebugPrintTest) {
+    std::string db_name = get_db_name(db_num_);
+    ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::DB_RDONLY));
+
+    bt->show_db_header();
+    bt->show_root();
+
+    ASSERT_EQ(true, bt->close());
+  }
+
+  /* 
    * operation: cursor
    * sequence: random
    * key: string
@@ -484,8 +501,6 @@ namespace {
 
     ASSERT_EQ(true, bt->close());
   }
-
-
 }
 
 int main(int argc, char *argv[])
