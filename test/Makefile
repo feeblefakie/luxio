@@ -2,7 +2,8 @@ LDFLAGS=-L/usr/local/lib -lgtest -DDEBUG -fprofile-arcs -ftest-coverage
 progs=btree_cluster_test \
 	  btree_noncluster_padded_test \
 	  btree_noncluster_linked_test \
-	  data_test
+	  data_test \
+	  array_test
 
 all: clean $(progs) check
 
@@ -18,12 +19,16 @@ btree_noncluster_linked_test: btree_noncluster_linked_test.cpp
 data_test: data_test.cpp
 	g++ -g $< -o $@ $(LDFLAGS) -lpthread
 
+array_test: array_test.cpp
+	g++ -g $< -o $@ $(LDFLAGS) -lpthread
+
 check:
 	./btree_cluster_test
 	./btree_noncluster_linked_test
 	./btree_noncluster_padded_test
 	./data_test
+	./array_test
 
 clean:
-	rm -rf $(progs) *.bidx *.data
+	rm -rf $(progs) *.bidx *.aidx *.data
 
