@@ -1041,8 +1041,6 @@ namespace DBM {
       if (atype == SYSTEM) {
         *data = new data_t;
         (*data)->data = new char[h.padded_size]; // must be more than data size
-      } else {
-        // user mem
       }
       char *p = (char *) (*data)->data;
       uint32_t size = 0;
@@ -1057,7 +1055,7 @@ namespace DBM {
 
         uint32_t data_size = u.size - sizeof(unit_header_t);
         size += data_size;
-        if ((*data)->user_alloc_size < size) {
+        if (atype == USER && (*data)->user_alloc_size < size) {
           error_log("allocated size is too small for the data");
           return false;
         }
