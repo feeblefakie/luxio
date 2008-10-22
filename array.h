@@ -102,11 +102,11 @@ namespace DBM {
         }
         map_ = NULL;
       }
+      if (!unlock_db()) { return false; }
       if (::close(fd_) < 0) {
         error_log("close failed.");
         return false;
       }
-      if (!unlock_db()) { return false; }
       return true;
     }
 
