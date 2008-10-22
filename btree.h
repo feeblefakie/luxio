@@ -228,13 +228,13 @@ namespace DBM {
       return val_data;
     }
 
-    bool get(data_t *key_data, data_t *val_data, alloc_type_t atype = USER)
+    bool get(data_t *key_data, data_t **val_data, alloc_type_t atype = USER)
     {
       bool res = true;
       if (!rlock_db()) { return false; }
-      res = find(dh_->root_id, key_data, &val_data, atype);
+      res = find(dh_->root_id, key_data, val_data, atype);
       if (!res && atype == SYSTEM) {
-        clean_data(val_data);
+        clean_data(*val_data);
       }
       if (!unlock_db()) { return false; }
       return res;
@@ -711,13 +711,8 @@ namespace DBM {
         memcpy((void *) (*data)->data, p, dh_->data_size);
       } else {
         data_ptr_t *data_ptr = (data_ptr_t *) p;
-        if (atype == SYSTEM) {
-          *data = dt_->get(data_ptr);
-          if (*data == NULL) { return false; }
-        } else {
-          if (!dt_->get(data_ptr, *data, &(*data)->size)) {
-            return false;
-          }
+        if (!dt_->get(data_ptr, data, atype)) {
+          return false;
         }
       }
       return true;
