@@ -103,10 +103,11 @@ namespace {
       sprintf(key, "%08d", i);
       int val;
       Lux::DBM::data_t key_data = {key, strlen(key)};
-      Lux::DBM::data_t val_data2 = {&val, sizeof(int)};
+      Lux::DBM::data_t val_data2 = {&val, 0, sizeof(int)};
+      Lux::DBM::data_t *val_p = &val_data2;
 
       // sequntial, user memory
-      ASSERT_EQ(true, bt->get(&key_data, &val_data2));
+      ASSERT_EQ(true, bt->get(&key_data, &val_p));
       ASSERT_TRUE(i == val);
     }
     ASSERT_EQ(true, bt->close());
