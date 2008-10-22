@@ -133,7 +133,7 @@ namespace DBM {
       return data;
     }
 
-    bool get(uint32_t index, data_t *data, uint32_t *size)
+    bool get(uint32_t index, data_t **data, alloc_type_t atype = USER)
     {
       if (!rlock_db()) { return false; }
       off_t off = index * dh_->data_size + dh_->page_size;
@@ -141,16 +141,21 @@ namespace DBM {
       if (off + dh_->data_size > allocated_size_) { return false; }
 
       if (dh_->index_type == CLUSTER) {
-        if (data->size < dh_->data_size) {
-          error_log("allocated size is too small for the data.");
-          return false;
+        if (atype == SYSTEM) {
+          *data = new data_t;
+          (*data)->data = (char *) new char[dh_->data_size];
+        } else {
+          if ((*data)->user_alloc_size < dh_->data_size) {
+            error_log("allocated size is too small for the data.");
+            return false;
+          }
         }
-        memcpy((char *) data->data, map_ + off, dh_->data_size);
-        *size = dh_->data_size;
+        memcpy((char *) (*data)->data, map_ + off, dh_->data_size);
+        (*data)->size = dh_->data_size;
       } else {
         data_ptr_t data_ptr;
         memcpy(&data_ptr, map_ + off, sizeof(data_ptr_t));
-        if (!dt_->get(&data_ptr, data, size)) {
+        if (!dt_->get(&data_ptr, data, atype)) {
           return false;
         }
       }
