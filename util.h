@@ -98,7 +98,9 @@ namespace Lux {
 
   bool _pwrite(int fd, const void *buf, size_t nbyte, off_t offset)
   {
-    lseek(fd, offset, SEEK_SET);
+    if (lseek(fd, offset, SEEK_SET) < 0) {
+      return false;
+    }
     if (_write(fd, buf, nbyte) < 0) {
       return false; 
     }
@@ -108,7 +110,9 @@ namespace Lux {
 
   bool _pread(int fd, void *buf, size_t nbyte, off_t offset)
   {
-    lseek(fd, offset, SEEK_SET);
+    if (lseek(fd, offset, SEEK_SET) < 0) {
+      return false;
+    }
     if (_read(fd, buf, nbyte) < 0) {
       return false; 
     } 
@@ -125,8 +129,7 @@ namespace Lux {
 
     void *p = mmap(0, size, prot, MAP_SHARED, fd, 0);  
     if (p == MAP_FAILED) {
-      std::cerr << "map failed" << std::endl;
-        return NULL;
+      return NULL;
     }
     return p;
   }
