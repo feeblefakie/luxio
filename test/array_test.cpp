@@ -28,7 +28,133 @@ namespace {
       std::string db_name = db_name_ + buf; 
       return db_name;
     }
-   
+
+    void GetClusterTest(Lux::DBM::Array *ary)
+    {
+      for (int i = 0; i < num_entries_; ++i) {
+        // sequential, system memory
+        Lux::DBM::data_t *val_data = ary->get(i);
+        ASSERT_TRUE(val_data != NULL);
+        ASSERT_TRUE(i == *(int *) val_data->data);
+        ary->clean_data(val_data);
+
+        int val;
+        Lux::DBM::data_t val_data2 = {&val, 0, sizeof(int)};
+        Lux::DBM::data_t *val_p = &val_data2;
+        ASSERT_EQ(true, ary->get(i, &val_p, Lux::DBM::USER));
+        ASSERT_TRUE(i == val);
+        ASSERT_TRUE(sizeof(int) == val_p->size);
+      }
+    }
+
+    void PutNonClusterTest(Lux::DBM::Array *ary)
+    {
+      for (int i = 0; i < num_entries_; ++i) {
+        // put
+        ASSERT_EQ(true, ary->put(i, &i, sizeof(int)));
+        // put
+        ASSERT_EQ(true, ary->put(i, &i, sizeof(int), Lux::DBM::NOOVERWRITE));
+      }
+    }
+
+    void GetNonClusterTest(Lux::DBM::Array *ary)
+    {
+      for (int i = 0; i < num_entries_; ++i) {
+        // system memory
+        Lux::DBM::data_t *val_data = ary->get(i);
+        ASSERT_TRUE(val_data != NULL);
+        ASSERT_TRUE(i == *(int *) val_data->data);
+        ary->clean_data(val_data);
+
+        // user memory
+        int val;
+        Lux::DBM::data_t val_data2 = {&val, 0, sizeof(int)};
+        Lux::DBM::data_t *val_p = &val_data2;
+        ASSERT_EQ(true, ary->get(i, &val_p, Lux::DBM::USER));
+        ASSERT_TRUE(i == val);
+        ASSERT_TRUE(sizeof(int) == val_p->size);
+      }
+    }
+
+    void UpdateNonClusterTest(Lux::DBM::Array *ary)
+    {
+      for (int i = 0; i < num_entries_; ++i) {
+        char val[41];
+        memset(val, 0, 41);
+        sprintf(val, "%040d", i);
+        // put
+        ASSERT_EQ(true, ary->put(i, val, strlen(val)));
+        // update
+        std::string val2 = std::string(val) + std::string(val);
+        ASSERT_EQ(true, ary->put(i, val2.c_str(), val2.size(), Lux::DBM::OVERWRITE));
+      }
+    }
+
+    void GetUpdateNonClusterTest(Lux::DBM::Array *ary)
+    {
+      for (int i = 0; i < num_entries_; ++i) {
+        char val[41];
+        memset(val, 0, 41);
+        sprintf(val, "%040d", i);
+        std::string correct = std::string(val) + std::string(val);
+
+        // system memory
+        Lux::DBM::data_t *val_data = ary->get(i);
+        ASSERT_TRUE(val_data != NULL);
+        ASSERT_EQ(correct.size(), val_data->size);
+        ASSERT_TRUE(strncmp((char *) val_data->data, correct.c_str(), val_data->size) == 0);
+        ary->clean_data(val_data);
+
+        // user memory
+        char val2[80];
+        memset(val2, 0, 80);
+        Lux::DBM::data_t val_data2 = {val2, 0, 80};
+        Lux::DBM::data_t *val_p = &val_data2;
+        ASSERT_EQ(true, ary->get(i, &val_p, Lux::DBM::USER));
+        ASSERT_EQ(correct.size(), val_p->size);
+        ASSERT_TRUE(strncmp((char *) val_p->data, correct.c_str(), val_p->size) == 0);
+      }
+    }
+
+    void AppendNonClusterTest(Lux::DBM::Array *ary)
+    {
+      for (int i = 0; i < num_entries_; ++i) {
+        char val[41];
+        memset(val, 0, 41);
+        sprintf(val, "%040d", i);
+        // put
+        ASSERT_EQ(true, ary->put(i, val, strlen(val)));
+        // update
+        ASSERT_EQ(true, ary->put(i, val, strlen(val), Lux::DBM::APPEND));
+      }
+    }
+
+    void GetAppendNonClusterTest(Lux::DBM::Array *ary)
+    {
+      for (int i = 0; i < num_entries_; ++i) {
+        char val[41];
+        memset(val, 0, 41);
+        sprintf(val, "%040d", i);
+        std::string correct = std::string(val) + std::string(val);
+
+        // system memory
+        Lux::DBM::data_t *val_data = ary->get(i);
+        ASSERT_TRUE(val_data != NULL);
+        ASSERT_EQ(correct.size(), val_data->size);
+        ASSERT_TRUE(strncmp((char *) val_data->data, correct.c_str(), val_data->size) == 0);
+        ary->clean_data(val_data);
+
+        // user memory
+        char val2[80];
+        memset(val2, 0, 80);
+        Lux::DBM::data_t val_data2 = {val2, 0, 80};
+        Lux::DBM::data_t *val_p = &val_data2;
+        ASSERT_EQ(true, ary->get(i, &val_p, Lux::DBM::USER));
+        ASSERT_EQ(correct.size(), val_p->size);
+        ASSERT_TRUE(strncmp((char *) val_p->data, correct.c_str(), val_p->size) == 0);
+      }
+    }
+
     Lux::DBM::Array *ary;
     std::string db_name_;
     uint32_t num_entries_;
@@ -54,20 +180,34 @@ namespace {
     std::string db_name = get_db_name(db_num_);
     ASSERT_EQ(true, ary->open(db_name.c_str(), Lux::DB_RDONLY));
 
-    for (int i = 0; i < num_entries_; ++i) {
-      // sequential, system memory
-      Lux::DBM::data_t *val_data = ary->get(i);
-      ASSERT_TRUE(val_data != NULL);
-      ASSERT_TRUE(i == *(int *) val_data->data);
-      ary->clean_data(val_data);
+    GetClusterTest(ary);
 
-      int val;
-      Lux::DBM::data_t val_data2 = {&val, 0, sizeof(int)};
-      Lux::DBM::data_t *val_p = &val_data2;
-      ASSERT_EQ(true, ary->get(i, &val_p, Lux::DBM::USER));
-      ASSERT_TRUE(i == val);
-      ASSERT_TRUE(sizeof(int) == val_p->size);
+    ASSERT_EQ(true, ary->close());
+    delete ary;
+  }
+
+  TEST_F(ArrayTest, UpdateTest) {
+    ary = new Lux::DBM::Array(Lux::DBM::CLUSTER);
+    std::string db_name = get_db_name(++db_num_);
+    ASSERT_EQ(true, ary->open(db_name.c_str(), Lux::DB_CREAT));
+
+    for (int i = 0; i < num_entries_; ++i) {
+      // put
+      ASSERT_EQ(true, ary->put(i, &i, sizeof(int)));
+      // put
+      ASSERT_EQ(true, ary->put(i, &i, sizeof(int), Lux::DBM::OVERWRITE));
     }
+    ASSERT_EQ(true, ary->close());
+    delete ary;
+  }
+
+  TEST_F(ArrayTest, GetUpdateTest) {
+    ary = new Lux::DBM::Array(Lux::DBM::CLUSTER);
+    std::string db_name = get_db_name(db_num_);
+    ASSERT_EQ(true, ary->open(db_name.c_str(), Lux::DB_RDONLY));
+
+    GetClusterTest(ary);
+
     ASSERT_EQ(true, ary->close());
     delete ary;
   }
@@ -78,12 +218,8 @@ namespace {
     std::string db_name = get_db_name(++db_num_);
     ASSERT_EQ(true, ary->open(db_name.c_str(), Lux::DB_CREAT));
 
-    for (int i = 0; i < num_entries_; ++i) {
-      // put
-      ASSERT_EQ(true, ary->put(i, &i, sizeof(int)));
-      // put
-      ASSERT_EQ(true, ary->put(i, &i, sizeof(int), Lux::DBM::NOOVERWRITE));
-    }
+    PutNonClusterTest(ary);
+
     ASSERT_EQ(true, ary->close());
     delete ary;
   }
@@ -94,21 +230,57 @@ namespace {
     std::string db_name = get_db_name(db_num_);
     ASSERT_EQ(true, ary->open(db_name.c_str(), Lux::DB_RDONLY));
 
-    for (int i = 0; i < num_entries_; ++i) {
-      // system memory
-      Lux::DBM::data_t *val_data = ary->get(i);
-      ASSERT_TRUE(val_data != NULL);
-      ASSERT_TRUE(i == *(int *) val_data->data);
-      ary->clean_data(val_data);
+    GetNonClusterTest(ary);
 
-      // user memory
-      int val;
-      Lux::DBM::data_t val_data2 = {&val, 0, sizeof(int)};
-      Lux::DBM::data_t *val_p = &val_data2;
-      ASSERT_EQ(true, ary->get(i, &val_p, Lux::DBM::USER));
-      ASSERT_TRUE(i == val);
-      ASSERT_TRUE(sizeof(int) == val_p->size);
-    }
+    ASSERT_EQ(true, ary->close());
+    delete ary;
+  }
+
+
+  TEST_F(ArrayTest, UpdateNonClusterPaddedTest) {
+    ary = new Lux::DBM::Array(Lux::DBM::NONCLUSTER);
+    ary->set_noncluster_params(Lux::DBM::Padded);
+    std::string db_name = get_db_name(++db_num_);
+    ASSERT_EQ(true, ary->open(db_name.c_str(), Lux::DB_CREAT));
+
+    UpdateNonClusterTest(ary);
+
+    ASSERT_EQ(true, ary->close());
+    delete ary;
+  }
+
+  TEST_F(ArrayTest, GetUpdateNonClusterPaddedTest) {
+    ary = new Lux::DBM::Array(Lux::DBM::NONCLUSTER);
+    ary->set_noncluster_params(Lux::DBM::Padded);
+    std::string db_name = get_db_name(db_num_);
+    ASSERT_EQ(true, ary->open(db_name.c_str(), Lux::DB_RDONLY));
+
+    GetUpdateNonClusterTest(ary);
+
+    ASSERT_EQ(true, ary->close());
+    delete ary;
+  }
+
+  TEST_F(ArrayTest, AppendNonClusterPaddedTest) {
+    ary = new Lux::DBM::Array(Lux::DBM::NONCLUSTER);
+    ary->set_noncluster_params(Lux::DBM::Padded);
+    std::string db_name = get_db_name(++db_num_);
+    ASSERT_EQ(true, ary->open(db_name.c_str(), Lux::DB_CREAT));
+
+    AppendNonClusterTest(ary);
+
+    ASSERT_EQ(true, ary->close());
+    delete ary;
+  }
+
+  TEST_F(ArrayTest, GetAppendNonClusterPaddedTest) {
+    ary = new Lux::DBM::Array(Lux::DBM::NONCLUSTER);
+    ary->set_noncluster_params(Lux::DBM::Padded);
+    std::string db_name = get_db_name(db_num_);
+    ASSERT_EQ(true, ary->open(db_name.c_str(), Lux::DB_RDONLY));
+
+    GetAppendNonClusterTest(ary);
+
     ASSERT_EQ(true, ary->close());
     delete ary;
   }
@@ -119,12 +291,8 @@ namespace {
     std::string db_name = get_db_name(++db_num_);
     ASSERT_EQ(true, ary->open(db_name.c_str(), Lux::DB_CREAT));
 
-    for (int i = 0; i < num_entries_; ++i) {
-      // put
-      ASSERT_EQ(true, ary->put(i, &i, sizeof(int)));
-      // put
-      ASSERT_EQ(true, ary->put(i, &i, sizeof(int), Lux::DBM::NOOVERWRITE));
-    }
+    PutNonClusterTest(ary);
+
     ASSERT_EQ(true, ary->close());
     delete ary;
   }
@@ -135,24 +303,60 @@ namespace {
     std::string db_name = get_db_name(db_num_);
     ASSERT_EQ(true, ary->open(db_name.c_str(), Lux::DB_RDONLY));
 
-    for (int i = 0; i < num_entries_; ++i) {
-      // system memory
-      Lux::DBM::data_t *val_data = ary->get(i);
-      ASSERT_TRUE(val_data != NULL);
-      ASSERT_TRUE(i == *(int *) val_data->data);
-      ary->clean_data(val_data);
+    GetNonClusterTest(ary);
 
-      // user memory
-      int val;
-      Lux::DBM::data_t val_data2 = {&val, 0, sizeof(int)};
-      Lux::DBM::data_t *val_p = &val_data2;
-      ASSERT_EQ(true, ary->get(i, &val_p, Lux::DBM::USER));
-      ASSERT_TRUE(i == val);
-      ASSERT_TRUE(sizeof(int) == val_p->size);
-    }
     ASSERT_EQ(true, ary->close());
     delete ary;
   }
+
+  TEST_F(ArrayTest, UpdateNonClusterLinkedTest) {
+    ary = new Lux::DBM::Array(Lux::DBM::NONCLUSTER);
+    ary->set_noncluster_params(Lux::DBM::Linked);
+    std::string db_name = get_db_name(++db_num_);
+    ASSERT_EQ(true, ary->open(db_name.c_str(), Lux::DB_CREAT));
+
+    UpdateNonClusterTest(ary);
+
+    ASSERT_EQ(true, ary->close());
+    delete ary;
+  }
+
+  TEST_F(ArrayTest, GetUpdateNonClusterLinkedTest) {
+    ary = new Lux::DBM::Array(Lux::DBM::NONCLUSTER);
+    ary->set_noncluster_params(Lux::DBM::Linked);
+    std::string db_name = get_db_name(db_num_);
+    ASSERT_EQ(true, ary->open(db_name.c_str(), Lux::DB_RDONLY));
+
+    GetUpdateNonClusterTest(ary);
+
+    ASSERT_EQ(true, ary->close());
+    delete ary;
+  }
+
+  TEST_F(ArrayTest, AppendNonClusterLinkedTest) {
+    ary = new Lux::DBM::Array(Lux::DBM::NONCLUSTER);
+    ary->set_noncluster_params(Lux::DBM::Linked);
+    std::string db_name = get_db_name(++db_num_);
+    ASSERT_EQ(true, ary->open(db_name.c_str(), Lux::DB_CREAT));
+
+    AppendNonClusterTest(ary);
+
+    ASSERT_EQ(true, ary->close());
+    delete ary;
+  }
+
+  TEST_F(ArrayTest, GetAppendNonClusterLinkedTest) {
+    ary = new Lux::DBM::Array(Lux::DBM::NONCLUSTER);
+    ary->set_noncluster_params(Lux::DBM::Linked);
+    std::string db_name = get_db_name(db_num_);
+    ASSERT_EQ(true, ary->open(db_name.c_str(), Lux::DB_RDONLY));
+
+    GetAppendNonClusterTest(ary);
+
+    ASSERT_EQ(true, ary->close());
+    delete ary;
+  }
+
 }
 
 int main(int argc, char *argv[])
