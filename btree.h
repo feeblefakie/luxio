@@ -1251,7 +1251,8 @@ namespace DBM {
         up_entry->key_size = strlen((char *) up_entry->key);
       } else {
         slot_t *slot = slots + boundary_off - 1;
-        up_entry->key = new char[slot->size];
+        up_entry->key = new char[slot->size+1];
+        memset((char *) up_entry->key, 0, slot->size+1);
         memcpy((char *) up_entry->key, (char *) node->b + slot->off, slot->size);
         up_entry->key_size = slot->size;
       }
