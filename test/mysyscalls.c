@@ -33,7 +33,7 @@ ssize_t write(int fd, const void *buf, size_t count)
 /**
  * lseek
  */
-static off_t (*lseek0)(int fildes, off_t offset, int whence)
+static off_t (*lseek0)(int fildes, off_t offset, int whence);
 void __attribute__((constructor))
 init_lseek0()
 {
@@ -53,7 +53,7 @@ off_t lseek(int fildes, off_t offset, int whence)
 /*
  * read
  */
-static ssize_t (*read0)(int fd, void *buf, size_t count)
+static ssize_t (*read0)(int fd, void *buf, size_t count);
 void __attribute__((constructor))
 init_read0()
 {
@@ -73,7 +73,7 @@ ssize_t read(int fd, void *buf, size_t count)
 /*
  * mmap
  */
-static void *(*mmap0)(void *start, size_t length, int prot, int flags, int fd, off_t offset)
+static void *(*mmap0)(void *start, size_t length, int prot, int flags, int fd, off_t offset);
 void __attribute__((constructor))
 init_mmap0()
 {
@@ -84,7 +84,7 @@ void *mmap(void *start, size_t length, int prot, int flags, int fd, off_t offset
 {
   char *p = getenv("SIM_MMAP");
   if (p == NULL) {
-    return (*mmap0)(fd, buf, count);
+    return (*mmap0)(start, length, prot, flags, fd, offset);
   }
   fprintf(stderr, "[simulation] mmap failed\n");
   return MAP_FAILED;
@@ -93,7 +93,7 @@ void *mmap(void *start, size_t length, int prot, int flags, int fd, off_t offset
 /*
  * munmap
  */
-static int (*munmap0)(void *start, size_t length)
+static int (*munmap0)(void *start, size_t length);
 void __attribute__((constructor))
 init_munmap0()
 {
@@ -104,7 +104,7 @@ int munmap(void *start, size_t length)
 {
   char *p = getenv("SIM_MUNMAP");
   if (p == NULL) {
-    return (*munmap0)(fd, buf, count);
+    return (*munmap0)(start, length);
   }
   fprintf(stderr, "[simulation] munmap failed\n");
   return -1;
@@ -113,7 +113,7 @@ int munmap(void *start, size_t length)
 /*
  * ftruncate
  */
-static int (*ftruncate0)ftruncate(int fd, off_t length)
+static int (*ftruncate0)(int fd, off_t length);
 void __attribute__((constructor))
 init_ftruncate0()
 {
@@ -124,7 +124,7 @@ int ftruncate(int fd, off_t length)
 {
   char *p = getenv("SIM_FTRUNCATE");
   if (p == NULL) {
-    return (*ftruncate0)(fd, buf, count);
+    return (*ftruncate0)(fd, length);
   }
   fprintf(stderr, "[simulation] ftruncate failed\n");
   return -1;
