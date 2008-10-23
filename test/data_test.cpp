@@ -97,8 +97,10 @@ namespace {
     ASSERT_EQ(true, dt->open(db_name.c_str(), Lux::DB_CREAT));
 
     data_test(dt);
+#ifdef DEBUG
     dt->show_db_header();
     dt->show_free_pools();
+#endif
 
     ASSERT_EQ(true, dt->close());
   }
@@ -143,8 +145,10 @@ namespace {
     ASSERT_EQ(true, dt->open(db_name.c_str(), Lux::DB_CREAT));
 
     data_test(dt);
+#ifdef DEBUG
     dt->show_db_header();
     dt->show_free_pools();
+#endif
 
     ASSERT_EQ(true, dt->close());
   }

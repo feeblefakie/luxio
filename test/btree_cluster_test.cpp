@@ -122,8 +122,10 @@ namespace {
     std::string db_name = get_db_name(db_num_);
     ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::DB_RDONLY));
 
+#ifdef DEBUG
     bt->show_db_header();
     bt->show_root();
+#endif
 
     ASSERT_EQ(true, bt->close());
   }
