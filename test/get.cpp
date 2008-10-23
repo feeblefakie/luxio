@@ -10,7 +10,7 @@ int main(int argc, char *argv[])
 
   Lux::DBM::Btree *bt = new Lux::DBM::Btree(Lux::DBM::CLUSTER);
   if (!bt->open(argv[1], Lux::DB_CREAT)) {
-    std::cerr << "error happned" << std::endl;
+    std::cerr << "open failed" << std::endl;
     exit(-1);
   }
 
@@ -18,11 +18,12 @@ int main(int argc, char *argv[])
   Lux::DBM::data_t *val = bt->get(&key);
   if (val != NULL) {
     std::cout << "hit: [";
-    std::cout.write(val->data, val->size);
+    std::cout.write((char *) val->data, val->size);
+    std::cout << "]";
     std::cout << std::endl;
-    bt->clean_data(val_data);
+    bt->clean_data(val);
   } else {
-    std::cout << "[error] entry not found. [" << key << "]" << std::endl;
+    std::cout << "[error] entry not found. [" << argv[2] << "]" << std::endl;
   } 
 
   if (!bt->close()) {

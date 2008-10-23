@@ -1,5 +1,5 @@
+#include "../btree.h"
 #include <iostream>
-#include "btree.h"
 
 int main(int argc, char *argv[])
 {
@@ -8,13 +8,13 @@ int main(int argc, char *argv[])
     exit(1);
   }
 
-  Lux::DBM::Btree *bt = new Lux::DBM::Btree;
+  Lux::DBM::Btree *bt = new Lux::DBM::Btree(Lux::DBM::CLUSTER);
   if (!bt->open(argv[1], Lux::DB_RDWR)) {
     std::cerr << "open failed" << std::endl;
     exit(-1);
   }
 
-  data_t key = {argv[2], strlen(argv[2])};
+  Lux::DBM::data_t key = {argv[2], strlen(argv[2])};
   if (!bt->del(&key)) {
     std::cerr << "del failed" << std::endl;  
   }
