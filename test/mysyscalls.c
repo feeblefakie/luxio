@@ -22,8 +22,10 @@ init_write0()
 
 ssize_t write(int fd, const void *buf, size_t count)
 {
-  char *p = getenv("SIM_WRITE");
-  if (p == NULL) {
+  int n;
+  printf("exec libc write? [1/2] ... \n");
+  scanf("%d" , &n);
+  if (n == 1) {
     return (*write0)(fd, buf, count);
   }
   fprintf(stderr, "[simulation] write failed\n");
@@ -42,8 +44,10 @@ init_lseek0()
 
 off_t lseek(int fildes, off_t offset, int whence)
 {
-  char *p = getenv("SIM_LSEEK");
-  if (p == NULL) {
+  int n;
+  printf("exec libc lseek? [1/2] ... \n");
+  scanf("%d" , &n);
+  if (n == 1) {
     return (*lseek0)(fildes, offset, whence);
   }
   fprintf(stderr, "[simulation] lseek failed\n");
@@ -62,8 +66,10 @@ init_read0()
 
 ssize_t read(int fd, void *buf, size_t count)
 {
-  char *p = getenv("SIM_READ");
-  if (p == NULL) {
+  int n;
+  printf("exec libc read? [1/2] ... \n");
+  scanf("%d" , &n);
+  if (n == 1) {
     return (*read0)(fd, buf, count);
   }
   fprintf(stderr, "[simulation] read failed\n");
@@ -82,8 +88,10 @@ init_mmap0()
 
 void *mmap(void *start, size_t length, int prot, int flags, int fd, off_t offset)
 {
-  char *p = getenv("SIM_MMAP");
-  if (p == NULL) {
+  int n;
+  printf("exec libc mmap? [1/2] ... \n");
+  scanf("%d" , &n);
+  if (n == 1) {
     return (*mmap0)(start, length, prot, flags, fd, offset);
   }
   fprintf(stderr, "[simulation] mmap failed\n");
@@ -102,8 +110,10 @@ init_munmap0()
 
 int munmap(void *start, size_t length)
 {
-  char *p = getenv("SIM_MUNMAP");
-  if (p == NULL) {
+  int n;
+  printf("exec libc munmap? [1/2] ... \n");
+  scanf("%d" , &n);
+  if (n == 1) {
     return (*munmap0)(start, length);
   }
   fprintf(stderr, "[simulation] munmap failed\n");
@@ -122,8 +132,10 @@ init_ftruncate0()
 
 int ftruncate(int fd, off_t length)
 {
-  char *p = getenv("SIM_FTRUNCATE");
-  if (p == NULL) {
+  int n;
+  printf("exec libc ftruncate? [1/2] ... \n");
+  scanf("%d" , &n);
+  if (n == 1) {
     return (*ftruncate0)(fd, length);
   }
   fprintf(stderr, "[simulation] ftruncate failed\n");
