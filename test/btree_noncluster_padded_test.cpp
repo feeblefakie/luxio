@@ -240,7 +240,7 @@ namespace {
       Lux::DBM::data_t *val_data = bt->get(key, strlen(key));
       ASSERT_TRUE(val_data != NULL);
       ASSERT_TRUE(strncmp((char *) val_data->data, correct.c_str(), val_data->size) == 0);
-      ASSERT_EQ(80, val_data->size);
+      ASSERT_EQ(correct.size(), val_data->size);
       bt->clean_data(val_data);
       
       // user memory
@@ -251,7 +251,7 @@ namespace {
       Lux::DBM::data_t *val_p = &val_data2;
 
       ASSERT_EQ(true, bt->get(&key_data, &val_p));
-      ASSERT_EQ(80, val_p->size);
+      ASSERT_EQ(correct.size(), val_p->size);
       ASSERT_TRUE(strncmp((char *) val_p->data, correct.c_str(), val_p->size) == 0);
     }
 
@@ -306,7 +306,7 @@ namespace {
       Lux::DBM::data_t *val_data = bt->get(key, strlen(key));
       ASSERT_TRUE(val_data != NULL);
       ASSERT_TRUE(strncmp((char *) val_data->data, correct.c_str(), val_data->size) == 0);
-      ASSERT_EQ(80, val_data->size);
+      ASSERT_EQ(correct.size(), val_data->size);
       bt->clean_data(val_data);
     }
 
