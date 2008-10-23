@@ -9,7 +9,7 @@ int main(int argc, char *argv[])
   }
 
   Lux::DBM::Btree *bt = new Lux::DBM::Btree(Lux::DBM::CLUSTER);
-  if (!bt->open(argv[1], Lux::DB_CREAT)) {
+  if (!bt->open(argv[1], Lux::DB_RDONLY)) {
     std::cerr << "open failed" << std::endl;
     exit(-1);
   }
