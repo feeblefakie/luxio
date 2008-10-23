@@ -267,7 +267,13 @@ namespace DBM {
 
     bool del(const void *key, uint32_t key_size)
     {
-      entry_t entry = {key, key_size, NULL, 0, 0};
+      data_t key_data = {key ,key_size};
+      return del(&key_data);
+    }
+
+    bool del(data_t *key_data)
+    {
+      entry_t entry = {key_data->data, key_data->size, NULL, 0, 0};
 
       if (!wlock_db()) { return false; }
       bool res = _del(dh_->root_id, &entry);
