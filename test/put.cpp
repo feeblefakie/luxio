@@ -14,8 +14,8 @@ int main(int argc, char *argv[])
     exit(-1);
   }
 
-  data_t key = {argv[3], strlen(argv[3])};
-  data_t val = {argv[4], strlen(argv[4])};
+  data_t key = {argv[2], strlen(argv[2])};
+  data_t val = {argv[3], strlen(argv[3])};
 
   if (!bt->put(&key, &val)) {
     std::cerr << "put failed" << std::endl;
