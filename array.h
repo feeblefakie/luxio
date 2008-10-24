@@ -228,16 +228,16 @@ namespace DBM {
         return false;
       }
 
-      if (dh_->index_type == CLUSTER) {
-        // [NOTICE] deleting only fills zero
-        memset(map_ + off, 0, dh_->data_size);
-      } else {
+      if (dh_->index_type == NONCLUSTER) {
         data_ptr_t *data_ptr = (data_ptr_t *) (map_ + off);
         if (!dt_->del(data_ptr)) {
           unlock_db();
           return false;
         }
       }
+      // [NOTICE] deleting only fills zero
+      memset(map_ + off, 0, dh_->data_size);
+
       if (!unlock_db()) { return false; }
       return true;
     }
