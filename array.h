@@ -130,9 +130,8 @@ namespace DBM {
         data->data = new char[dh_->data_size];
         memcpy((char *) data->data, map_ + off, dh_->data_size);
       } else {
-        data_ptr_t data_ptr;
-        memcpy(&data_ptr, map_ + off, sizeof(data_ptr_t));
-        data = dt_->get(&data_ptr);
+        data_ptr_t *data_ptr = (data_ptr_t *) (map_ + off);
+        data = dt_->get(data_ptr);
       }
       if (!unlock_db()) { return NULL; }
       return data;
@@ -162,9 +161,8 @@ namespace DBM {
         memcpy((char *) (*data)->data, map_ + off, dh_->data_size);
         (*data)->size = dh_->data_size;
       } else {
-        data_ptr_t data_ptr;
-        memcpy(&data_ptr, map_ + off, sizeof(data_ptr_t));
-        if (!dt_->get(&data_ptr, data, atype)) {
+        data_ptr_t *data_ptr = (data_ptr_t *) (map_ + off);
+        if (!dt_->get(data_ptr, data, atype)) {
           unlock_db();
           return false;
         }
@@ -198,14 +196,13 @@ namespace DBM {
         memcpy(map_ + off, data->data, dh_->data_size);
       } else {
         data_ptr_t *res_data_ptr;
-        data_ptr_t data_ptr;
-        memcpy(&data_ptr, map_ + off, sizeof(data_ptr_t));
+        data_ptr_t *data_ptr = (data_ptr_t *) (map_ + off);
 
-        if (data_ptr.id != 0 || data_ptr.off != 0) { // already stored
+        if (data_ptr->id != 0 || data_ptr->off != 0) { // already stored
           if (flags == APPEND) {
-            res_data_ptr = dt_->append(&data_ptr, data);
+            res_data_ptr = dt_->append(data_ptr, data);
           } else { // OVERWRITE
-            res_data_ptr = dt_->update(&data_ptr, data);
+            res_data_ptr = dt_->update(data_ptr, data);
           }
         } else {
           res_data_ptr = dt_->put(data);
@@ -235,9 +232,8 @@ namespace DBM {
         // [NOTICE] deleting only fills zero
         memset(map_ + off, 0, dh_->data_size);
       } else {
-        data_ptr_t data_ptr;
-        memcpy(&data_ptr, map_ + off, sizeof(data_ptr_t));
-        if (!dt_->del(&data_ptr)) {
+        data_ptr_t *data_ptr = (data_ptr_t *) (map_ + off);
+        if (!dt_->del(data_ptr)) {
           unlock_db();
           return false;
         }
