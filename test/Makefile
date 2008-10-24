@@ -22,6 +22,29 @@ data_test: data_test.cpp
 array_test: array_test.cpp
 	g++ -g $< -o $@ $(LDFLAGS) -lpthread
 
+mysyscalls: mysyscalls.c
+	gcc -shared -fPIC -o mysyscalls.so $< -ldl
+
+get: get.cpp
+	g++ -g $< -o $@ $ -lpthread $(LDFLAGS) -DDEBUG -DDEBUG_VINFO
+
+getm: getm.cpp
+	g++ -g $< -o $@ $ -lpthread $(LDFLAGS) -DDEBUG -DDEBUG_VINFO
+
+put: put.cpp
+	g++ -g $< -o $@ -lpthread $(LDFLAGS) -DDEBUG -DDEBUG_VINFO
+
+putm: putm.cpp
+	g++ -g $< -o $@ -lpthread $(LDFLAGS) -DDEBUG -DDEBUG_VINFO
+
+del: del.cpp
+	g++ -g $< -o $@ -lpthread $(LDFLAGS) -DDEBUG -DDEBUG_VINFO
+
+info: info.cpp
+	g++ -g $< -o $@ -lpthread $(LDFLAGS) -DDEBUG -DDEBUG_VINFO
+
+easy-checker: get getm put putm del info
+
 check:
 	./btree_cluster_test
 	./btree_noncluster_linked_test
@@ -30,5 +53,5 @@ check:
 	./array_test
 
 clean:
-	rm -rf $(progs) *.bidx *.aidx *.data
+	rm -rf $(progs) *.bidx *.aidx *.data get getm put putm del info
 
