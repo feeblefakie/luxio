@@ -759,7 +759,9 @@ namespace DBM {
       if (node->h->is_leaf) {
         if (node->h->free_size >= entry->size + sizeof(slot_t)) {
           // there is enough space, then just put the entry
-          put_entry_in_leaf(node, entry);
+          if (!put_entry_in_leaf(node, entry)) {
+            return false;
+          }
         } else {
           // no updating if the entry key exists
           
@@ -917,7 +919,7 @@ namespace DBM {
       return id;
     }
 
-    void put_entry_in_leaf(node_t *node, entry_t *entry)
+    bool put_entry_in_leaf(node_t *node, entry_t *entry)
     {
       vinfo_log("put_entry_in_leaf");
       find_res_t *r;
@@ -930,7 +932,7 @@ namespace DBM {
       }
       if (r->type == KEY_FOUND && entry->mode == NOOVERWRITE) {
         delete r;
-        return;
+        return true;
       }
 
       if (dh_->index_type == CLUSTER) {
@@ -957,16 +959,19 @@ namespace DBM {
           } else { // OVERWRITE
             res_data_ptr = dt_->update(data_ptr, &data);
           }
+          if (res_data_ptr == NULL) { return false; }
           memcpy(val_ptr, res_data_ptr, sizeof(data_ptr_t));
         } else {
           // put the data, get the ptr to the data and update the index
           res_data_ptr = dt_->put(&data);
+          if (res_data_ptr == NULL) { return false; }
           _entry.val = res_data_ptr;
           put_entry(node, &_entry, r);
         }
         dt_->clean_data_ptr(res_data_ptr);
       }
       delete r;
+      return true;
     }
 
     void put_entry_in_nonleaf(node_t *node, entry_t *entry)
