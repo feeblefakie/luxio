@@ -449,6 +449,8 @@ namespace {
       // put
       ASSERT_EQ(true, ary->put(i, &i, sizeof(int)));
     }
+    GetClusterTest(ary);
+
     ASSERT_EQ(true, ary->close());
     delete ary;
   }
@@ -463,10 +465,11 @@ namespace {
       // put
       ASSERT_EQ(true, ary->put(i, &i, sizeof(int)));
     }
+    GetClusterTest(ary);
+
     ASSERT_EQ(true, ary->close());
     delete ary;
   }
-
 }
 
 int main(int argc, char *argv[])
