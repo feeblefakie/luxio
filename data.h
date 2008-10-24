@@ -245,8 +245,6 @@ namespace DBM {
     virtual data_ptr_t *update(data_ptr_t *data_ptr, data_t *data) = 0;
     virtual bool del(data_ptr_t *data_ptr) = 0;
     virtual data_t *get(data_ptr_t *data_ptr) = 0;
-    // using user memory
-    //virtual bool get(data_ptr_t *data_ptr, data_t *data, uint32_t *size) = 0;
     virtual bool get(data_ptr_t *data_ptr, data_t **data, alloc_type_t atype) = 0;
 
   protected:
@@ -651,32 +649,6 @@ namespace DBM {
       }
       return data;
     }
-
-    /*
-    // uses user allocated data
-    // [TODO] arguments must be reconsidered. third argument size is kind of confusing.
-    virtual bool get(data_ptr_t *data_ptr, data_t *data, uint32_t *size)
-    {
-      assert(data_ptr->id >= 1 && data_ptr->id <= dh_->num_blocks);
-      record_header_t h;
-      off_t off = calc_off(data_ptr->id, data_ptr->off);
-      if (!_pread(fd_, &h, sizeof(record_header_t), off)) {
-        return false;
-      }
-      if (h.type == AREA_FREE) { return false; }
-
-      *size = h.size - sizeof(record_header_t);
-      if (data->size < *size) {
-        error_log("allocated size is too small for the data.");
-        return false;
-      }
-      if (!_pread(fd_, (char *) data->data, *size, 
-                  off + sizeof(record_header_t))) {
-        return false;
-      }
-      return true;
-    }
-    */
 
     virtual bool get(data_ptr_t *data_ptr, data_t **data, alloc_type_t atype)
     {
