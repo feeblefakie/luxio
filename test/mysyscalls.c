@@ -23,8 +23,10 @@ init_write0()
 ssize_t write(int fd, const void *buf, size_t count)
 {
   int n;
-  printf("exec libc write? [1/2] ... \n");
+  printf("exec 1: libc write. 2: my write ? [1/2] ... \n");
+  fflush(stdout);
   scanf("%d" , &n);
+  fflush(stdin);
   if (n == 1) {
     return (*write0)(fd, buf, count);
   }
@@ -45,8 +47,10 @@ init_lseek0()
 off_t lseek(int fildes, off_t offset, int whence)
 {
   int n;
-  printf("exec libc lseek? [1/2] ... \n");
+  printf("exec 1: libc lseek. 2: my lseek ? [1/2] ... \n");
+  fflush(stdout);
   scanf("%d" , &n);
+  fflush(stdin);
   if (n == 1) {
     return (*lseek0)(fildes, offset, whence);
   }
@@ -67,8 +71,10 @@ init_read0()
 ssize_t read(int fd, void *buf, size_t count)
 {
   int n;
-  printf("exec libc read? [1/2] ... \n");
+  printf("exec 1: libc read. 2: my read ? [1/2] ... \n");
+  fflush(stdout);
   scanf("%d" , &n);
+  fflush(stdin);
   if (n == 1) {
     return (*read0)(fd, buf, count);
   }
@@ -89,8 +95,10 @@ init_mmap0()
 void *mmap(void *start, size_t length, int prot, int flags, int fd, off_t offset)
 {
   int n;
-  printf("exec libc mmap? [1/2] ... \n");
+  printf("exec 1: libc mmap. 2: my mmap ? [1/2] ... \n");
+  fflush(stdout);
   scanf("%d" , &n);
+  fflush(stdin);
   if (n == 1) {
     return (*mmap0)(start, length, prot, flags, fd, offset);
   }
@@ -111,8 +119,10 @@ init_munmap0()
 int munmap(void *start, size_t length)
 {
   int n;
-  printf("exec libc munmap? [1/2] ... \n");
+  printf("exec 1: libc munmap. 2: my munmap ? [1/2] ... \n");
+  fflush(stdout);
   scanf("%d" , &n);
+  fflush(stdin);
   if (n == 1) {
     return (*munmap0)(start, length);
   }
@@ -133,8 +143,10 @@ init_ftruncate0()
 int ftruncate(int fd, off_t length)
 {
   int n;
-  printf("exec libc ftruncate? [1/2] ... \n");
+  printf("exec 1: libc ftruncate. 2: my ftruncate ? [1/2] ... \n");
+  fflush(stdout);
   scanf("%d" , &n);
+  fflush(stdin);
   if (n == 1) {
     return (*ftruncate0)(fd, length);
   }
