@@ -138,6 +138,30 @@ namespace {
     ASSERT_EQ(true, dt->close());
   }
 
+  TEST_F(DataTest, MinBlockSizePaddedDataTest) {
+    dt = new Lux::DBM::PaddedData();
+    dt->set_block_size(Lux::DBM::MIN_BLOCKSIZE);
+    dt->set_padding(Lux::DBM::RATIO);
+    std::string db_name = get_db_name(++db_num_);
+    ASSERT_EQ(true, dt->open(db_name.c_str(), Lux::DB_CREAT));
+
+    data_test(dt);
+
+    ASSERT_EQ(true, dt->close());
+  }
+
+  TEST_F(DataTest, MaxBlockSizePaddedDataTest) {
+    dt = new Lux::DBM::PaddedData();
+    dt->set_block_size(Lux::DBM::MAX_BLOCKSIZE);
+    dt->set_padding(Lux::DBM::RATIO);
+    std::string db_name = get_db_name(++db_num_);
+    ASSERT_EQ(true, dt->open(db_name.c_str(), Lux::DB_CREAT));
+
+    data_test(dt);
+
+    ASSERT_EQ(true, dt->close());
+  }
+
   TEST_F(DataTest, LinkedDataTest) {
     dt = new Lux::DBM::LinkedData();
     dt->set_padding(Lux::DBM::PO2);
@@ -177,6 +201,30 @@ namespace {
 
   TEST_F(DataTest, RatioLinkedDataTest) {
     dt = new Lux::DBM::LinkedData();
+    dt->set_padding(Lux::DBM::RATIO);
+    std::string db_name = get_db_name(++db_num_);
+    ASSERT_EQ(true, dt->open(db_name.c_str(), Lux::DB_CREAT));
+
+    data_test(dt);
+
+    ASSERT_EQ(true, dt->close());
+  }
+
+  TEST_F(DataTest, MinBlockSizeLinkedDataTest) {
+    dt = new Lux::DBM::LinkedData();
+    dt->set_block_size(Lux::DBM::MIN_BLOCKSIZE);
+    dt->set_padding(Lux::DBM::RATIO);
+    std::string db_name = get_db_name(++db_num_);
+    ASSERT_EQ(true, dt->open(db_name.c_str(), Lux::DB_CREAT));
+
+    data_test(dt);
+
+    ASSERT_EQ(true, dt->close());
+  }
+
+  TEST_F(DataTest, MaxBlockSizeLinkedDataTest) {
+    dt = new Lux::DBM::LinkedData();
+    dt->set_block_size(Lux::DBM::MAX_BLOCKSIZE);
     dt->set_padding(Lux::DBM::RATIO);
     std::string db_name = get_db_name(++db_num_);
     ASSERT_EQ(true, dt->open(db_name.c_str(), Lux::DB_CREAT));
