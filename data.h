@@ -832,6 +832,7 @@ namespace DBM {
           return NULL;
         }
 
+        clean_data_ptr(dp);
         clear_unit(unit);
       }
       if (!_pwrite(fd_, &u, sizeof(unit_header_t), last_off)) {
