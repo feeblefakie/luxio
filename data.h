@@ -246,7 +246,7 @@ namespace DBM {
     virtual bool del(data_ptr_t *data_ptr) = 0;
     virtual data_t *get(data_ptr_t *data_ptr) = 0;
     // using user memory
-    virtual bool get(data_ptr_t *data_ptr, data_t *data, uint32_t *size) = 0;
+    //virtual bool get(data_ptr_t *data_ptr, data_t *data, uint32_t *size) = 0;
     virtual bool get(data_ptr_t *data_ptr, data_t **data, alloc_type_t atype) = 0;
 
   protected:
@@ -344,6 +344,7 @@ namespace DBM {
 
     bool _prepend_free_pool(block_id_t id, uint16_t off_in_block, uint32_t size, int pow)
     {
+      vinfo_log("_prepend_free_pool");
       free_pool_ptr_t ptr = {id, off_in_block, size};
       off_t off = calc_off(id, off_in_block);
       if (dh_->is_pool_empty[pow-1]) {
@@ -419,6 +420,7 @@ namespace DBM {
 
     bool extend_blocks(uint32_t append_num_blocks)
     {
+      vinfo_log("extend_blocks");
       dh_->cur_block_id = dh_->num_blocks + 1;
       dh_->num_blocks += append_num_blocks;
       if (ftruncate(fd_, header_size_ + dh_->block_size * dh_->num_blocks) < 0) {
@@ -443,6 +445,7 @@ namespace DBM {
 
     data_ptr_t *alloc_space(uint32_t size)
     {
+      vinfo_log("alloc_space");
       data_ptr_t *data_ptr = new data_ptr_t;
       free_pool_ptr_t pool;
       if (search_free_pool(size, &pool)) {
@@ -649,6 +652,7 @@ namespace DBM {
       return data;
     }
 
+    /*
     // uses user allocated data
     // [TODO] arguments must be reconsidered. third argument size is kind of confusing.
     virtual bool get(data_ptr_t *data_ptr, data_t *data, uint32_t *size)
@@ -672,6 +676,7 @@ namespace DBM {
       }
       return true;
     }
+    */
 
     virtual bool get(data_ptr_t *data_ptr, data_t **data, alloc_type_t atype)
     {
@@ -726,6 +731,7 @@ namespace DBM {
 
     bool write_record(record_t *r, data_ptr_t *dp)
     {
+      vinfo_log("write_record");
       off_t off = calc_off(dp->id, dp->off);
       if (!write_header_and_data(r->h, r->d, off)) {
         return false;
@@ -986,8 +992,9 @@ namespace DBM {
       return data;
     }
 
+/*
     virtual bool get(data_ptr_t *data_ptr, data_t *data, uint32_t *size)
-    { 
+    {
       assert(data_ptr->id >= 1 && data_ptr->id <= dh_->num_blocks);
       record_header_t h;
       off_t off = calc_off(data_ptr->id, data_ptr->off);
@@ -1026,6 +1033,7 @@ namespace DBM {
 
       return true;
     }
+    */
 
     virtual bool get(data_ptr_t *data_ptr, data_t **data, alloc_type_t atype)
     {
@@ -1122,6 +1130,7 @@ namespace DBM {
 
     bool write_record(record_t *r, data_ptr_t *dp)
     {
+      vinfo_log("write_record");
       off_t off = calc_off(dp->id, dp->off);
       if (!_pwrite(fd_, r->h, sizeof(record_header_t), off)) {
         return false;
@@ -1135,6 +1144,7 @@ namespace DBM {
 
     bool write_unit(unit_t *u, data_ptr_t *dp)
     {
+      vinfo_log("write_unit");
       off_t off = calc_off(dp->id, dp->off);
       if (!write_header_and_data(u->h, u->d, off)) {
         return false;
