@@ -576,7 +576,7 @@ namespace DBM {
           error_log("write failed.");
           return false;
         }
-        if (!alloc_page(dh.num_nodes, dh.node_size)) {
+        if (!alloc_page(dh.num_nodes, dh.node_size, 0)) {
           error_log("alloc_page failed.");
           return false;
         }
@@ -1108,11 +1108,11 @@ namespace DBM {
         error_log("munmap failed.");
         return false;
       }
-      ++num_nodes; // one page appendiing
-      return alloc_page(num_nodes, node_size);
+      // one page appendiing
+      return alloc_page(num_nodes + 1, node_size, num_nodes);
     }
 
-    bool alloc_page(uint32_t num_nodes, uint32_t node_size)
+    bool alloc_page(uint32_t num_nodes, uint32_t node_size, uint32_t prev_num_nodes)
     {
       vinfo_log("alloc_page");
       if (ftruncate(fd_, node_size * num_nodes) < 0) {
@@ -1121,7 +1121,11 @@ namespace DBM {
       }
       map_ = (char *) _mmap(fd_, node_size * num_nodes, oflags_);
       if (map_ == NULL) {
-        error_log("mmap failed.");
+        error_log("mmap failed. ftruncating back ...");
+        if (ftruncate(fd_, node_size * prev_num_nodes) < 0) {
+          error_log("ftruncate failed.");
+          return false;
+        }
         return false;
       }
       dh_ = (btree_header_t *) map_;
