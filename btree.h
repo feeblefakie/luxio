@@ -192,10 +192,12 @@ namespace DBM {
     bool close()
     {
       if (!wlock_db()) { return false; }
-      if (oflags_ != O_RDONLY && map_ != NULL) {
-        if (msync(map_, dh_->node_size * dh_->num_nodes, MS_SYNC) < 0) {
-          error_log("msync failed.");
-          return false;
+      if (map_ != NULL) {
+        if (oflags_ != O_RDONLY) {
+          if (msync(map_, dh_->node_size * dh_->num_nodes, MS_SYNC) < 0) {
+            error_log("msync failed.");
+            return false;
+          }
         }
         if (munmap(map_, dh_->node_size * dh_->num_nodes) < 0) {
           error_log("munmap failed.");
@@ -751,6 +753,7 @@ namespace DBM {
 
     bool _insert(node_id_t id, entry_t *entry, up_entry_t **up_entry, bool &is_split)
     {
+      vinfo_log("_insert");
       assert(id >= 1 && id <= dh_->num_nodes - 1);
       node_t *node = _alloc_node(id);
       if (node->h->is_leaf) {
@@ -916,6 +919,7 @@ namespace DBM {
 
     void put_entry_in_leaf(node_t *node, entry_t *entry)
     {
+      vinfo_log("put_entry_in_leaf");
       find_res_t *r;
       if (is_bulk_loading_) {
         // always expect biggest keys in bulk loading
@@ -967,6 +971,7 @@ namespace DBM {
 
     void put_entry_in_nonleaf(node_t *node, entry_t *entry)
     {
+      vinfo_log("put_entry_in_nonleaf");
       node_header_t *h = node->h;
       node_body_t *b = node->b;
 
@@ -977,6 +982,7 @@ namespace DBM {
  
     void put_entry(node_t *node, entry_t *entry, find_res_t *r)
     {
+      vinfo_log("put_entry");
       // append entry
       char *data_p = (char *) node->b + node->h->data_off;
       char *free_p = (char *) node->b + node->h->free_off;
@@ -1094,6 +1100,7 @@ namespace DBM {
 
     bool append_page(void)
     {
+      vinfo_log("append_page");
       uint32_t num_nodes = dh_->num_nodes;
       uint32_t node_size = dh_->node_size;
 
@@ -1107,6 +1114,7 @@ namespace DBM {
 
     bool alloc_page(uint32_t num_nodes, uint32_t node_size)
     {
+      vinfo_log("alloc_page");
       if (ftruncate(fd_, node_size * num_nodes) < 0) {
         error_log("ftruncate failed.");
         return false;
@@ -1125,6 +1133,7 @@ namespace DBM {
     
     bool split_node(node_t *node, node_t *new_node, up_entry_t **up_entry)
     {
+      vinfo_log("split_node");
       // current node slots
       slot_t *slots = (slot_t *) ((char *) node->b + node->h->free_off);
 
