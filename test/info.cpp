@@ -3,8 +3,8 @@
 
 int main(int argc, char *argv[])
 {
-  if (argc != 4) {
-    std::cerr << "Usage: " << argv[0] << " dbname c|n key(string)" << std::endl; 
+  if (argc != 3) {
+    std::cerr << "Usage: " << argv[0] << " dbname c|n" << std::endl; 
     exit(1);
   }
 
@@ -23,17 +23,8 @@ int main(int argc, char *argv[])
     exit(-1);
   }
 
-  Lux::DBM::data_t key = {argv[3], strlen(argv[3])};
-  Lux::DBM::data_t *val = bt->get(&key);
-  if (val != NULL) {
-    std::cout << "hit: [";
-    std::cout.write((char *) val->data, val->size);
-    std::cout << "]";
-    std::cout << std::endl;
-    bt->clean_data(val);
-  } else {
-    std::cout << "[error] entry not found. [" << argv[2] << "]" << std::endl;
-  } 
+  bt->show_db_header();
+  bt->show_root();
 
   if (!bt->close()) {
     std::cerr << "close failed" << std::endl;

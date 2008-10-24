@@ -4,7 +4,7 @@
 int main(int argc, char *argv[])
 {
   if (argc != 4) {
-    std::cerr << "Usage: " << argv[0] << " dbname c|n key(string)" << std::endl; 
+    std::cerr << "Usage: " << argv[0] << " dbname c|n num_records" << std::endl; 
     exit(1);
   }
 
@@ -19,24 +19,26 @@ int main(int argc, char *argv[])
   }
 
   if (!bt->open(argv[1], Lux::DB_RDONLY)) {
-    std::cerr << "open failed" << std::endl;
+    std::cerr << "error happned" << std::endl;
     exit(-1);
   }
 
-  Lux::DBM::data_t key = {argv[3], strlen(argv[3])};
-  Lux::DBM::data_t *val = bt->get(&key);
-  if (val != NULL) {
-    std::cout << "hit: [";
-    std::cout.write((char *) val->data, val->size);
-    std::cout << "]";
-    std::cout << std::endl;
-    bt->clean_data(val);
-  } else {
-    std::cout << "[error] entry not found. [" << argv[2] << "]" << std::endl;
-  } 
+  int rnum = atoi(argv[3]);
+  for (int i = 0; i < rnum; ++i) {
+    char str[9];
+    memset(str, 0, 9);
+    sprintf(str,"%08d", i);
+    Lux::DBM::data_t data = {str, strlen(str)};
 
+    Lux::DBM::data_t *val = bt->get(&data);
+    if (val == NULL) {
+      std::cerr << "get failed for " << str << std::endl;
+    }
+    bt->clean_data(val);
+  }
   if (!bt->close()) {
     std::cerr << "close failed" << std::endl;
+    exit(-1);
   }
   delete bt;
 

@@ -4,7 +4,7 @@
 int main(int argc, char *argv[])
 {
   if (argc != 4) {
-    std::cerr << "Usage: " << argv[0] << " dbname c|n key(string)" << std::endl; 
+    std::cerr << "Usage: " << argv[0] << " dbname c|n num_records" << std::endl; 
     exit(1);
   }
 
@@ -18,16 +18,22 @@ int main(int argc, char *argv[])
     exit(-1);
   }
 
-  if (!bt->open(argv[1], Lux::DB_RDWR)) {
-    std::cerr << "open failed" << std::endl;
+  if (!bt->open(argv[1], Lux::DB_CREAT)) {
+    std::cerr << "error happned" << std::endl;
     exit(-1);
   }
 
-  Lux::DBM::data_t key = {argv[3], strlen(argv[3])};
-  if (!bt->del(&key)) {
-    std::cerr << "del failed" << std::endl;  
-  }
+  int rnum = atoi(argv[3]);
+  for (int i = 0; i < rnum; ++i) {
+    char str[9];
+    memset(str, 0, 9);
+    sprintf(str,"%08d", i);
+    Lux::DBM::data_t data = {str, strlen(str)};
 
+    if (!bt->put(&data, &data)) {
+      std::cerr << "put failed" << std::endl;
+    }
+  }
   if (!bt->close()) {
     std::cerr << "close failed" << std::endl;
     exit(-1);
