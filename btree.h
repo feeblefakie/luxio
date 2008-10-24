@@ -196,11 +196,13 @@ namespace DBM {
         if (oflags_ != O_RDONLY) {
           if (msync(map_, dh_->node_size * dh_->num_nodes, MS_SYNC) < 0) {
             error_log("msync failed.");
+            unlock_db();
             return false;
           }
         }
         if (munmap(map_, dh_->node_size * dh_->num_nodes) < 0) {
           error_log("munmap failed.");
+          unlock_db();
           return false;
         }
       }
