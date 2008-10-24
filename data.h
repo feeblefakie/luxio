@@ -432,6 +432,7 @@ namespace DBM {
     template<typename T>
     bool write_header_and_data(T *h, data_t *d, off_t off)
     {
+      vinfo_log("write_header_and_data");
       // write headers and data
       if (!_pwrite(fd_, h, sizeof(T), off)) {
         return false;
