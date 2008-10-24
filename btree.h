@@ -120,18 +120,12 @@ namespace DBM {
   }
   int int32_cmp_func(data_t &d1, data_t &d2)
   {
-    int32_t i1, i2;
-    memcpy(&i1, d1.data, sizeof(int32_t));
-    memcpy(&i2, d2.data, sizeof(int32_t));
-    return (i1 - i2); 
+    return (*(int32_t *) d1.data - *(int32_t *) d2.data);
   };
   int uint32_cmp_func(data_t &d1, data_t &d2)
   {
-    uint32_t i1, i2;
-    memcpy(&i1, d1.data, sizeof(int32_t));
-    memcpy(&i2, d2.data, sizeof(int32_t));
-    if (i1 < i2) return -1; 
-    else if (i1 == i2) return 0;
+    if (*(uint32_t *) d1.data < *(uint32_t *) d2.data) return -1; 
+    else if (*(uint32_t *) d1.data == *(uint32_t *) d2.data) return 0;
     else return 1;
   };
   typedef int (*CMP)(data_t &d1, data_t &d2);
