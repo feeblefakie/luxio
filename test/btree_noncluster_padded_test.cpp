@@ -16,7 +16,7 @@ namespace {
     {
       bt = new Lux::DBM::Btree(Lux::DBM::NONCLUSTER);
       db_name_ = "btncp_test";
-      num_entries_ = TINY_NUM_ENTRIES;
+      num_entries_ = SMALL_NUM_ENTRIES;
     }
     virtual void TearDown()
     {
