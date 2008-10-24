@@ -18,6 +18,15 @@
 #define error_log(msg)
 #endif
 
+// for verbose info logging
+#ifdef DEBUG_VINFO
+#define vinfo_log(msg) \
+  std::cerr << "[info] " << msg \
+            << std::endl; 
+#else
+#define error_log(msg)
+#endif
+
 namespace Lux {
 
   void _mkdir(const char *str)
