@@ -19,7 +19,6 @@ namespace {
     }
     virtual void TearDown()
     {
-      delete bt;
       bt = NULL;
     }
     std::string get_db_name(uint32_t num)
@@ -63,6 +62,7 @@ namespace {
       ASSERT_EQ(i+1, bt->get_auto_increment_id());
     }
     ASSERT_EQ(true, bt->close());
+    delete bt;
   }
 
   /* 
@@ -109,6 +109,7 @@ namespace {
       ASSERT_TRUE(i == val);
     }
     ASSERT_EQ(true, bt->close());
+    delete bt;
   }
 
   /* 
@@ -128,6 +129,7 @@ namespace {
 #endif
 
     ASSERT_EQ(true, bt->close());
+    delete bt;
   }
 
   /* 
@@ -183,6 +185,7 @@ namespace {
     ASSERT_EQ(true, bt->cursor_fin(c));
 
     ASSERT_EQ(true, bt->close());
+    delete bt;
   }
 
   /* 
@@ -211,6 +214,7 @@ namespace {
       ASSERT_TRUE(bt->get(key, strlen(key)) == NULL);
     }
     ASSERT_EQ(true, bt->close());
+    delete bt;
   }
 
   /* 
@@ -233,6 +237,7 @@ namespace {
       ASSERT_EQ(true, bt->put(key, strlen(key), &num, sizeof(int)));
     }
     ASSERT_EQ(true, bt->close());
+    delete bt;
   }
 
   /* 
@@ -259,6 +264,7 @@ namespace {
       }
     }
     ASSERT_EQ(true, bt->close());
+    delete bt;
   }
 
   /* 
@@ -281,6 +287,7 @@ namespace {
       ASSERT_EQ(true, bt->put(&i, sizeof(int), val, strlen(val)));
     }
     ASSERT_EQ(true, bt->close());
+    delete bt;
   }
 
   /* 
@@ -306,6 +313,7 @@ namespace {
       bt->clean_data(val_data);
     }
     ASSERT_EQ(true, bt->close());
+    delete bt;
   }
 
   /* 
@@ -334,6 +342,7 @@ namespace {
     ASSERT_TRUE(bt->get(key2, strlen(key2)) == NULL);
 
     ASSERT_EQ(true, bt->close());
+    delete bt;
   }
 
   /* 
@@ -364,6 +373,7 @@ namespace {
     bt->clean_data(val_data);
 
     ASSERT_EQ(true, bt->close());
+    delete bt;
   }
 
   /* 
@@ -396,6 +406,7 @@ namespace {
     }
 
     ASSERT_EQ(true, bt->close());
+    delete bt;
   }
 
   /* 
@@ -427,6 +438,7 @@ namespace {
       bt->clean_data(val_data);
     }
     ASSERT_EQ(true, bt->close());
+    delete bt;
   }
 
   /* 
@@ -458,6 +470,7 @@ namespace {
       bt->clean_data(val_data);
     }
     ASSERT_EQ(true, bt->close());
+    delete bt;
   }
 
   /* 
@@ -490,6 +503,7 @@ namespace {
       bt->clean_data(val_data);
     }
     ASSERT_EQ(true, bt->close());
+    delete bt;
   }
 
   /* 
@@ -513,6 +527,7 @@ namespace {
     bt->set_bulk_loading(false);
 
     ASSERT_EQ(true, bt->close());
+    delete bt;
   }
 }
 
