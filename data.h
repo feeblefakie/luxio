@@ -320,6 +320,7 @@ namespace DBM {
 
     bool add_free_pool(block_id_t block_id, uint16_t off_in_block, uint32_t size)
     {
+      vinfo_log("add_free_pool");
       bool is_appended = false;
       for (int i = 32; i >= 5; --i) { 
         if (size >= pows_[i-1]) {
@@ -1127,6 +1128,7 @@ namespace DBM {
     data_ptr_t *put_unit(unit_t *u)
     {
       data_ptr_t *data_ptr = alloc_space(u->h->padded_size);
+      if (data_ptr == NULL) { return false; }
       if (!write_unit(u, data_ptr)) {
         return NULL;
       }
