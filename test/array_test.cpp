@@ -246,6 +246,20 @@ namespace {
     delete ary;
   }
 
+  TEST_F(ArrayTest, DebugPrintTest) {
+    ary = new Lux::DBM::Array(Lux::DBM::CLUSTER);
+    std::string db_name = get_db_name(db_num_);
+    ASSERT_EQ(true, ary->open(db_name.c_str(), Lux::DB_RDONLY));
+
+#ifdef DEBUG
+    ary->show_db_header();
+#endif
+
+    ASSERT_EQ(true, ary->close());
+    delete ary;
+  }
+
+
   TEST_F(ArrayTest, DelTest) {
     ary = new Lux::DBM::Array(Lux::DBM::CLUSTER);
     std::string db_name = get_db_name(db_num_);
