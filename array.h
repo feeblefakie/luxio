@@ -94,10 +94,12 @@ namespace DBM {
       if (map_ != NULL) {
         if (msync(map_, dh_->page_size * dh_->num_pages, MS_SYNC) < 0) {
           error_log("msync failed.");
+          unlock_db();
           return false;
         }
         if (munmap(map_, dh_->page_size * dh_->num_pages) < 0) {
           error_log("munmap failed.");
+          unlock_db();
           return false;
         }
         map_ = NULL;
@@ -117,7 +119,10 @@ namespace DBM {
       if (!rlock_db()) { return NULL; }
       off_t off = index * dh_->data_size + dh_->page_size;
       assert(off + dh_->data_size <= allocated_size_);
-      if (off + dh_->data_size > allocated_size_) { return NULL; }
+      if (off + dh_->data_size > allocated_size_) {
+        unlock_db();
+        return NULL;
+      }
 
       if (dh_->index_type == CLUSTER) {
         data = new data_t;
@@ -138,7 +143,10 @@ namespace DBM {
       if (!rlock_db()) { return false; }
       off_t off = index * dh_->data_size + dh_->page_size;
       assert(off + dh_->data_size <= allocated_size_);
-      if (off + dh_->data_size > allocated_size_) { return false; }
+      if (off + dh_->data_size > allocated_size_) {
+        unlock_db();
+        return false;
+      }
 
       if (dh_->index_type == CLUSTER) {
         if (atype == SYSTEM) {
@@ -147,6 +155,7 @@ namespace DBM {
         } else {
           if ((*data)->user_alloc_size < dh_->data_size) {
             error_log("allocated size is too small for the data.");
+            unlock_db();
             return false;
           }
         }
@@ -156,6 +165,7 @@ namespace DBM {
         data_ptr_t data_ptr;
         memcpy(&data_ptr, map_ + off, sizeof(data_ptr_t));
         if (!dt_->get(&data_ptr, data, atype)) {
+          unlock_db();
           return false;
         }
       }
@@ -178,6 +188,7 @@ namespace DBM {
         div_t d = div(off + dh_->data_size, dh_->page_size);
         uint32_t page_num = d.rem > 0 ? d.quot + 1 : d.quot;
         if (!realloc_pages(page_num, dh_->page_size)) {
+          unlock_db();
           return false;
         }
       }
@@ -199,6 +210,10 @@ namespace DBM {
         } else {
           res_data_ptr = dt_->put(data);
         }
+        if (res_data_ptr == NULL) {
+          unlock_db();
+          return false;
+        }
         memcpy(map_ + off, res_data_ptr, sizeof(data_ptr_t));
         dt_->clean_data_ptr(res_data_ptr);
       }
@@ -211,7 +226,10 @@ namespace DBM {
       if (!wlock_db()) { return false; }
       off_t off = index * dh_->data_size + dh_->page_size;
       assert(off + dh_->data_size <= allocated_size_);
-      if (off + dh_->data_size > allocated_size_) { return false; }
+      if (off + dh_->data_size > allocated_size_) {
+        unlock_db();
+        return false;
+      }
 
       if (dh_->index_type == CLUSTER) {
         // [NOTICE] deleting only fills zero
@@ -219,7 +237,10 @@ namespace DBM {
       } else {
         data_ptr_t data_ptr;
         memcpy(&data_ptr, map_ + off, sizeof(data_ptr_t));
-        dt_->del(&data_ptr);
+        if (!dt_->del(&data_ptr)) {
+          unlock_db();
+          return false;
+        }
       }
       if (!unlock_db()) { return false; }
       return true;
