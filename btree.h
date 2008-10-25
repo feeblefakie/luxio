@@ -1109,6 +1109,7 @@ namespace DBM {
         error_log("munmap failed.");
         return false;
       }
+      map_ = NULL;
       // one page appendiing
       return alloc_page(num_nodes + 1, node_size, num_nodes);
     }
