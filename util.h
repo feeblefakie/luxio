@@ -24,7 +24,7 @@
   std::cerr << "[info] " << msg \
             << std::endl; 
 #else
-#define error_log(msg)
+#define vinfo_log(msg)
 #endif
 
 namespace Lux {
