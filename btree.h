@@ -944,7 +944,10 @@ namespace DBM {
       if (dh_->index_type == CLUSTER) {
         if (r->type == KEY_FOUND) {
           // append is not supported in b+-tree cluster index. only updating
-          // [TODO] when append option is set, gives an error
+          if (entry->mode == APPEND) {
+            error_log("append is not supported in cluster index");
+            return false;
+          }
           char *val_p = (char *) r->data_p + entry->key_size;
           // check if updating entry is bigger than existing
           if (entry->val_size > *(uint8_t *) val_p + sizeof(uint8_t)) {
