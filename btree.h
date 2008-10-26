@@ -246,32 +246,26 @@ namespace DBM {
       return put(&key_data, &val_data, flags);
     }
 
-    bool put(data_t *key_data, data_t *val_data, insert_mode_t flags = OVERWRITE)
+    bool put(data_t *k, data_t *v, insert_mode_t flags = OVERWRITE)
     {
       bool res = true;
-      if (!check_limit(key_data->size, val_data->size)) { return false; }
+      if (!check_limit(k->size, v->size)) { return false; }
       if (!wlock_db()) { return false; }
 
-      // [TODO] need to be changed for variable-byte value
-      data_t val = {NULL, val_data->size + sizeof(uint8_t)};
-      char data[val.size];
-      uint32_t entry_size = key_data->size;
+      uint32_t val_size = v->size + sizeof(uint8_t);
+      char data[val_size];
+      data_t val = {data, val_size}; // for size prepended
+      uint32_t entry_size = k->size;
       if (dh_->index_type == CLUSTER) {
-        uint8_t size = val_data->size;
-        memcpy(data, &size, sizeof(uint8_t)); 
-        memcpy(data + sizeof(uint8_t), val_data->data, val_data->size);
-        val.data = data;
-        val_data = &val;
+        prepend_size_and_copy(data, (char *) v->data, v->size);
+        v = &val;
         entry_size += val.size;
       } else {
         entry_size += sizeof(data_ptr_t);
       }
-
-      entry_t entry = {(char *) key_data->data, key_data->size,
-                       (char *) val_data->data, val_data->size,
-                       //key_data->size + dh_->data_size,
-                       entry_size,
-                       flags};
+      entry_t entry = {(char *) k->data, k->size,
+                       (char *) v->data, v->size,
+                       entry_size, flags};
       up_entry_t *up_entry = NULL;
     
       res = insert(&entry, &up_entry);
@@ -725,18 +719,12 @@ namespace DBM {
     bool get_data(char *p, data_t **data, alloc_type_t atype)
     {
       if (dh_->index_type == CLUSTER) {
-        // [TODO] need to be changed for variable-byte value
-        // data size differs in cluster and non-cluster
-        // first, must get the first byte, then get the data
         uint8_t *size = (uint8_t *) p;
         if (atype == SYSTEM) {
           *data = new data_t;
-          //(*data)->data = (char *) new char[dh_->data_size];
           (*data)->data = (char *) new char[*size];
         }
-        //(*data)->size = dh_->data_size;
         (*data)->size = *size;
-        //memcpy((void *) (*data)->data, p, dh_->data_size);
         memcpy((void *) (*data)->data, p + sizeof(uint8_t), *size);
       } else {
         data_ptr_t *data_ptr = (data_ptr_t *) p;
@@ -745,6 +733,12 @@ namespace DBM {
         }
       }
       return true;
+    }
+
+    void prepend_size_and_copy(char *to, char *from, uint8_t size)
+    {
+      memcpy(to, &size, sizeof(uint8_t));
+      memcpy(to + sizeof(uint8_t), from, size); 
     }
 
     bool insert(entry_t *entry, up_entry_t **up_entry)
@@ -961,22 +955,19 @@ namespace DBM {
       if (dh_->index_type == CLUSTER) {
         if (r->type == KEY_FOUND) {
           // append is not supported in b+-tree cluster index. only updating
-          // [TODO] need to be changed for variable-byte value
-          // and must check if updating value is equal to or less than the existing value
+          // [TODO] when append option is set, gives an error
           char *val_p = (char *) r->data_p + entry->key_size;
           // check if updating entry is bigger than existing
-          if (entry->val_size > *(uint8_t *) val_p + sizeof(uint8_t)) { return false; }
+          if (entry->val_size > *(uint8_t *) val_p + sizeof(uint8_t)) {
+            return false;
+          }
           memcpy(val_p, entry->val, entry->val_size);
         } else {
           put_entry(node, entry, r);
         }
       } else {
-        // [TODO] need to be changed for variable-byte value
-        // dh_->data_size might be removed 
-        //entry_t _entry = {entry->key, entry->key_size,
-        //                  NULL, dh_->data_size, entry->size, entry->mode};
         entry_t _entry = {entry->key, entry->key_size,
-                          NULL, entry->val_size, entry->size, entry->mode};
+                          NULL, sizeof(data_ptr_t), entry->size, entry->mode};
         data_t data = {entry->val, entry->val_size};
         data_ptr_t *res_data_ptr;
 
@@ -987,7 +978,7 @@ namespace DBM {
           // append or update the data, get the ptr to the data and update the index
           if (entry->mode == APPEND) {
             res_data_ptr = dt_->append(data_ptr, &data);
-          } else { // OVERWRITE
+          } else {
             res_data_ptr = dt_->update(data_ptr, &data);
           }
           if (res_data_ptr == NULL) { return false; }
@@ -1023,7 +1014,6 @@ namespace DBM {
       char *data_p = (char *) node->b + node->h->data_off;
       char *free_p = (char *) node->b + node->h->free_off;
       memcpy(data_p, entry->key, entry->key_size);
-      // [TODO] need to be changed for variable-byte value
       memcpy(data_p + entry->key_size, entry->val, entry->val_size);
 
       // organize ordered slots
@@ -1267,11 +1257,7 @@ namespace DBM {
     {
       vinfo_log("copy_entries");
       for (int i = slot_from; i >= slot_to; --i) {
-        // [TODO] need to be changed for variable-byte value
-        // data_size differs in cluster and non-cluster
-        // must get the first byte for the data size
         char *entry_p = (char *) node->b + (slots+i)->off;
-        //uint32_t entry_size = (slots+i)->size + dh_->data_size;
         uint32_t entry_size = (slots+i)->size; // key_size
         if (dh_->index_type == CLUSTER) {
           if (node->h->is_leaf) {
@@ -1283,7 +1269,6 @@ namespace DBM {
         } else {
           entry_size += sizeof(data_ptr_t); // +val_size
         }
-        //memcpy(dp + data_off, (char *) node->b + (slots+i)->off, entry_size);
         memcpy(dp + data_off, entry_p, entry_size);
         // new slot for the entry above
         slot_t slot = { data_off, (slots+i)->size };
