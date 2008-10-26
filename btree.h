@@ -31,8 +31,8 @@ namespace Lux {
 namespace DBM {
 
   const char *MAGIC = "LUXBT001";
-  static const uint32_t MAX_KSIZE = 256;
-  static const uint32_t CLUSTER_MAX_VSIZE = 256;
+  static const uint32_t MAX_KSIZE = 255;
+  static const uint32_t CLUSTER_MAX_VSIZE = 255;
   static const uint32_t NONCLUSTER_MAX_VSIZE = UINT32_MAX;
 
   // global header
