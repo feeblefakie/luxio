@@ -53,5 +53,5 @@ check:
 	./array_test
 
 clean:
-	rm -rf $(progs) *.bidx *.aidx *.data get getm put putm del info
+	rm -rf $(progs) *.bidx *.aidx *.data get getm put putm del info *.gcda *.gcno
 
