@@ -408,7 +408,7 @@ namespace {
     ASSERT_TRUE(val_data == NULL);
     ASSERT_EQ(true, bt->put(&key, sizeof(int), val1, strlen(val1)));
     val_data = bt->get(&key, sizeof(int));
-    ASSERT_TRUE(bt->get(&key, sizeof(int)) != NULL);
+    ASSERT_TRUE(val_data != NULL);
     bt->clean_data(val_data);
 
     ASSERT_EQ(true, bt->close());
