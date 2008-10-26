@@ -215,6 +215,7 @@ namespace DBM {
     data_t *get(data_t *k)
     {
       data_t *v = NULL;
+      if (!check_key(k->size)) { return false; }
       if (!rlock_db()) { return NULL; }
       if (!find(dh_->root_id, k, &v, SYSTEM)) {
         clean_data(v);
@@ -226,6 +227,7 @@ namespace DBM {
     bool get(data_t *k, data_t **v, alloc_type_t atype = USER)
     {
       bool res = true;
+      if (!check_key(k->size)) { return false; }
       if (!rlock_db()) { return false; }
       res = find(dh_->root_id, k, v, atype);
       if (!res && atype == SYSTEM) {
@@ -246,7 +248,9 @@ namespace DBM {
     bool put(data_t *k, data_t *v, insert_mode_t flags = OVERWRITE)
     {
       bool res = true;
-      if (!check_limit(k->size, v->size)) { return false; }
+      if (!check_key(k->size) || !check_val(v->size)) {
+        return false;
+      }
       if (!wlock_db()) { return false; }
 
       uint32_t val_size = v->size + sizeof(uint8_t);
@@ -278,6 +282,7 @@ namespace DBM {
 
     bool del(data_t *k)
     {
+      if (!check_key(k->size)) { return false; }
       entry_t entry = {k->data, k->size, NULL, 0, 0};
 
       if (!wlock_db()) { return false; }
@@ -1400,9 +1405,17 @@ namespace DBM {
       return true;
     }
 
-    bool check_limit(uint32_t key_size, uint32_t val_size)
+    bool check_key(uint32_t key_size)
     {
-      if (key_size > MAX_KSIZE) {
+      if (key_size > MAX_KSIZE || key_size <= 0) {
+        return false;
+      }
+      return true;
+    }
+    
+    bool check_val(uint32_t val_size)
+    {
+      if (val_size <= 0) {
         return false;
       }
       if (dh_->index_type == CLUSTER) {
