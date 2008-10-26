@@ -507,6 +507,7 @@ namespace DBM {
         std::cout << "key[" << key_buf << "]" << std::endl;
         std::cout << "val[" << val << "]" << std::endl;
       }
+      delete node;
     }
 
   private:
@@ -839,6 +840,7 @@ namespace DBM {
             dh_->root_id = new_root->h->id;
             node->h->is_root = false;
             delete new_root;
+            clean_up_entry(up_entry);
           }
           clean_up_entry(&e);
         }
