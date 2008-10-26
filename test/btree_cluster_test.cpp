@@ -15,7 +15,7 @@ namespace {
     {
       bt = new Lux::DBM::Btree(Lux::DBM::CLUSTER);
       db_name_ = "btc_test";
-      num_entries_ = SMALL_NUM_ENTRIES;
+      num_entries_ = DEFAULT_NUM_ENTRIES;
     }
     virtual void TearDown()
     {
@@ -212,6 +212,39 @@ namespace {
       ASSERT_EQ(true, bt->del(key, strlen(key)));
       val_data = bt->get(key, strlen(key));
       ASSERT_TRUE(bt->get(key, strlen(key)) == NULL);
+    }
+    ASSERT_EQ(true, bt->close());
+    delete bt;
+  }
+
+  TEST_F(BtreeTest, VariableLengthValueTest) {
+    std::string db_name = get_db_name(++db_num_);
+    ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::DB_CREAT));
+
+    for (int i = 0; i < num_entries_; ++i) {
+      char key[9];
+      memset(key, 0, 9);
+      sprintf(key, "%08d", i);
+
+      char tmp[3];
+      memset(tmp, 0, 3);
+      sprintf(tmp, "%d", (i % 20)+8);
+      std::string format("%0");
+      format += tmp;
+      format += "d";
+
+      char val[32];
+      memset(val, 0, 32);
+      sprintf(val, format.c_str(), i); // value is 8 to 27 bytes
+
+      // put
+      ASSERT_EQ(true, bt->put(key, strlen(key), val, strlen(val)));
+
+      Lux::DBM::data_t *val_data = bt->get(key, strlen(key));
+      ASSERT_TRUE(val_data != NULL);
+      ASSERT_EQ(strlen(val), val_data->size);
+      ASSERT_TRUE(strncmp((char *) val_data->data, val, val_data->size) == 0);
+      bt->clean_data(val_data);
     }
     ASSERT_EQ(true, bt->close());
     delete bt;
