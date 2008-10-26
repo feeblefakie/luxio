@@ -59,7 +59,6 @@ namespace {
       // no updae
       ASSERT_EQ(true, bt->put(key, strlen(key),
                 &i, sizeof(int), Lux::DBM::NOOVERWRITE));
-      ASSERT_EQ(i+1, bt->get_auto_increment_id());
     }
     ASSERT_EQ(true, bt->close());
     delete bt;
