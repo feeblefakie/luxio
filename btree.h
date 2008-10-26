@@ -47,7 +47,6 @@ namespace DBM {
     uint32_t num_resized;
     uint16_t init_data_size;
     uint8_t index_type;
-    uint8_t data_size; // for fixed length value in cluster index
   } btree_header_t;
 
   typedef uint32_t node_id_t;
@@ -135,8 +134,7 @@ namespace DBM {
    */
   class Btree {
   public:
-    Btree(db_index_t index_type = NONCLUSTER,
-          uint8_t data_size = sizeof(uint32_t))
+    Btree(db_index_t index_type = NONCLUSTER)
     : map_(NULL),
       cmp_(str_cmp_func),
       index_type_(index_type),
@@ -146,8 +144,7 @@ namespace DBM {
       smode_(Linked),
       pmode_(PO2),
       padding_(0),
-      is_bulk_loading_(false),
-      data_size_(index_type == NONCLUSTER ? sizeof(data_ptr_t) : data_size)
+      is_bulk_loading_(false)
     {
       if (pthread_rwlock_init(&rwlock_, NULL) != 0) {
         error_log("pthread_rwlock_init failed");
@@ -475,8 +472,7 @@ namespace DBM {
                 << "root_id: " << dh_->root_id << std::endl
                 << "num_leaves: " << dh_->num_leaves << std::endl
                 << "num_nonleaves: " << dh_->num_nonleaves << std::endl
-                << "index_type: " << (int) dh_->index_type << std::endl
-                << "data_size: " << (int) dh_->data_size << std::endl;
+                << "index_type: " << (int) dh_->index_type << std::endl;
     }
 
     // debug method
@@ -527,7 +523,6 @@ namespace DBM {
     char *map_;
     btree_header_t *dh_;
     db_index_t index_type_;
-    uint8_t data_size_;
     uint32_t page_size_;
     CMP cmp_;
     Data *dt_;
@@ -578,7 +573,6 @@ namespace DBM {
         dh.num_nonleaves = 0; // root node
         dh.num_resized = 0;
         dh.index_type = index_type_;
-        dh.data_size = data_size_;
 
         if (_write(fd_, &dh, sizeof(btree_header_t)) < 0) {
           error_log("write failed.");
