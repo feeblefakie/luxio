@@ -135,7 +135,7 @@ namespace {
     ASSERT_EQ(true, bt->get(c, &key));
     Lux::DBM::data_t *k, *v;
     ASSERT_EQ(true, bt->cursor_get(c, &k, &v, Lux::DBM::SYSTEM));
-    EXPECT_EQ(num, *(int *) v->data);
+    ASSERT_EQ(num, *(int *) v->data);
     bt->clean_data(k);
     bt->clean_data(v);
 
@@ -143,7 +143,7 @@ namespace {
       Lux::DBM::data_t *key, *val;
       ASSERT_EQ(true, bt->cursor_get(c, &key, &val, Lux::DBM::SYSTEM));
       ++num;
-      EXPECT_EQ(num, *(int *) val->data);
+      ASSERT_EQ(num, *(int *) val->data);
       bt->clean_data(key);
       bt->clean_data(val);
     }
