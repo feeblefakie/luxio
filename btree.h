@@ -215,7 +215,7 @@ namespace DBM {
     data_t *get(data_t *k)
     {
       data_t *v = NULL;
-      if (!check_key(k->size)) { return false; }
+      if (!check_key(k->size)) { return NULL; }
       if (!rlock_db()) { return NULL; }
       if (!find(dh_->root_id, k, &v, SYSTEM)) {
         clean_data(v);
