@@ -444,6 +444,8 @@ namespace {
     bt->clean_data(val_data);
     ASSERT_EQ(false, bt->put(key2, strlen(key2), &val, sizeof(int)));
     ASSERT_TRUE(bt->get(key2, strlen(key2)) == NULL);
+    ASSERT_EQ(false, bt->put(NULL, 0, &val, sizeof(int)));
+    ASSERT_TRUE(bt->get((char *) NULL, 0) == NULL);
 
     ASSERT_EQ(true, bt->close());
     delete bt;
@@ -475,6 +477,7 @@ namespace {
     val_data = bt->get(&key, sizeof(int));
     ASSERT_TRUE(val_data != NULL);
     bt->clean_data(val_data);
+    ASSERT_EQ(false, bt->put(&key, sizeof(int), NULL, 0));
 
     ASSERT_EQ(true, bt->close());
     delete bt;
