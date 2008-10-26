@@ -170,6 +170,7 @@ namespace DBM {
           error_log("munmap failed.");
           return false;
         }
+        map_ = NULL;
       }
       if (::close(fd_) < 0) {
         error_log("close failed.");
@@ -244,8 +245,7 @@ namespace DBM {
     virtual data_ptr_t *update(data_ptr_t *data_ptr, data_t *data) = 0;
     virtual bool del(data_ptr_t *data_ptr) = 0;
     virtual data_t *get(data_ptr_t *data_ptr) = 0;
-    // using user memory
-    virtual bool get(data_ptr_t *data_ptr, data_t *data, uint32_t *size) = 0;
+    virtual bool get(data_ptr_t *data_ptr, data_t **data, alloc_type_t atype) = 0;
 
   protected:
     int fd_;
@@ -320,6 +320,7 @@ namespace DBM {
 
     bool add_free_pool(block_id_t block_id, uint16_t off_in_block, uint32_t size)
     {
+      vinfo_log("add_free_pool");
       bool is_appended = false;
       for (int i = 32; i >= 5; --i) { 
         if (size >= pows_[i-1]) {
@@ -342,6 +343,7 @@ namespace DBM {
 
     bool _prepend_free_pool(block_id_t id, uint16_t off_in_block, uint32_t size, int pow)
     {
+      vinfo_log("_prepend_free_pool");
       free_pool_ptr_t ptr = {id, off_in_block, size};
       off_t off = calc_off(id, off_in_block);
       if (dh_->is_pool_empty[pow-1]) {
@@ -370,6 +372,7 @@ namespace DBM {
       return true;
     }
   
+    /*
     bool _append_free_pool(block_id_t id, uint16_t off_in_block, uint32_t size, int pow)
     {
       // added size to free_pool_header_t
@@ -397,6 +400,7 @@ namespace DBM {
 
       return true;
     }
+    */
 
     off_t calc_off(block_id_t id, uint16_t off)
     {
@@ -415,6 +419,7 @@ namespace DBM {
 
     bool extend_blocks(uint32_t append_num_blocks)
     {
+      vinfo_log("extend_blocks");
       dh_->cur_block_id = dh_->num_blocks + 1;
       dh_->num_blocks += append_num_blocks;
       if (ftruncate(fd_, header_size_ + dh_->block_size * dh_->num_blocks) < 0) {
@@ -427,6 +432,7 @@ namespace DBM {
     template<typename T>
     bool write_header_and_data(T *h, data_t *d, off_t off)
     {
+      vinfo_log("write_header_and_data");
       // write headers and data
       if (!_pwrite(fd_, h, sizeof(T), off)) {
         return false;
@@ -439,6 +445,7 @@ namespace DBM {
 
     data_ptr_t *alloc_space(uint32_t size)
     {
+      vinfo_log("alloc_space");
       data_ptr_t *data_ptr = new data_ptr_t;
       free_pool_ptr_t pool;
       if (search_free_pool(size, &pool)) {
@@ -519,7 +526,7 @@ namespace DBM {
     virtual data_ptr_t *append(data_ptr_t *data_ptr, data_t *data)
     {
       assert(data->data != NULL && 
-             data_ptr->id >= 1 && data_ptr->id <= dh_->cur_block_id);
+             data_ptr->id >= 1 && data_ptr->id <= dh_->num_blocks);
       data_ptr_t *ptr;
       record_header_t h;
       off_t off = calc_off(data_ptr->id, data_ptr->off);
@@ -570,8 +577,8 @@ namespace DBM {
 
     virtual data_ptr_t *update(data_ptr_t *data_ptr, data_t *data)
     {
-      assert(data->data != NULL &&
-             data_ptr->id >= 1 && data_ptr->id <= dh_->cur_block_id);
+      assert(data->data != NULL && 
+             data_ptr->id >= 1 && data_ptr->id <= dh_->num_blocks);
       data_ptr_t *ptr;
       record_header_t h;
       off_t off = calc_off(data_ptr->id, data_ptr->off);
@@ -609,7 +616,7 @@ namespace DBM {
 
     virtual bool del(data_ptr_t *data_ptr)
     {
-      assert(data_ptr->id >= 1 && data_ptr->id <= dh_->cur_block_id);
+      assert(data_ptr->id >= 1 && data_ptr->id <= dh_->num_blocks);
       // deleted chunk is put into free pools
       record_header_t h;
       off_t off = calc_off(data_ptr->id, data_ptr->off);
@@ -626,7 +633,7 @@ namespace DBM {
 
     virtual data_t *get(data_ptr_t *data_ptr)
     {
-      assert(data_ptr->id >= 1 && data_ptr->id <= dh_->cur_block_id);
+      assert(data_ptr->id >= 1 && data_ptr->id <= dh_->num_blocks);
       record_header_t h;
       off_t off = calc_off(data_ptr->id, data_ptr->off);
       if (!_pread(fd_, &h, sizeof(record_header_t), off)) {
@@ -645,11 +652,9 @@ namespace DBM {
       return data;
     }
 
-    // uses user allocated data
-    // [TODO] arguments must be reconsidered. third argument size is kind of confusing.
-    virtual bool get(data_ptr_t *data_ptr, data_t *data, uint32_t *size)
+    virtual bool get(data_ptr_t *data_ptr, data_t **data, alloc_type_t atype)
     {
-      assert(data_ptr->id >= 1 && data_ptr->id <= dh_->cur_block_id);
+      assert(data_ptr->id >= 1 && data_ptr->id <= dh_->num_blocks);
       record_header_t h;
       off_t off = calc_off(data_ptr->id, data_ptr->off);
       if (!_pread(fd_, &h, sizeof(record_header_t), off)) {
@@ -657,15 +662,22 @@ namespace DBM {
       }
       if (h.type == AREA_FREE) { return false; }
 
-      *size = h.size - sizeof(record_header_t);
-      if (data->size < *size) {
-        error_log("allocated size is too small for the data.");
-        return false;
+      uint32_t size = h.size - sizeof(record_header_t);
+      if (atype == SYSTEM) {
+        *data = new data_t;
+        (*data)->data = new char[size];
+      } else {
+        if ((*data)->user_alloc_size < size) {
+          error_log("allocated size is too small for the data.");
+          return false;
+        }
       }
-      if (!_pread(fd_, (char *) data->data, *size, 
+      if (!_pread(fd_, (char *) (*data)->data, size, 
                   off + sizeof(record_header_t))) {
         return false;
       }
+      (*data)->size = size;
+
       return true;
     }
 
@@ -693,6 +705,7 @@ namespace DBM {
 
     bool write_record(record_t *r, data_ptr_t *dp)
     {
+      vinfo_log("write_record");
       off_t off = calc_off(dp->id, dp->off);
       if (!write_header_and_data(r->h, r->d, off)) {
         return false;
@@ -761,7 +774,7 @@ namespace DBM {
     virtual data_ptr_t *append(data_ptr_t *data_ptr, data_t *data)
     {
       assert(data->data != NULL && 
-             data_ptr->id >= 1 && data_ptr->id <= dh_->cur_block_id);
+             data_ptr->id >= 1 && data_ptr->id <= dh_->num_blocks);
       record_header_t h;
       off_t off = calc_off(data_ptr->id, data_ptr->off);
       if (!_pread(fd_, &h, sizeof(record_header_t), off)) {
@@ -819,6 +832,7 @@ namespace DBM {
           return NULL;
         }
 
+        clean_data_ptr(dp);
         clear_unit(unit);
       }
       if (!_pwrite(fd_, &u, sizeof(unit_header_t), last_off)) {
@@ -834,8 +848,8 @@ namespace DBM {
 
     virtual data_ptr_t *update(data_ptr_t *data_ptr, data_t *data)
     {
-      assert(data->data != NULL &&
-             data_ptr->id >= 1 && data_ptr->id <= dh_->cur_block_id);
+      assert(data->data != NULL && 
+             data_ptr->id >= 1 && data_ptr->id <= dh_->num_blocks);
       data_ptr_t *ptr;
       record_header_t h;
       off_t off = calc_off(data_ptr->id, data_ptr->off);
@@ -879,7 +893,7 @@ namespace DBM {
 
     virtual bool del(data_ptr_t *data_ptr)
     {
-      assert(data_ptr->id >= 1 && data_ptr->id <= dh_->cur_block_id);
+      assert(data_ptr->id >= 1 && data_ptr->id <= dh_->num_blocks);
       record_header_t h;
       off_t g_off = calc_off(data_ptr->id, data_ptr->off);
       if (!_pread(fd_, &h, sizeof(record_header_t), g_off)) {
@@ -915,7 +929,7 @@ namespace DBM {
 
     virtual data_t *get(data_ptr_t *data_ptr)
     {
-      assert(data_ptr->id >= 1 && data_ptr->id <= dh_->cur_block_id);
+      assert(data_ptr->id >= 1 && data_ptr->id <= dh_->num_blocks);
       record_header_t h;
       off_t off = calc_off(data_ptr->id, data_ptr->off);
       if (!_pread(fd_, &h, sizeof(record_header_t), off)) {
@@ -953,9 +967,10 @@ namespace DBM {
       return data;
     }
 
+/*
     virtual bool get(data_ptr_t *data_ptr, data_t *data, uint32_t *size)
     {
-      assert(data_ptr->id >= 1 && data_ptr->id <= dh_->cur_block_id);
+      assert(data_ptr->id >= 1 && data_ptr->id <= dh_->num_blocks);
       record_header_t h;
       off_t off = calc_off(data_ptr->id, data_ptr->off);
       if (!_pread(fd_, &h, sizeof(record_header_t), off)) {
@@ -991,6 +1006,52 @@ namespace DBM {
         off = calc_off(u.next_block_id, u.next_off); 
       } while (++cnt < h.num_units);
 
+      return true;
+    }
+    */
+
+    virtual bool get(data_ptr_t *data_ptr, data_t **data, alloc_type_t atype)
+    {
+      assert(data_ptr->id >= 1 && data_ptr->id <= dh_->num_blocks);
+      record_header_t h;
+      off_t off = calc_off(data_ptr->id, data_ptr->off);
+      if (!_pread(fd_, &h, sizeof(record_header_t), off)) {
+        return false;
+      }
+
+      if (h.type == AREA_FREE) { return false; }
+
+      if (atype == SYSTEM) {
+        *data = new data_t;
+        (*data)->data = new char[h.padded_size]; // must be more than data size
+      }
+      char *p = (char *) (*data)->data;
+      uint32_t size = 0;
+
+      int cnt = 0;
+      off += sizeof(record_header_t);
+      unit_header_t u;
+      do {
+        if (!_pread(fd_, &u, sizeof(unit_header_t), off)) {
+          return false;
+        }
+
+        uint32_t data_size = u.size - sizeof(unit_header_t);
+        size += data_size;
+        if (atype == USER && (*data)->user_alloc_size < size) {
+          error_log("allocated size is too small for the data");
+          return false;
+        }
+
+        off += sizeof(unit_header_t);
+        if (!_pread(fd_, p, data_size, off)) { return false; }
+        p += data_size;
+
+        // next unit
+        off = calc_off(u.next_block_id, u.next_off); 
+      } while (++cnt < h.num_units);
+
+      (*data)->size = size;
       return true;
     }
 
@@ -1044,6 +1105,7 @@ namespace DBM {
 
     bool write_record(record_t *r, data_ptr_t *dp)
     {
+      vinfo_log("write_record");
       off_t off = calc_off(dp->id, dp->off);
       if (!_pwrite(fd_, r->h, sizeof(record_header_t), off)) {
         return false;
@@ -1057,6 +1119,7 @@ namespace DBM {
 
     bool write_unit(unit_t *u, data_ptr_t *dp)
     {
+      vinfo_log("write_unit");
       off_t off = calc_off(dp->id, dp->off);
       if (!write_header_and_data(u->h, u->d, off)) {
         return false;
@@ -1067,6 +1130,7 @@ namespace DBM {
     data_ptr_t *put_unit(unit_t *u)
     {
       data_ptr_t *data_ptr = alloc_space(u->h->padded_size);
+      if (data_ptr == NULL) { return false; }
       if (!write_unit(u, data_ptr)) {
         return NULL;
       }

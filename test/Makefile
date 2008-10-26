@@ -1,11 +1,57 @@
-prog=data_append_test
-all: $(prog)
+LDFLAGS=-L/usr/local/lib -lgtest -fprofile-arcs -ftest-coverage #-DDEBUG 
+progs=btree_cluster_test \
+	  btree_noncluster_padded_test \
+	  btree_noncluster_linked_test \
+	  data_test \
+	  array_test
 
-data_append_test: data_append_test.cpp ../data.h
-	g++ -g $< -o $@
+all: clean $(progs)
+
+btree_cluster_test: btree_cluster_test.cpp
+	g++ -g $< -o $@ $(LDFLAGS) -lpthread
+
+btree_noncluster_padded_test: btree_noncluster_padded_test.cpp
+	g++ -g $< -o $@ $(LDFLAGS) -lpthread
+
+btree_noncluster_linked_test: btree_noncluster_linked_test.cpp
+	g++ -g $< -o $@ $(LDFLAGS) -lpthread
+
+data_test: data_test.cpp
+	g++ -g $< -o $@ $(LDFLAGS) -lpthread
+
+array_test: array_test.cpp
+	g++ -g $< -o $@ $(LDFLAGS) -lpthread
+
+mysyscalls: mysyscalls.c
+	gcc -shared -fPIC -o mysyscalls.so $< -ldl
+
+get: get.cpp
+	g++ -g $< -o $@ $ -lpthread $(LDFLAGS) -DDEBUG -DDEBUG_VINFO
+
+getm: getm.cpp
+	g++ -g $< -o $@ $ -lpthread $(LDFLAGS) -DDEBUG -DDEBUG_VINFO
+
+put: put.cpp
+	g++ -g $< -o $@ -lpthread $(LDFLAGS) -DDEBUG -DDEBUG_VINFO
+
+putm: putm.cpp
+	g++ -g $< -o $@ -lpthread $(LDFLAGS) -DDEBUG -DDEBUG_VINFO
+
+del: del.cpp
+	g++ -g $< -o $@ -lpthread $(LDFLAGS) -DDEBUG -DDEBUG_VINFO
+
+info: info.cpp
+	g++ -g $< -o $@ -lpthread $(LDFLAGS) -DDEBUG -DDEBUG_VINFO
+
+easy-checker: get getm put putm del info
 
 check:
-	./data_append_test
+	./btree_cluster_test
+	./btree_noncluster_linked_test
+	./btree_noncluster_padded_test
+	./data_test
+	./array_test
 
 clean:
-	rm -f $(prog) datadb
+	rm -rf $(progs) *.bidx *.aidx *.data get getm put putm del info *.gcda *.gcno
+
