@@ -1408,6 +1408,7 @@ namespace DBM {
     bool check_key(uint32_t key_size)
     {
       if (key_size > MAX_KSIZE || key_size <= 0) {
+        error_log("key size is too big or too small");
         return false;
       }
       return true;
@@ -1416,14 +1417,17 @@ namespace DBM {
     bool check_val(uint32_t val_size)
     {
       if (val_size <= 0) {
+        error_log("value size is too small");
         return false;
       }
       if (dh_->index_type == CLUSTER) {
         if (val_size > CLUSTER_MAX_VSIZE) {
+          error_log("value size is too big");
           return false;
         }
       } else {
         if (val_size > NONCLUSTER_MAX_VSIZE) {
+          error_log("value size is too big");
           return false;
         }
       }
