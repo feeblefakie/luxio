@@ -51,6 +51,7 @@ namespace DBM {
       smode_(Padded),
       pmode_(RATIO),
       padding_(20),
+      lock_type_(NO_LOCK),
       index_type_(index_type),
       data_size_(index_type == NONCLUSTER ? sizeof(data_ptr_t) : data_size)
     {
