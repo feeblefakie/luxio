@@ -208,28 +208,28 @@ namespace DBM {
 
     data_t *get(const void *key, uint32_t key_size)
     {
-      data_t key_data = {key, key_size};
-      return get(&key_data);
+      data_t k = {key, key_size};
+      return get(&k);
     }
 
-    data_t *get(data_t *key_data)
+    data_t *get(data_t *k)
     {
-      data_t *val_data = NULL;
+      data_t *v = NULL;
       if (!rlock_db()) { return NULL; }
-      if (!find(dh_->root_id, key_data, &val_data, SYSTEM)) {
-        clean_data(val_data);
+      if (!find(dh_->root_id, k, &v, SYSTEM)) {
+        clean_data(v);
       }
       if (!unlock_db()) { return NULL; }
-      return val_data;
+      return v;
     }
 
-    bool get(data_t *key_data, data_t **val_data, alloc_type_t atype = USER)
+    bool get(data_t *k, data_t **v, alloc_type_t atype = USER)
     {
       bool res = true;
       if (!rlock_db()) { return false; }
-      res = find(dh_->root_id, key_data, val_data, atype);
+      res = find(dh_->root_id, k, v, atype);
       if (!res && atype == SYSTEM) {
-        clean_data(*val_data);
+        clean_data(*v);
       }
       if (!unlock_db()) { return false; }
       return res;
@@ -238,9 +238,9 @@ namespace DBM {
     bool put(const void *key, uint32_t key_size,
              const void *val, uint32_t val_size, insert_mode_t flags = OVERWRITE)
     {
-      data_t key_data = {key, key_size};
-      data_t val_data = {val, val_size};
-      return put(&key_data, &val_data, flags);
+      data_t k = {key, key_size};
+      data_t v = {val, val_size};
+      return put(&k, &v, flags);
     }
 
     bool put(data_t *k, data_t *v, insert_mode_t flags = OVERWRITE)
@@ -273,13 +273,13 @@ namespace DBM {
 
     bool del(const void *key, uint32_t key_size)
     {
-      data_t key_data = {key ,key_size};
-      return del(&key_data);
+      data_t k = {key ,key_size};
+      return del(&k);
     }
 
-    bool del(data_t *key_data)
+    bool del(data_t *k)
     {
-      entry_t entry = {key_data->data, key_data->size, NULL, 0, 0};
+      entry_t entry = {k->data, k->size, NULL, 0, 0};
 
       if (!wlock_db()) { return false; }
       bool res = _del(dh_->root_id, &entry);
@@ -687,11 +687,11 @@ namespace DBM {
       return node;
     }
 
-    bool find(node_id_t id, data_t *key_data, data_t **val_data, alloc_type_t atype)
+    bool find(node_id_t id, data_t *k, data_t **v, alloc_type_t atype)
     {
       assert(id >= 1 && id <= dh_->num_nodes - 1);
       bool res = true;;
-      entry_t entry = {key_data->data, key_data->size, NULL, 0, 0};
+      entry_t entry = {k->data, k->size, NULL, 0, 0};
       entry_t *e = &entry;
 
       node_t *node = _alloc_node(id);
@@ -699,12 +699,12 @@ namespace DBM {
         find_res_t *r = find_key(node, entry.key, entry.key_size);
         if (r->type == KEY_FOUND) {
           slot_t *slot = (slot_t *) r->slot_p;
-          res = get_data(r->data_p + slot->size, val_data, atype);
+          res = get_data(r->data_p + slot->size, v, atype);
         }
         delete r;
       } else {
         node_id_t next_id = _find_next(node, &entry);
-        res = find(next_id, key_data, val_data, atype);
+        res = find(next_id, k, v, atype);
       }
       delete node;
       return res;
@@ -1051,7 +1051,7 @@ namespace DBM {
       }
 
       // [TODO] API should be changed ? : take data_t instead of key and key_size
-      data_t key_data = {key, key_size};
+      data_t k = {key, key_size};
 
       char checked[node->h->num_keys];
       memset(checked, 0, node->h->num_keys);
@@ -1072,7 +1072,7 @@ namespace DBM {
         ALLOC_AND_COPY(stored_key, (char *) node->b + slot->off, slot->size);
         data_t stored_data = {stored_key, slot->size};
 
-        int res = cmp_(key_data, stored_data);
+        int res = cmp_(k, stored_data);
         if (res == 0) {
           // found
           is_found = true;
