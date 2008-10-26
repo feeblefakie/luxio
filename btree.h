@@ -263,11 +263,10 @@ namespace DBM {
       entry_t entry = {(char *) k->data, k->size,
                        (char *) v->data, v->size,
                        entry_size, flags};
-      up_entry_t *up_entry = NULL;
     
-      res = insert(&entry, &up_entry);
-      if (!unlock_db()) { return false; }
+      res = insert(&entry);
 
+      if (!unlock_db()) { return false; }
       return res;
     }
 
@@ -735,20 +734,21 @@ namespace DBM {
       memcpy(to + sizeof(uint8_t), from, size); 
     }
 
-    bool insert(entry_t *entry, up_entry_t **up_entry)
+    bool insert(entry_t *entry)
     {
       bool is_split = false;
+      up_entry_t *up_entry = NULL;
 
-      if (!_insert(dh_->root_id, entry, up_entry, is_split)) {
+      if (!_insert(dh_->root_id, entry, &up_entry, is_split)) {
         error_log("_insert failed.");
         return false;
       }
 
       // when split happens, the entry is not inserted.
       if (is_split) {
-        up_entry_t *e = NULL;
+        up_entry = NULL;
         bool is_split = false;
-        if (!_insert(dh_->root_id, entry, &e, is_split)) {
+        if (!_insert(dh_->root_id, entry, &up_entry, is_split)) {
           error_log("_insert failed.");
           return false;
         }
