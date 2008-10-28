@@ -19,7 +19,8 @@ int main(int argc, char *argv[])
   }
 
   double t1, t2;
-  int rnum = atoi(argv[2]);
+  int mode = atoi(argv[2]);
+  int rnum = atoi(argv[3]);
 
   t1 = gettimeofday_sec();
   Lux::DBM::Btree *bt = new Lux::DBM::Btree(Lux::DBM::NONCLUSTER);
