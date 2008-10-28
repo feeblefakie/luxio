@@ -715,7 +715,16 @@ namespace DBM {
         uint8_t *size = (uint8_t *) p;
         if (atype == SYSTEM) {
           *data = new data_t;
-          (*data)->data = (char *) new char[*size];
+          (*data)->data = (char *) new char[*size + 1];
+          ((char *) (*data)->data)[*size] = '\0';
+        } else {
+          if ((*data)->user_alloc_size < *size) {
+            error_log("allocated size is too small");
+            return false;
+          }
+          if ((*data)->user_alloc_size >= *size + 1) {
+            ((char *) (*data)->data)[*size] = '\0';
+          }
         }
         (*data)->size = *size;
         memcpy((void *) (*data)->data, p + sizeof(uint8_t), *size);
