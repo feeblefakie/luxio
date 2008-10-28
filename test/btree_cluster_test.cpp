@@ -242,8 +242,16 @@ namespace {
       Lux::DBM::data_t *val_data = bt->get(key, strlen(key));
       ASSERT_TRUE(val_data != NULL);
       ASSERT_EQ(strlen(val), val_data->size);
-      ASSERT_TRUE(strncmp((char *) val_data->data, val, val_data->size) == 0);
+      ASSERT_TRUE(strcmp((char *) val_data->data, val) == 0);
       bt->clean_data(val_data);
+
+      char rval[32];
+      memset(rval, 0, 32);
+      Lux::DBM::data_t key_data = {key, strlen(key)};
+      Lux::DBM::data_t val_data2 = {rval, 0, 32}; // allocated memory size: 32
+      Lux::DBM::data_t *val_p = &val_data2;
+      ASSERT_EQ(true, bt->get(&key_data, &val_p, Lux::DBM::USER));
+      ASSERT_TRUE(strcmp((char *) val_p->data, val) == 0);
     }
     ASSERT_EQ(true, bt->close());
     delete bt;
@@ -275,8 +283,16 @@ namespace {
       Lux::DBM::data_t *val_data = bt->get(key, strlen(key));
       ASSERT_TRUE(val_data != NULL);
       ASSERT_EQ(strlen(val), val_data->size);
-      ASSERT_TRUE(strncmp((char *) val_data->data, val, val_data->size) == 0);
+      ASSERT_TRUE(strcmp((char *) val_data->data, val) == 0);
       bt->clean_data(val_data);
+
+      char rval[128];
+      memset(rval, 0, 128);
+      Lux::DBM::data_t key_data = {key, strlen(key)};
+      Lux::DBM::data_t val_data2 = {rval, 0, 128}; // allocated memory size: 128
+      Lux::DBM::data_t *val_p = &val_data2;
+      ASSERT_EQ(true, bt->get(&key_data, &val_p, Lux::DBM::USER));
+      ASSERT_TRUE(strcmp((char *) val_p->data, val) == 0);
     }
     ASSERT_EQ(true, bt->close());
     delete bt;
@@ -376,8 +392,15 @@ namespace {
       int32_t key = -i;
       Lux::DBM::data_t *val_data = bt->get(&key, sizeof(int32_t));
       ASSERT_TRUE(val_data != NULL);
-      ASSERT_EQ(0, strncmp((char *) val_data->data, val, val_data->size));
+      ASSERT_EQ(0, strcmp((char *) val_data->data, val));
       bt->clean_data(val_data);
+
+      Lux::DBM::data_t key_data = {&key, sizeof(int32_t)};
+      Lux::DBM::data_t val_data2 = {val, 0, 9}; // user allocated sizeof(int32_t)
+      Lux::DBM::data_t *val_p = &val_data2;
+      ASSERT_EQ(true, bt->get(&key_data, &val_p, Lux::DBM::USER));
+      ASSERT_EQ(val_p->size, strlen(val));
+      ASSERT_TRUE(strcmp((char *) val_p->data, val) == 0);
     }
     ASSERT_EQ(true, bt->close());
     delete bt;
@@ -413,8 +436,15 @@ namespace {
       uint32_t key = i;
       Lux::DBM::data_t *val_data = bt->get(&key, sizeof(uint32_t));
       ASSERT_TRUE(val_data != NULL);
-      ASSERT_EQ(0, strncmp((char *) val_data->data, val, val_data->size));
+      ASSERT_EQ(0, strcmp((char *) val_data->data, val));
       bt->clean_data(val_data);
+
+      Lux::DBM::data_t key_data = {&key, sizeof(uint32_t)};
+      Lux::DBM::data_t val_data2 = {val, 0, 9}; // user allocated sizeof(int32_t)
+      Lux::DBM::data_t *val_p = &val_data2;
+      ASSERT_EQ(true, bt->get(&key_data, &val_p, Lux::DBM::USER));
+      ASSERT_EQ(val_p->size, strlen(val));
+      ASSERT_TRUE(strcmp((char *) val_p->data, val) == 0);
     }
     ASSERT_EQ(true, bt->close());
     delete bt;
