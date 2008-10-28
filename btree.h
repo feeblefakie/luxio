@@ -31,8 +31,8 @@ namespace Lux {
 namespace DBM {
 
   const char *MAGIC = "LUXBT001";
-  static const uint32_t MAX_KSIZE = 256;
-  static const uint32_t CLUSTER_MAX_VSIZE = 256;
+  static const uint32_t MAX_KSIZE = 255;
+  static const uint32_t CLUSTER_MAX_VSIZE = 255;
   static const uint32_t NONCLUSTER_MAX_VSIZE = UINT32_MAX;
 
   // global header
@@ -47,7 +47,6 @@ namespace DBM {
     uint32_t num_resized;
     uint16_t init_data_size;
     uint8_t index_type;
-    uint8_t data_size; // for fixed length value in cluster index
   } btree_header_t;
 
   typedef uint32_t node_id_t;
@@ -135,8 +134,7 @@ namespace DBM {
    */
   class Btree {
   public:
-    Btree(db_index_t index_type = NONCLUSTER,
-          uint8_t data_size = sizeof(uint32_t))
+    Btree(db_index_t index_type = NONCLUSTER)
     : map_(NULL),
       cmp_(str_cmp_func),
       index_type_(index_type),
@@ -146,8 +144,7 @@ namespace DBM {
       smode_(Linked),
       pmode_(PO2),
       padding_(0),
-      is_bulk_loading_(false),
-      data_size_(index_type == NONCLUSTER ? sizeof(data_ptr_t) : data_size)
+      is_bulk_loading_(false)
     {
       if (pthread_rwlock_init(&rwlock_, NULL) != 0) {
         error_log("pthread_rwlock_init failed");
@@ -211,28 +208,30 @@ namespace DBM {
 
     data_t *get(const void *key, uint32_t key_size)
     {
-      data_t key_data = {key, key_size};
-      return get(&key_data);
+      data_t k = {key, key_size};
+      return get(&k);
     }
 
-    data_t *get(data_t *key_data)
+    data_t *get(data_t *k)
     {
-      data_t *val_data = NULL;
+      data_t *v = NULL;
+      if (!check_key(k->size)) { return NULL; }
       if (!rlock_db()) { return NULL; }
-      if (!find(dh_->root_id, key_data, &val_data, SYSTEM)) {
-        clean_data(val_data);
+      if (!find(dh_->root_id, k, &v, SYSTEM)) {
+        clean_data(v);
       }
       if (!unlock_db()) { return NULL; }
-      return val_data;
+      return v;
     }
 
-    bool get(data_t *key_data, data_t **val_data, alloc_type_t atype = USER)
+    bool get(data_t *k, data_t **v, alloc_type_t atype = USER)
     {
       bool res = true;
+      if (!check_key(k->size)) { return false; }
       if (!rlock_db()) { return false; }
-      res = find(dh_->root_id, key_data, val_data, atype);
+      res = find(dh_->root_id, k, v, atype);
       if (!res && atype == SYSTEM) {
-        clean_data(*val_data);
+        clean_data(*v);
       }
       if (!unlock_db()) { return false; }
       return res;
@@ -241,48 +240,56 @@ namespace DBM {
     bool put(const void *key, uint32_t key_size,
              const void *val, uint32_t val_size, insert_mode_t flags = OVERWRITE)
     {
-      data_t key_data = {key, key_size};
-      data_t val_data = {val, val_size};
-      return put(&key_data, &val_data, flags);
+      data_t k = {key, key_size};
+      data_t v = {val, val_size};
+      return put(&k, &v, flags);
     }
 
-    bool put(data_t *key_data, data_t *val_data, insert_mode_t flags = OVERWRITE)
+    bool put(data_t *k, data_t *v, insert_mode_t flags = OVERWRITE)
     {
       bool res = true;
-      if (!check_limit(key_data->size, val_data->size)) { return false; }
+      if (!check_key(k->size) || !check_val(v->size)) {
+        return false;
+      }
       if (!wlock_db()) { return false; }
-      entry_t entry = {(char *) key_data->data, key_data->size,
-                       (char *) val_data->data, val_data->size,
-                       key_data->size + dh_->data_size,
-                       flags};
-      up_entry_t *up_entry = NULL;
-    
-      res = insert(&entry, &up_entry);
-      if (!unlock_db()) { return false; }
 
+      uint32_t val_size = v->size + sizeof(uint8_t);
+      char data[val_size];
+      data_t val = {data, val_size}; // for size prepended
+      uint32_t entry_size = k->size;
+      if (dh_->index_type == CLUSTER) {
+        prepend_size_and_copy(data, (char *) v->data, v->size);
+        v = &val;
+        entry_size += val.size;
+      } else {
+        entry_size += sizeof(data_ptr_t);
+      }
+      entry_t entry = {(char *) k->data, k->size,
+                       (char *) v->data, v->size,
+                       entry_size, flags};
+    
+      res = insert(&entry);
+
+      if (!unlock_db()) { return false; }
       return res;
     }
 
     bool del(const void *key, uint32_t key_size)
     {
-      data_t key_data = {key ,key_size};
-      return del(&key_data);
+      data_t k = {key ,key_size};
+      return del(&k);
     }
 
-    bool del(data_t *key_data)
+    bool del(data_t *k)
     {
-      entry_t entry = {key_data->data, key_data->size, NULL, 0, 0};
+      if (!check_key(k->size)) { return false; }
+      entry_t entry = {k->data, k->size, NULL, 0, 0};
 
       if (!wlock_db()) { return false; }
       bool res = _del(dh_->root_id, &entry);
       if (!unlock_db()) { return false; }
 
       return res;
-    }
-
-    uint32_t get_auto_increment_id(void)
-    {
-      return dh_->num_keys;
     }
 
     void set_page_size(uint32_t page_size)
@@ -464,8 +471,7 @@ namespace DBM {
                 << "root_id: " << dh_->root_id << std::endl
                 << "num_leaves: " << dh_->num_leaves << std::endl
                 << "num_nonleaves: " << dh_->num_nonleaves << std::endl
-                << "index_type: " << (int) dh_->index_type << std::endl
-                << "data_size: " << (int) dh_->data_size << std::endl;
+                << "index_type: " << (int) dh_->index_type << std::endl;
     }
 
     // debug method
@@ -516,7 +522,6 @@ namespace DBM {
     char *map_;
     btree_header_t *dh_;
     db_index_t index_type_;
-    uint8_t data_size_;
     uint32_t page_size_;
     CMP cmp_;
     Data *dt_;
@@ -567,7 +572,6 @@ namespace DBM {
         dh.num_nonleaves = 0; // root node
         dh.num_resized = 0;
         dh.index_type = index_type_;
-        dh.data_size = data_size_;
 
         if (_write(fd_, &dh, sizeof(btree_header_t)) < 0) {
           error_log("write failed.");
@@ -682,11 +686,11 @@ namespace DBM {
       return node;
     }
 
-    bool find(node_id_t id, data_t *key_data, data_t **val_data, alloc_type_t atype)
+    bool find(node_id_t id, data_t *k, data_t **v, alloc_type_t atype)
     {
       assert(id >= 1 && id <= dh_->num_nodes - 1);
       bool res = true;;
-      entry_t entry = {key_data->data, key_data->size, NULL, 0, 0};
+      entry_t entry = {k->data, k->size, NULL, 0, 0};
       entry_t *e = &entry;
 
       node_t *node = _alloc_node(id);
@@ -694,12 +698,12 @@ namespace DBM {
         find_res_t *r = find_key(node, entry.key, entry.key_size);
         if (r->type == KEY_FOUND) {
           slot_t *slot = (slot_t *) r->slot_p;
-          res = get_data(r->data_p + slot->size, val_data, atype);
+          res = get_data(r->data_p + slot->size, v, atype);
         }
         delete r;
       } else {
         node_id_t next_id = _find_next(node, &entry);
-        res = find(next_id, key_data, val_data, atype);
+        res = find(next_id, k, v, atype);
       }
       delete node;
       return res;
@@ -708,12 +712,22 @@ namespace DBM {
     bool get_data(char *p, data_t **data, alloc_type_t atype)
     {
       if (dh_->index_type == CLUSTER) {
+        uint8_t *size = (uint8_t *) p;
         if (atype == SYSTEM) {
           *data = new data_t;
-          (*data)->data = (char *) new char[dh_->data_size];
+          (*data)->data = (char *) new char[*size + 1];
+          ((char *) (*data)->data)[*size] = '\0';
+        } else {
+          if ((*data)->user_alloc_size < *size) {
+            error_log("allocated size is too small");
+            return false;
+          }
+          if ((*data)->user_alloc_size >= *size + 1) {
+            ((char *) (*data)->data)[*size] = '\0';
+          }
         }
-        (*data)->size = dh_->data_size;
-        memcpy((void *) (*data)->data, p, dh_->data_size);
+        (*data)->size = *size;
+        memcpy((void *) (*data)->data, p + sizeof(uint8_t), *size);
       } else {
         data_ptr_t *data_ptr = (data_ptr_t *) p;
         if (!dt_->get(data_ptr, data, atype)) {
@@ -723,20 +737,27 @@ namespace DBM {
       return true;
     }
 
-    bool insert(entry_t *entry, up_entry_t **up_entry)
+    void prepend_size_and_copy(char *to, char *from, uint8_t size)
+    {
+      memcpy(to, &size, sizeof(uint8_t));
+      memcpy(to + sizeof(uint8_t), from, size); 
+    }
+
+    bool insert(entry_t *entry)
     {
       bool is_split = false;
+      up_entry_t *up_entry = NULL;
 
-      if (!_insert(dh_->root_id, entry, up_entry, is_split)) {
+      if (!_insert(dh_->root_id, entry, &up_entry, is_split)) {
         error_log("_insert failed.");
         return false;
       }
 
       // when split happens, the entry is not inserted.
       if (is_split) {
-        up_entry_t *e = NULL;
+        up_entry = NULL;
         bool is_split = false;
-        if (!_insert(dh_->root_id, entry, &e, is_split)) {
+        if (!_insert(dh_->root_id, entry, &up_entry, is_split)) {
           error_log("_insert failed.");
           return false;
         }
@@ -757,6 +778,7 @@ namespace DBM {
         if (node->h->free_size >= entry->size + sizeof(slot_t)) {
           // there is enough space, then just put the entry
           if (!put_entry_in_leaf(node, entry)) {
+            error_log("put_entry_in_leaf failed");
             return false;
           }
         } else {
@@ -936,14 +958,22 @@ namespace DBM {
       if (dh_->index_type == CLUSTER) {
         if (r->type == KEY_FOUND) {
           // append is not supported in b+-tree cluster index. only updating
-          memcpy((char *) r->data_p + entry->key_size,
-                 entry->val, entry->val_size);
+          if (entry->mode == APPEND) {
+            error_log("append is not supported in cluster index");
+            return false;
+          }
+          char *val_p = (char *) r->data_p + entry->key_size;
+          // check if updating entry is bigger than existing
+          if (entry->val_size > *(uint8_t *) val_p + sizeof(uint8_t)) {
+            return false;
+          }
+          memcpy(val_p, entry->val, entry->val_size);
         } else {
           put_entry(node, entry, r);
         }
       } else {
         entry_t _entry = {entry->key, entry->key_size,
-                          NULL, dh_->data_size, entry->size, entry->mode};
+                          NULL, sizeof(data_ptr_t), entry->size, entry->mode};
         data_t data = {entry->val, entry->val_size};
         data_ptr_t *res_data_ptr;
 
@@ -954,7 +984,7 @@ namespace DBM {
           // append or update the data, get the ptr to the data and update the index
           if (entry->mode == APPEND) {
             res_data_ptr = dt_->append(data_ptr, &data);
-          } else { // OVERWRITE
+          } else {
             res_data_ptr = dt_->update(data_ptr, &data);
           }
           if (res_data_ptr == NULL) { return false; }
@@ -1033,7 +1063,7 @@ namespace DBM {
       }
 
       // [TODO] API should be changed ? : take data_t instead of key and key_size
-      data_t key_data = {key, key_size};
+      data_t k = {key, key_size};
 
       char checked[node->h->num_keys];
       memset(checked, 0, node->h->num_keys);
@@ -1054,7 +1084,7 @@ namespace DBM {
         ALLOC_AND_COPY(stored_key, (char *) node->b + slot->off, slot->size);
         data_t stored_data = {stored_key, slot->size};
 
-        int res = cmp_(key_data, stored_data);
+        int res = cmp_(k, stored_data);
         if (res == 0) {
           // found
           is_found = true;
@@ -1231,9 +1261,21 @@ namespace DBM {
     void copy_entries(char *dp, char *sp, node_t *node, slot_t *slots,
                       uint16_t &data_off, int slot_from, int slot_to)
     {
+      vinfo_log("copy_entries");
       for (int i = slot_from; i >= slot_to; --i) {
-        uint32_t entry_size = (slots+i)->size + dh_->data_size;
-        memcpy(dp + data_off, (char *) node->b + (slots+i)->off, entry_size);
+        char *entry_p = (char *) node->b + (slots+i)->off;
+        uint32_t entry_size = (slots+i)->size; // key_size
+        if (dh_->index_type == CLUSTER) {
+          if (node->h->is_leaf) {
+            char *val_p = entry_p + (slots+i)->size;
+            entry_size += *(uint8_t *) val_p + sizeof(uint8_t); // +val_size
+          } else {
+            entry_size += sizeof(node_id_t);
+          }
+        } else {
+          entry_size += sizeof(data_ptr_t); // +val_size
+        }
+        memcpy(dp + data_off, entry_p, entry_size);
         // new slot for the entry above
         slot_t slot = { data_off, (slots+i)->size };
         sp -= sizeof(slot_t);
@@ -1372,17 +1414,29 @@ namespace DBM {
       return true;
     }
 
-    bool check_limit(uint32_t key_size, uint32_t val_size)
+    bool check_key(uint32_t key_size)
     {
-      if (key_size > MAX_KSIZE) {
+      if (key_size > MAX_KSIZE || key_size <= 0) {
+        error_log("key size is too big or too small");
+        return false;
+      }
+      return true;
+    }
+    
+    bool check_val(uint32_t val_size)
+    {
+      if (val_size <= 0) {
+        error_log("value size is too small");
         return false;
       }
       if (dh_->index_type == CLUSTER) {
         if (val_size > CLUSTER_MAX_VSIZE) {
+          error_log("value size is too big");
           return false;
         }
       } else {
         if (val_size > NONCLUSTER_MAX_VSIZE) {
+          error_log("value size is too big");
           return false;
         }
       }

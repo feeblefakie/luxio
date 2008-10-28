@@ -135,7 +135,7 @@ namespace {
     ASSERT_EQ(true, bt->get(c, &key));
     Lux::DBM::data_t *k, *v;
     ASSERT_EQ(true, bt->cursor_get(c, &k, &v, Lux::DBM::SYSTEM));
-    EXPECT_EQ(num, *(int *) v->data);
+    ASSERT_EQ(num, *(int *) v->data);
     bt->clean_data(k);
     bt->clean_data(v);
 
@@ -143,7 +143,7 @@ namespace {
       Lux::DBM::data_t *key, *val;
       ASSERT_EQ(true, bt->cursor_get(c, &key, &val, Lux::DBM::SYSTEM));
       ++num;
-      EXPECT_EQ(num, *(int *) val->data);
+      ASSERT_EQ(num, *(int *) val->data);
       bt->clean_data(key);
       bt->clean_data(val);
     }
@@ -250,18 +250,29 @@ namespace {
       // sequential, system memory
       Lux::DBM::data_t *val_data = bt->get(key, strlen(key));
       ASSERT_TRUE(val_data != NULL);
-      ASSERT_TRUE(strncmp((char *) val_data->data, correct.c_str(), val_data->size) == 0);
       ASSERT_EQ(correct.size(), val_data->size);
+      // val_data->data is supposed to be terminated by NULL
+      ASSERT_TRUE(strcmp((char *) val_data->data, correct.c_str()) == 0);
       bt->clean_data(val_data);
 
       // user memory
-      char val[128];
-      memset(val, 0, 128);
+      char val[81];
+      memset(val, 0, 81);
       Lux::DBM::data_t key_data = {key, strlen(key)};
-      Lux::DBM::data_t val_data2 = {val, 0, 128};
+      Lux::DBM::data_t val_data2 = {val, 0, 81};
       Lux::DBM::data_t *val_p = &val_data2;
 
       ASSERT_EQ(true, bt->get(&key_data, &val_p));
+      ASSERT_EQ(correct.size(), val_p->size);
+      // val_data->data is supposed to be terminated by NULL
+      ASSERT_TRUE(strcmp((char *) val_p->data, correct.c_str()) == 0);
+
+      // user memory
+      memset(val, 0, 81);
+      Lux::DBM::data_t val_data3 = {val, 0, 80}; // no NULL space
+      val_p = &val_data3;
+
+      ASSERT_EQ(true, bt->get(&key_data, &val_p, Lux::DBM::USER));
       ASSERT_EQ(correct.size(), val_p->size);
       ASSERT_TRUE(strncmp((char *) val_p->data, correct.c_str(), val_p->size) == 0);
     }
@@ -315,9 +326,20 @@ namespace {
       // sequential, system memory
       Lux::DBM::data_t *val_data = bt->get(key, strlen(key));
       ASSERT_TRUE(val_data != NULL);
-      ASSERT_TRUE(strncmp((char *) val_data->data, correct.c_str(), val_data->size) == 0);
       ASSERT_EQ(correct.size(), val_data->size);
+      ASSERT_TRUE(strcmp((char *) val_data->data, correct.c_str()) == 0);
       bt->clean_data(val_data);
+
+      // user memory
+      char val[81];
+      memset(val, 0, 81);
+      Lux::DBM::data_t key_data = {key, strlen(key)};
+      Lux::DBM::data_t val_data2 = {val, 0, 81}; // no NULL space
+      Lux::DBM::data_t *val_p = &val_data2;
+
+      ASSERT_EQ(true, bt->get(&key_data, &val_p, Lux::DBM::USER));
+      ASSERT_EQ(correct.size(), val_p->size);
+      ASSERT_TRUE(strcmp((char *) val_p->data, correct.c_str()) == 0);
     }
 
     ASSERT_EQ(true, bt->close()); 

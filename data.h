@@ -642,8 +642,10 @@ namespace DBM {
       if (h.type == AREA_FREE) { return NULL; }
 
       data_t *data = new data_t;
-      data->data = new char[h.size - sizeof(record_header_t)];
       data->size = h.size - sizeof(record_header_t);
+      data->data = new char[data->size + 1];
+      ((char *) data->data)[data->size] = '\0';
+
       if (!_pread(fd_, (char *) data->data, data->size, 
                   off + sizeof(record_header_t))) {
         clean_data(data);
@@ -665,11 +667,15 @@ namespace DBM {
       uint32_t size = h.size - sizeof(record_header_t);
       if (atype == SYSTEM) {
         *data = new data_t;
-        (*data)->data = new char[size];
+        (*data)->data = new char[size + 1];
+        ((char *) (*data)->data)[size] = '\0';
       } else {
         if ((*data)->user_alloc_size < size) {
           error_log("allocated size is too small for the data.");
           return false;
+        }
+        if ((*data)->user_alloc_size >= size + 1) {
+          ((char *) (*data)->data)[size] = '\0';
         }
       }
       if (!_pread(fd_, (char *) (*data)->data, size, 
@@ -964,6 +970,7 @@ namespace DBM {
       } while (++cnt < h.num_units);
 
       data->data = d;
+      ((char *) data->data)[data->size] = '\0';
       return data;
     }
 
@@ -1052,6 +1059,10 @@ namespace DBM {
       } while (++cnt < h.num_units);
 
       (*data)->size = size;
+      if (atype == SYSTEM || 
+          (atype == USER && (*data)->user_alloc_size >= size + 1)) {
+        ((char *) (*data)->data)[size] = '\0';
+      }
       return true;
     }
 
