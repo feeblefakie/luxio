@@ -45,6 +45,9 @@ namespace DBM {
     uint32_t num_leaves;
     uint32_t num_nonleaves;
     uint32_t num_resized;
+    store_mode_t smode;
+    padding_mode_t pmode;
+    uint32_t padding;
     uint16_t init_data_size;
     uint8_t index_type;
   } btree_header_t;
@@ -571,6 +574,9 @@ namespace DBM {
         dh.num_leaves = 0;
         dh.num_nonleaves = 0; // root node
         dh.num_resized = 0;
+        dh.smode = smode_;
+        dh.pmode = pmode_;
+        dh.padding = padding_;
         dh.index_type = index_type_;
 
         if (_write(fd_, &dh, sizeof(btree_header_t)) < 0) {
@@ -623,10 +629,10 @@ namespace DBM {
       }
 
       if (dh_->index_type == NONCLUSTER) {
-        if(smode_ == Padded) {
-          dt_ = new PaddedData(pmode_, padding_);
-        } else if (smode_ == Linked) {
-          dt_ = new LinkedData(pmode_, padding_);
+        if(dh_->smode == Padded) {
+          dt_ = new PaddedData(dh_->pmode, dh_->padding);
+        } else if (dh_->smode == Linked) {
+          dt_ = new LinkedData(dh_->pmode, dh_->padding);
         } else {
           error_log("specified store mode doesn't exitst.");
         }
