@@ -74,7 +74,6 @@ namespace {
    * omode: rdonly
    **/
   TEST_F(BtreeTest, GetLinkedTest) {
-    bt->set_noncluster_params(Lux::DBM::Linked);
     std::string db_name = get_db_name(db_num_);
     ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::DB_RDONLY));
 
@@ -121,7 +120,6 @@ namespace {
    * omode: rdonly
    **/
   TEST_F(BtreeTest, CursorLinkedTest) {
-    bt->set_noncluster_params(Lux::DBM::Linked);
     std::string db_name = get_db_name(db_num_);
     ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::DB_RDONLY));
 
@@ -181,7 +179,6 @@ namespace {
    * omode: rdwr
    **/
   TEST_F(BtreeTest, DelLinkedTest) {
-    bt->set_noncluster_params(Lux::DBM::Linked);
     std::string db_name = get_db_name(db_num_);
     ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::DB_RDWR));
 
