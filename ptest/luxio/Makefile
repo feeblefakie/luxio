@@ -1,4 +1,4 @@
-prog=clean bput1 bget1 bput2 bget2 bput3 bget3 bput4 bget4 select
+prog=clean bput1 bget1 bput2 bget2 bput3 bget3 bput4 bget4 bput5 bget5 select
 all: $(prog)
 
 bput1: bput1.cpp ../../btree.h ../../data.h 
@@ -23,6 +23,12 @@ bput4: bput4.cpp ../../btree.h ../../data.h
 	g++ -g $< -o $@ -lpthread -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 -DDEBUG
 
 bget4: bget4.cpp ../../btree.h ../../data.h
+	g++ -g $< -o $@ -lpthread -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 -DDEBUG
+
+bput5: bput5.cpp ../../btree.h ../../data.h 
+	g++ -g $< -o $@ -lpthread -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 -DDEBUG
+
+bget5: bget5.cpp ../../btree.h ../../data.h
 	g++ -g $< -o $@ -lpthread -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 -DDEBUG
 
 select: select.cpp ../../btree.h ../../data.h
