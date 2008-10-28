@@ -13,16 +13,22 @@ double gettimeofday_sec()
 
 int main(int argc, char *argv[])
 {
-  if (argc != 3) {
-    std::cerr << "Usage: " << argv[0] << " dbname record_num" << std::endl; 
+  if (argc != 4) {
+    std::cerr << "Usage: " << argv[0] << " dbname mode(linked:0,padded:1) record_num" << std::endl; 
     exit(1);
   }
 
   double t1, t2;
-  int rnum = atoi(argv[2]);
+  int mode = atoi(argv[2]);
+  int rnum = atoi(argv[3]);
 
   t1 = gettimeofday_sec();
   Lux::DBM::Btree *bt = new Lux::DBM::Btree(Lux::DBM::NONCLUSTER);
+  if (mode == 0) {
+    bt->set_noncluster_params(Lux::DBM::Linked);
+  } else {
+    bt->set_noncluster_params(Lux::DBM::Padded);
+  }
   if (!bt->open(argv[1], Lux::DB_CREAT)) {
     std::cerr << "open failed" << std::endl;
     exit(1);
@@ -34,8 +40,10 @@ int main(int argc, char *argv[])
     sprintf(key,"%08d", i);
     char *val = new char[102401]; // 100K
     sprintf(val, "%0102400d", i);
+    Lux::DBM::data_t key_data = {key, strlen(key)};
+    Lux::DBM::data_t val_data = {val, strlen(val)};
 
-    if (!bt->put(key, strlen(key), val, 102400)) {
+    if (!bt->put(&key_data, &val_data)) {
       std::cerr << "put failed." << std::endl;
     }
     delete [] val;
