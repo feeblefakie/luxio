@@ -53,5 +53,7 @@ int main(int argc, char *argv[])
   t2 = gettimeofday_sec();
   std::cout << "put time: " << t2 - t1 << std::endl;
 
+  fclose(fp);
+
   return 0;
 }
