@@ -13,6 +13,7 @@ prog=clean \
 	 bdb_btree_put2 bdb_btree_get2 \
 	 bdb_btree_put3 bdb_btree_get3 \
 	 bdb_btree_put4 bdb_btree_get4 \
+	 bdb_btree_put5 bdb_btree_get5 \
 	 tc_btree_put1 tc_btree_get1 \
 	 tc_btree_put2 tc_btree_get2 \
 	 tc_btree_put3 tc_btree_get3 \
@@ -76,6 +77,12 @@ bdb_btree_put4: bdb_btree_put4.cpp
 	g++ -g $< -o $@ $(BDB_CPPLFAGS) $(BDB_LDFLAGS)
 
 bdb_btree_get4: bdb_btree_get4.cpp
+	g++ -g $< -o $@ $(BDB_CPPLFAGS) $(BDB_LDFLAGS)
+
+bdb_btree_put5: bdb_btree_put5.cpp
+	g++ -g $< -o $@ $(BDB_CPPLFAGS) $(BDB_LDFLAGS)
+
+bdb_btree_get5: bdb_btree_get5.cpp
 	g++ -g $< -o $@ $(BDB_CPPLFAGS) $(BDB_LDFLAGS)
 
 tc_btree_put1: tc_btree_put1.cpp
