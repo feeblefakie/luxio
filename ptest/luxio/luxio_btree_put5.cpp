@@ -46,6 +46,31 @@ int main(int argc, char *argv[])
     if (!bt->put(&key_data, &val_data)) {
       std::cerr << "put failed." << std::endl;
     }
+    delete [] val;
+  }
+  for (int i = 0; i < rnum; ++i) {
+    char key[9];
+    memset(key, 0, 9);
+    sprintf(key,"%08d", i);
+    char *val = new char[102401]; // 100K
+    sprintf(val, "%0102400d", i);
+    Lux::DBM::data_t key_data = {key, strlen(key)};
+    Lux::DBM::data_t val_data = {val, strlen(val)};
+
+    if (!bt->put(&key_data, &val_data, Lux::DBM::APPEND)) {
+      std::cerr << "put failed." << std::endl;
+    }
+    delete [] val;
+  }
+  for (int i = 0; i < rnum; ++i) {
+    char key[9];
+    memset(key, 0, 9);
+    sprintf(key,"%08d", i);
+    char *val = new char[102401]; // 100K
+    sprintf(val, "%0102400d", i);
+    Lux::DBM::data_t key_data = {key, strlen(key)};
+    Lux::DBM::data_t val_data = {val, strlen(val)};
+
     if (!bt->put(&key_data, &val_data, Lux::DBM::APPEND)) {
       std::cerr << "put failed." << std::endl;
     }

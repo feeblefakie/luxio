@@ -31,25 +31,22 @@ int main(int argc, char *argv[])
     char key[9];
     memset(key, 0, 9);
     sprintf(key,"%08d", i);
-    /*
-    char *val = new char[204801]; // 100K
+    char *val = new char[307201];
     sprintf(val, "%0102400d", i);
     sprintf(val + 102400, "%0102400d", i);
-    */
+    sprintf(val + 102400*2, "%0102400d", i);
 
     Lux::DBM::data_t key_data = {key, strlen(key)};
     Lux::DBM::data_t *val_data = bt->get(&key_data);
     if (val_data != NULL) {
-      /*
       if (strcmp(val, (char *) val_data->data) != 0) {
         std::cout << "[error] value incorrect." << (char *) val_data->data << " expected [" << val << "]" << std::endl;
       }
-      */
       bt->clean_data(val_data);
     } else {
       std::cout << "[error] entry not found for [" << key << "]" << std::endl;
     } 
-    //delete [] val;
+    delete [] val;
   }
   bt->close();
   delete bt;
