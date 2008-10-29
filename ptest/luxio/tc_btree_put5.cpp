@@ -29,9 +29,9 @@ int main(int argc, char **argv){
 
   t1 = gettimeofday_sec();
   TCBDB *bdb = tcbdbnew();
-  tcbdbtune(bdb, 240, -1, -1, -1, -1, 0);
+  //tcbdbtune(bdb, 240, -1, -1, -1, -1, 0);
   //tcbdbtune(bdb, 480, -1, -1, -1, -1, BDBTDEFLATE);
-  tcbdbsetcache(bdb, 20480, 10240);
+  //tcbdbsetcache(bdb, 10, 5);
   if (!tcbdbopen(bdb, argv[1], BDBOWRITER | BDBOCREAT)) {
     ecode = tcbdbecode(bdb);
     fprintf(stderr, "open error: %s\n", tcbdberrmsg(ecode));
@@ -47,9 +47,31 @@ int main(int argc, char **argv){
     if (!tcbdbput(bdb, key, strlen(key), val, strlen(val))) {
       fprintf(stderr, "put error\n");
     }
+    delete [] val;
+  }
+  for (int i = 0; i < rnum; ++i) {
+    char key[9];
+    memset(key, 0, 9);
+    sprintf(key,"%08d", i);
+    char *val = new char[102401]; // 100K
+    sprintf(val, "%0102400d", i);
+
     if (!tcbdbputcat(bdb, key, strlen(key), val, strlen(val))) {
       fprintf(stderr, "put error\n");
     }
+    delete [] val;
+  }
+  for (int i = 0; i < rnum; ++i) {
+    char key[9];
+    memset(key, 0, 9);
+    sprintf(key,"%08d", i);
+    char *val = new char[102401]; // 100K
+    sprintf(val, "%0102400d", i);
+
+    if (!tcbdbputcat(bdb, key, strlen(key), val, strlen(val))) {
+      fprintf(stderr, "put error\n");
+    }
+    delete [] val;
   }
 
   if (!tcbdbclose(bdb)) {

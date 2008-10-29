@@ -42,21 +42,22 @@ int main(int argc, char **argv){
     char key[9];
     memset(key, 0, 9);
     sprintf(key,"%08d", i);
-    //char *val = new char[102401]; // 100K
-    //sprintf(val, "%0102400d", i);
+    char *val = new char[307201]; // 100K
+    sprintf(val, "%0307200d", i);
+    sprintf(val + 102400, "%0102400d", i);
+    sprintf(val + 102400*2, "%0102400d", i);
 
     int size;
     void *data = tcbdbget(bdb, key, strlen(key), &size);
     if (data != NULL) {
-      /*
       if (strcmp(val, (char *) data) != 0) {
         std::cout << "[error] value incorrect." << std::endl;
       }
-      */
       free(data);
     } else {
       std::cout << "[error] entry not found." << std::endl;
     } 
+    delete [] val;
   }
 
   if (!tcbdbclose(bdb)) {
