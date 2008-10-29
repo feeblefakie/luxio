@@ -16,6 +16,8 @@ prog=clean \
 	 tc_btree_put1 tc_btree_get1 \
 	 tc_btree_put2 tc_btree_get2 \
 	 tc_btree_put3 tc_btree_get3 \
+	 tc_btree_put4 tc_btree_get4 \
+	 tc_btree_put5 tc_btree_get5 \
 	 select
 all: $(prog)
 
@@ -93,6 +95,19 @@ tc_btree_put3: tc_btree_put3.cpp
 
 tc_btree_get3: tc_btree_get3.cpp
 	g++ -g $< -o $@ $(TC_CPPLFAGS) $(TC_LDFLAGS)
+
+tc_btree_put4: tc_btree_put4.cpp
+	g++ -g $< -o $@ $(TC_CPPLFAGS) $(TC_LDFLAGS)
+
+tc_btree_get4: tc_btree_get4.cpp
+	g++ -g $< -o $@ $(TC_CPPLFAGS) $(TC_LDFLAGS)
+
+tc_btree_put5: tc_btree_put5.cpp
+	g++ -g $< -o $@ $(TC_CPPLFAGS) $(TC_LDFLAGS)
+
+tc_btree_get5: tc_btree_get5.cpp
+	g++ -g $< -o $@ $(TC_CPPLFAGS) $(TC_LDFLAGS)
+
 #bench-nocluster: bench-nocluster.cpp btree.h data.h
 #	g++ -g $< -o $@ -lpthread -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64
 
