@@ -8,6 +8,9 @@ prog=clean \
 	 luxio_btree_put4 luxio_btree_get4 \
 	 luxio_btree_put5 luxio_btree_get5 \
 	 bdb_btree_put1 bdb_btree_get1 \
+	 bdb_btree_put2 bdb_btree_get2 \
+	 bdb_btree_put3 bdb_btree_get3 \
+	 bdb_btree_put4 bdb_btree_get4 \
 	 select
 all: $(prog)
 
@@ -48,6 +51,24 @@ bdb_btree_put1: bdb_btree_put1.cpp
 	g++ -g $< -o $@ $(BDB_CPPLFAGS) $(BDB_LDFLAGS)
 
 bdb_btree_get1: bdb_btree_get1.cpp
+	g++ -g $< -o $@ $(BDB_CPPLFAGS) $(BDB_LDFLAGS)
+
+bdb_btree_put2: bdb_btree_put2.cpp
+	g++ -g $< -o $@ $(BDB_CPPLFAGS) $(BDB_LDFLAGS)
+
+bdb_btree_get2: bdb_btree_get2.cpp
+	g++ -g $< -o $@ $(BDB_CPPLFAGS) $(BDB_LDFLAGS)
+
+bdb_btree_put3: bdb_btree_put3.cpp
+	g++ -g $< -o $@ $(BDB_CPPLFAGS) $(BDB_LDFLAGS)
+
+bdb_btree_get3: bdb_btree_get3.cpp
+	g++ -g $< -o $@ $(BDB_CPPLFAGS) $(BDB_LDFLAGS)
+
+bdb_btree_put4: bdb_btree_put4.cpp
+	g++ -g $< -o $@ $(BDB_CPPLFAGS) $(BDB_LDFLAGS)
+
+bdb_btree_get4: bdb_btree_get4.cpp
 	g++ -g $< -o $@ $(BDB_CPPLFAGS) $(BDB_LDFLAGS)
 
 #bench-nocluster: bench-nocluster.cpp btree.h data.h
