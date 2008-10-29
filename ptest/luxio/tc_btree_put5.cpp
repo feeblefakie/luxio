@@ -14,7 +14,6 @@ double gettimeofday_sec()
   gettimeofday(&tv, NULL);
   return tv.tv_sec + (double)tv.tv_usec*1e-6;
 }
-
 int main(int argc, char **argv){
 
   if (argc != 3) {
@@ -24,6 +23,7 @@ int main(int argc, char **argv){
 
   double t1, t2;
   int rnum = atoi(argv[2]);
+
   int ecode;
   char *key, *value;
 
@@ -32,7 +32,6 @@ int main(int argc, char **argv){
   tcbdbtune(bdb, 240, -1, -1, -1, -1, 0);
   //tcbdbtune(bdb, 480, -1, -1, -1, -1, BDBTDEFLATE);
   tcbdbsetcache(bdb, 20480, 10240);
-
   if (!tcbdbopen(bdb, argv[1], BDBOWRITER | BDBOCREAT)) {
     ecode = tcbdbecode(bdb);
     fprintf(stderr, "open error: %s\n", tcbdberrmsg(ecode));
@@ -42,17 +41,15 @@ int main(int argc, char **argv){
     char key[9];
     memset(key, 0, 9);
     sprintf(key,"%08d", i);
+    char *val = new char[102401]; // 100K
+    sprintf(val, "%0102400d", i);
 
-    int size;
-    void *data = tcbdbget(bdb, key, strlen(key), &size);
-    if (data != NULL) {
-      if (i != *(int32_t *) data) {
-        std::cout << "[error] value incorrect." << std::endl;
-      }
-      free(data);
-    } else {
-      std::cout << "[error] entry not found." << std::endl;
-    } 
+    if (!tcbdbput(bdb, key, strlen(key), val, strlen(val))) {
+      fprintf(stderr, "put error\n");
+    }
+    if (!tcbdbputcat(bdb, key, strlen(key), val, strlen(val))) {
+      fprintf(stderr, "put error\n");
+    }
   }
 
   if (!tcbdbclose(bdb)) {
@@ -61,7 +58,7 @@ int main(int argc, char **argv){
   }
   tcbdbdel(bdb);
   t2 = gettimeofday_sec();
-  std::cout << "get time: " << t2 - t1 << std::endl;
+  std::cout << "put time: " << t2 - t1 << std::endl;
 
   return 0;
 }
