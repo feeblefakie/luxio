@@ -56,6 +56,7 @@ int main(int argc, char **argv){
     }
     memset(buf, 0, 256);
   }
+  tcbdbsync(bdb);
 
   if (!tcbdbclose(bdb)) {
     ecode = tcbdbecode(bdb);

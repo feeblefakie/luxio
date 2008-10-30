@@ -46,6 +46,7 @@ int main(int argc, char **argv){
       fprintf(stderr, "put error\n");
     }
   }
+  tcbdbsync(bdb);
 
   if (!tcbdbclose(bdb)) {
     ecode = tcbdbecode(bdb);
