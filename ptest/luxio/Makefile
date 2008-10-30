@@ -23,37 +23,37 @@ prog=clean \
 all: $(prog)
 
 luxio_btree_put1: luxio_btree_put1.cpp ../../btree.h ../../data.h 
-	g++ -g $< -o $@ -lpthread
+	g++ -g $< -o $@ -lpthread -O2
 
 luxio_btree_get1: luxio_btree_get1.cpp ../../btree.h ../../data.h
-	g++ -g $< -o $@ -lpthread
+	g++ -g $< -o $@ -lpthread -O2
 
 luxio_btree_put2: luxio_btree_put2.cpp ../../btree.h ../../data.h 
-	g++ -g $< -o $@ -lpthread
+	g++ -g $< -o $@ -lpthread -O2
 
 luxio_btree_get2: luxio_btree_get2.cpp ../../btree.h ../../data.h
-	g++ -g $< -o $@ -lpthread
+	g++ -g $< -o $@ -lpthread -O2
 
 luxio_btree_put3: luxio_btree_put3.cpp ../../btree.h ../../data.h 
-	g++ -g $< -o $@ -lpthread
+	g++ -g $< -o $@ -lpthread -O2
 
 luxio_btree_get3: luxio_btree_get3.cpp ../../btree.h ../../data.h
-	g++ -g $< -o $@ -lpthread
+	g++ -g $< -o $@ -lpthread -O2
 
 luxio_btree_put4: luxio_btree_put4.cpp ../../btree.h ../../data.h 
-	g++ -g $< -o $@ -lpthread -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 -DDEBUG
+	g++ -g $< -o $@ -lpthread -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 -DDEBUG -O2
 
 luxio_btree_get4: luxio_btree_get4.cpp ../../btree.h ../../data.h
-	g++ -g $< -o $@ -lpthread -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 -DDEBUG
+	g++ -g $< -o $@ -lpthread -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 -DDEBUG -O2
 
 luxio_btree_put5: luxio_btree_put5.cpp ../../btree.h ../../data.h 
-	g++ -g $< -o $@ -lpthread -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 -DDEBUG
+	g++ -g $< -o $@ -lpthread -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 -DDEBUG -O2
 
 luxio_btree_get5: luxio_btree_get5.cpp ../../btree.h ../../data.h
-	g++ -g $< -o $@ -lpthread -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 -DDEBUG
+	g++ -g $< -o $@ -lpthread -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 -DDEBUG -O2
 
 select: select.cpp ../../btree.h ../../data.h
-	g++ -g $< -o $@ -lpthread -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 -DDEBUG
+	g++ -g $< -o $@ -lpthread -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 -DDEBUG -O2
 
 bdb_btree_put1: bdb_btree_put1.cpp
 	g++ -g $< -o $@ $(BDB_CPPLFAGS) $(BDB_LDFLAGS)
