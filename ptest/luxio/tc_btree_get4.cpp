@@ -31,7 +31,7 @@ int main(int argc, char **argv){
   TCBDB *bdb = tcbdbnew();
   tcbdbtune(bdb, 240, -1, -1, -1, -1, 0);
   //tcbdbtune(bdb, 480, -1, -1, -1, -1, BDBTDEFLATE);
-  tcbdbsetcache(bdb, 20480, 10240);
+  //tcbdbsetcache(bdb, 20480, 10240);
 
   if (!tcbdbopen(bdb, argv[1], BDBOWRITER | BDBOCREAT)) {
     ecode = tcbdbecode(bdb);
@@ -55,6 +55,7 @@ int main(int argc, char **argv){
     } else {
       std::cout << "[error] entry not found." << std::endl;
     } 
+    delete [] val;
   }
 
   if (!tcbdbclose(bdb)) {

@@ -29,9 +29,11 @@ int main(int argc, char **argv){
 
   t1 = gettimeofday_sec();
   TCBDB *bdb = tcbdbnew();
-  tcbdbtune(bdb, 240, -1, -1, -1, -1, 0);
+  tcbdbtune(bdb, 5, -1, -1, -1, -1, 0);
+  //tcbdbtune(bdb, 240, -1, -1, -1, -1, 0);
   //tcbdbtune(bdb, 480, -1, -1, -1, -1, BDBTDEFLATE);
-  tcbdbsetcache(bdb, 20480, 10240);
+  //tcbdbsetcache(bdb, 0, 0);
+  //tcbdbsetcache(bdb, 20480, 10240);
   if (!tcbdbopen(bdb, argv[1], BDBOWRITER | BDBOCREAT)) {
     ecode = tcbdbecode(bdb);
     fprintf(stderr, "open error: %s\n", tcbdberrmsg(ecode));
@@ -47,6 +49,7 @@ int main(int argc, char **argv){
     if (!tcbdbput(bdb, key, strlen(key), val, strlen(val))) {
       fprintf(stderr, "put error\n");
     }
+    delete [] val;
   }
 
   if (!tcbdbclose(bdb)) {
