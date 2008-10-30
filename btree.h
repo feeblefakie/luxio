@@ -34,6 +34,7 @@ namespace DBM {
   static const uint32_t MAX_KSIZE = 255;
   static const uint32_t CLUSTER_MAX_VSIZE = 255;
   static const uint32_t NONCLUSTER_MAX_VSIZE = UINT32_MAX;
+  static const uint32_t ALLOCATE_UNIT = 100;
 
   // global header
   typedef struct {
@@ -45,6 +46,7 @@ namespace DBM {
     uint32_t num_leaves;
     uint32_t num_nonleaves;
     uint32_t num_resized;
+    uint32_t num_alloc_pages;
     store_mode_t smode;
     padding_mode_t pmode;
     uint32_t padding;
@@ -574,6 +576,7 @@ namespace DBM {
         dh.num_leaves = 0;
         dh.num_nonleaves = 0; // root node
         dh.num_resized = 0;
+        dh.num_alloc_pages = 0;
         dh.smode = smode_;
         dh.pmode = pmode_;
         dh.padding = padding_;
@@ -606,12 +609,12 @@ namespace DBM {
           return false;
         }
 
-        if (stat_buf.st_size != dh.num_nodes * dh.node_size) {
+        if (stat_buf.st_size != dh.num_alloc_pages * dh.node_size) {
           error_log("database corruption occured");
           return false;
         }
 
-        map_ = (char *) _mmap(fd_, dh.node_size * dh.num_nodes, oflags);
+        map_ = (char *) _mmap(fd_, dh.node_size * dh.num_alloc_pages, oflags);
         if (map_ == NULL) {
           error_log("mmap failed.");
           return false;
@@ -1140,37 +1143,41 @@ namespace DBM {
     bool append_page(void)
     {
       vinfo_log("append_page");
-      uint32_t num_nodes = dh_->num_nodes;
-      uint32_t node_size = dh_->node_size;
-
-      if (munmap(map_, node_size * num_nodes) < 0) {
-        error_log("munmap failed.");
-        return false;
-      }
-      map_ = NULL;
-      // one page appendiing
-      return alloc_page(num_nodes + 1, node_size, num_nodes);
+      // one page appending
+      return alloc_page(dh_->num_nodes + 1, dh_->node_size, dh_->num_alloc_pages);
     }
 
-    bool alloc_page(uint32_t num_nodes, uint32_t node_size, uint32_t prev_num_nodes)
+    bool alloc_page(uint32_t num_nodes, uint32_t node_size, uint32_t num_alloc_pages)
     {
       vinfo_log("alloc_page");
-      if (ftruncate(fd_, node_size * num_nodes) < 0) {
-        error_log("ftruncate failed.");
-        return false;
-      }
-      map_ = (char *) _mmap(fd_, node_size * num_nodes, oflags_);
-      if (map_ == NULL) {
-        error_log("mmap failed. ftruncating back ...");
-        if (ftruncate(fd_, node_size * prev_num_nodes) < 0) {
+      if (num_alloc_pages < num_nodes) {
+        uint32_t num_pages_extended = num_alloc_pages + ALLOCATE_UNIT;
+
+        if (map_ != NULL) {
+          if (munmap(map_, node_size * num_alloc_pages) < 0) {
+            error_log("munmap failed.");
+            return false;
+          }
+          map_ = NULL;
+        }
+        if (ftruncate(fd_, node_size * num_pages_extended) < 0) {
           error_log("ftruncate failed.");
           return false;
         }
-        return false;
+        map_ = (char *) _mmap(fd_, node_size * num_pages_extended, oflags_);
+        if (map_ == NULL) {
+          error_log("mmap failed. ftruncating back ...");
+          if (ftruncate(fd_, node_size * num_alloc_pages) < 0) {
+            error_log("ftruncate failed.");
+            return false;
+          }
+          return false;
+        }
+        dh_ = (btree_header_t *) map_;
+        ++(dh_->num_resized);
+        dh_->num_alloc_pages = num_pages_extended;
       }
-      dh_ = (btree_header_t *) map_;
       dh_->num_nodes = num_nodes;
-      ++(dh_->num_resized);
       num_nodes_ = num_nodes;
       return true;
     }
