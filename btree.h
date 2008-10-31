@@ -1195,8 +1195,8 @@ namespace DBM {
       *up_entry = get_up_entry(node, slots, num_moves, new_node->h->id);
       if (!node->h->is_leaf) {
         if (num_moves == 1) {
-          // [TODO] throwing error for now
-          throw std::runtime_error("something bad happened. never comes here usually.");
+          error_log("something bad happened. usually never reaches here.");
+          return false;
         } else {
           --num_moves; // the entry is pushed up in non-leaf node
         }
