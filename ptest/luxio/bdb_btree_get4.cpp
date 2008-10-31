@@ -32,8 +32,8 @@ int main(int argc, char *argv[])
   }
 
   flags = DB_RDONLY;
-  dbp->set_cachesize(dbp, 0, 512*1024*1024, 0);
-  dbp->set_pagesize(dbp, 65536);
+  dbp->set_cachesize(dbp, 0, 64*1024*1024, 0);
+  //dbp->set_pagesize(dbp, 65536);
   ret = dbp->open(dbp, NULL, argv[1], NULL, DB_BTREE, flags, 0);
   if (ret != 0) {
     /* Error handling goes here */
@@ -58,12 +58,14 @@ int main(int argc, char *argv[])
     ret = dbp->get(dbp, NULL, &key, &data, 0);
 
     if (ret != DB_NOTFOUND) {
-      if (strcmp(val, (char *) data.data) != 0) {
+      if (strncmp(val, (char *) data.data, data.size) != 0) {
         std::cout << "[error] value incorrect." << std::endl;
       }
+      free(data.data);
     } else {
       std::cout << "[error] entry not found." << std::endl;
     } 
+    delete [] val;
   }
   dbp->close(dbp, 0); 
   t2 = gettimeofday_sec();

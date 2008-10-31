@@ -32,7 +32,7 @@ int main(int argc, char *argv[])
     exit(1);
   }
   flags = DB_CREATE;
-  dbp->set_cachesize(dbp, 0, 512*1024*1024, 0);
+  dbp->set_cachesize(dbp, 0, 64*1024*1024, 0);
   dbp->set_pagesize(dbp, 65536);
   ret = dbp->open(dbp, NULL, argv[1], NULL, DB_BTREE, flags, 0);
   if (ret != 0) {
@@ -61,6 +61,7 @@ int main(int argc, char *argv[])
     if (ret == DB_KEYEXIST) {
       std::cerr << "key exists" << std::endl;
     }
+    delete [] val;
   }
   dbp->close(dbp, 0); 
   t2 = gettimeofday_sec();
