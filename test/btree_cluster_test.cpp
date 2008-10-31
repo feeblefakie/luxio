@@ -216,6 +216,23 @@ namespace {
     delete bt;
   }
 
+  TEST_F(BtreeTest, PutAgainTest) {
+    std::string db_name = get_db_name(db_num_);
+    ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::DB_RDWR));
+    
+    int num = num_entries_ * 5;
+    for (int i = num_entries_; i < num; ++i) {
+      char key[9];
+      memset(key, 0, 9);
+      sprintf(key, "%08d", i);
+      // put
+      ASSERT_EQ(true, bt->put(key, strlen(key),
+                &i, sizeof(int)));
+    }
+    ASSERT_EQ(true, bt->close());
+    delete bt;
+  }
+
   TEST_F(BtreeTest, VariableLengthValueTest) {
     std::string db_name = get_db_name(++db_num_);
     ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::DB_CREAT));

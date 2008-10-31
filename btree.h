@@ -34,6 +34,7 @@ namespace DBM {
   static const uint32_t MAX_KSIZE = 255;
   static const uint32_t CLUSTER_MAX_VSIZE = 255;
   static const uint32_t NONCLUSTER_MAX_VSIZE = UINT32_MAX;
+  static const uint32_t ALLOCATE_UNIT = 100;
 
   // global header
   typedef struct {
@@ -45,6 +46,10 @@ namespace DBM {
     uint32_t num_leaves;
     uint32_t num_nonleaves;
     uint32_t num_resized;
+    uint32_t num_alloc_pages;
+    store_mode_t smode;
+    padding_mode_t pmode;
+    uint32_t padding;
     uint16_t init_data_size;
     uint8_t index_type;
   } btree_header_t;
@@ -571,6 +576,10 @@ namespace DBM {
         dh.num_leaves = 0;
         dh.num_nonleaves = 0; // root node
         dh.num_resized = 0;
+        dh.num_alloc_pages = 0;
+        dh.smode = smode_;
+        dh.pmode = pmode_;
+        dh.padding = padding_;
         dh.index_type = index_type_;
 
         if (_write(fd_, &dh, sizeof(btree_header_t)) < 0) {
@@ -600,12 +609,12 @@ namespace DBM {
           return false;
         }
 
-        if (stat_buf.st_size != dh.num_nodes * dh.node_size) {
+        if (stat_buf.st_size != dh.num_alloc_pages * dh.node_size) {
           error_log("database corruption occured");
           return false;
         }
 
-        map_ = (char *) _mmap(fd_, dh.node_size * dh.num_nodes, oflags);
+        map_ = (char *) _mmap(fd_, dh.node_size * dh.num_alloc_pages, oflags);
         if (map_ == NULL) {
           error_log("mmap failed.");
           return false;
@@ -623,10 +632,10 @@ namespace DBM {
       }
 
       if (dh_->index_type == NONCLUSTER) {
-        if(smode_ == Padded) {
-          dt_ = new PaddedData(pmode_, padding_);
-        } else if (smode_ == Linked) {
-          dt_ = new LinkedData(pmode_, padding_);
+        if(dh_->smode == Padded) {
+          dt_ = new PaddedData(dh_->pmode, dh_->padding);
+        } else if (dh_->smode == Linked) {
+          dt_ = new LinkedData(dh_->pmode, dh_->padding);
         } else {
           error_log("specified store mode doesn't exitst.");
         }
@@ -695,12 +704,12 @@ namespace DBM {
 
       node_t *node = _alloc_node(id);
       if (node->h->is_leaf) {
-        find_res_t *r = find_key(node, entry.key, entry.key_size);
-        if (r->type == KEY_FOUND) {
-          slot_t *slot = (slot_t *) r->slot_p;
-          res = get_data(r->data_p + slot->size, v, atype);
+        find_res_t r;
+        find_key(node, entry.key, entry.key_size, &r);
+        if (r.type == KEY_FOUND) {
+          slot_t *slot = (slot_t *) r.slot_p;
+          res = get_data(r.data_p + slot->size, v, atype);
         }
-        delete r;
       } else {
         node_id_t next_id = _find_next(node, &entry);
         res = find(next_id, k, v, atype);
@@ -876,25 +885,25 @@ namespace DBM {
       assert(id >= 1 && id <= dh_->num_nodes - 1);
       node_t *node = _alloc_node(id);
       if (node->h->is_leaf) {
-        find_res_t *r = find_key(node, entry->key, entry->key_size);
-        if (r->type == KEY_FOUND) {
+        find_res_t r;
+        find_key(node, entry->key, entry->key_size, &r);
+        if (r.type == KEY_FOUND) {
           // remove the data in non-clustered
           if (dh_->index_type == NONCLUSTER) {
-            slot_t *slot = (slot_t *) r->slot_p;
-            data_ptr_t *data_ptr = (data_ptr_t *) (r->data_p + slot->size);
+            slot_t *slot = (slot_t *) r.slot_p;
+            data_ptr_t *data_ptr = (data_ptr_t *) (r.data_p + slot->size);
             dt_->del(data_ptr);
           }
           // remove the slot
           char *p = (char *) node->b + node->h->free_off;
-          if (p != r->slot_p) {
-            memmove(p + sizeof(slot_t), p, r->slot_p - p);
+          if (p != r.slot_p) {
+            memmove(p + sizeof(slot_t), p, r.slot_p - p);
           }
           node->h->free_off += sizeof(slot_t);
           node->h->free_size += sizeof(slot_t);
           --(node->h->num_keys);
           --(dh_->num_keys);
         }
-        delete r;
       } else {
         node_id_t next_id = _find_next(node, entry);
         if (!_del(next_id, entry)) {
@@ -909,67 +918,62 @@ namespace DBM {
                          op_mode_t op_mode = OP_UNSPECIFIED)
     {
       node_id_t id;
-      find_res_t *r;
+      find_res_t r;
 
       if (op_mode == OP_CUR_FIRST) {
-        r = new find_res_t;  
-        r->type = KEY_SMALLEST;
+        r.type = KEY_SMALLEST;
       } else if (op_mode == OP_CUR_LAST || 
                  (is_bulk_loading_ && op_mode == OP_INSERT)) {
         // always expect biggest keys in bulk loading
-        r = new find_res_t;  
-        r->type = KEY_BIGGEST;
+        r.type = KEY_BIGGEST;
       } else {
-        r = find_key(node, entry->key, entry->key_size);
+        find_key(node, entry->key, entry->key_size, &r);
       }
 
-      if (node->h->num_keys == 0 || r->type == KEY_SMALLEST) {
+      if (node->h->num_keys == 0 || r.type == KEY_SMALLEST) {
         memcpy(&id, (char *) node->b, sizeof(node_id_t));
       } else { 
         slot_t *slot;
-        if (r->type == KEY_BIGGEST) {
+        if (r.type == KEY_BIGGEST) {
           char *free_p = (char *) node->b + node->h->free_off;
           slot = (slot_t *) free_p;
         } else {
-          slot = (slot_t *) r->slot_p;
+          slot = (slot_t *) r.slot_p;
         }
         memcpy(&id, (char *) node->b + slot->off + slot->size, sizeof(node_id_t));
       }
-      delete r;
       return id;
     }
 
     bool put_entry_in_leaf(node_t *node, entry_t *entry)
     {
       vinfo_log("put_entry_in_leaf");
-      find_res_t *r;
+      find_res_t r;
       if (is_bulk_loading_) {
         // always expect biggest keys in bulk loading
-        r = new find_res_t;  
-        r->type = KEY_BIGGEST;
+        r.type = KEY_BIGGEST;
       } else {
-        r = find_key(node, entry->key, entry->key_size);
+        find_key(node, entry->key, entry->key_size, &r);
       }
-      if (r->type == KEY_FOUND && entry->mode == NOOVERWRITE) {
-        delete r;
+      if (r.type == KEY_FOUND && entry->mode == NOOVERWRITE) {
         return true;
       }
 
       if (dh_->index_type == CLUSTER) {
-        if (r->type == KEY_FOUND) {
+        if (r.type == KEY_FOUND) {
           // append is not supported in b+-tree cluster index. only updating
           if (entry->mode == APPEND) {
             error_log("append is not supported in cluster index");
             return false;
           }
-          char *val_p = (char *) r->data_p + entry->key_size;
+          char *val_p = (char *) r.data_p + entry->key_size;
           // check if updating entry is bigger than existing
           if (entry->val_size > *(uint8_t *) val_p + sizeof(uint8_t)) {
             return false;
           }
           memcpy(val_p, entry->val, entry->val_size);
         } else {
-          put_entry(node, entry, r);
+          put_entry(node, entry, &r);
         }
       } else {
         entry_t _entry = {entry->key, entry->key_size,
@@ -977,8 +981,8 @@ namespace DBM {
         data_t data = {entry->val, entry->val_size};
         data_ptr_t *res_data_ptr;
 
-        if (r->type == KEY_FOUND) {
-          char *val_ptr = (char *) r->data_p + entry->key_size;
+        if (r.type == KEY_FOUND) {
+          char *val_ptr = (char *) r.data_p + entry->key_size;
           data_ptr_t *data_ptr = (data_ptr_t *) val_ptr;
 
           // append or update the data, get the ptr to the data and update the index
@@ -994,11 +998,10 @@ namespace DBM {
           res_data_ptr = dt_->put(&data);
           if (res_data_ptr == NULL) { return false; }
           _entry.val = res_data_ptr;
-          put_entry(node, &_entry, r);
+          put_entry(node, &_entry, &r);
         }
         dt_->clean_data_ptr(res_data_ptr);
       }
-      delete r;
       return true;
     }
 
@@ -1008,9 +1011,9 @@ namespace DBM {
       node_header_t *h = node->h;
       node_body_t *b = node->b;
 
-      find_res_t *r = find_key(node, entry->key, entry->key_size);
-      put_entry(node, entry, r);
-      delete r;
+      find_res_t r;
+      find_key(node, entry->key, entry->key_size, &r);
+      put_entry(node, entry, &r);
     }
  
     void put_entry(node_t *node, entry_t *entry, find_res_t *r)
@@ -1050,16 +1053,15 @@ namespace DBM {
       ++(node->h->num_keys);
     }
 
-    // [TODO] API should be changed ? : take data_t instead of key and key_size
-    find_res_t *find_key(node_t *node, const void *key, uint32_t key_size)
+    void find_key(node_t *node, const void *key, uint32_t key_size, find_res_t *r)
     {
-      find_res_t *r = new find_res_t;
+      //find_res_t *r = new find_res_t;
       char *slot_p = (char *) node->b + node->h->free_off;
       slot_t *slots = (slot_t *) slot_p;
 
       if (node->h->num_keys == 0) {
         r->type = KEY_SMALLEST;
-        return r;
+        return;
       }
 
       // [TODO] API should be changed ? : take data_t instead of key and key_size
@@ -1128,43 +1130,47 @@ namespace DBM {
           }
         }
       }
-      return r;
+      return;
     }
 
     bool append_page(void)
     {
       vinfo_log("append_page");
-      uint32_t num_nodes = dh_->num_nodes;
-      uint32_t node_size = dh_->node_size;
-
-      if (munmap(map_, node_size * num_nodes) < 0) {
-        error_log("munmap failed.");
-        return false;
-      }
-      map_ = NULL;
-      // one page appendiing
-      return alloc_page(num_nodes + 1, node_size, num_nodes);
+      // one page appending
+      return alloc_page(dh_->num_nodes + 1, dh_->node_size, dh_->num_alloc_pages);
     }
 
-    bool alloc_page(uint32_t num_nodes, uint32_t node_size, uint32_t prev_num_nodes)
+    bool alloc_page(uint32_t num_nodes, uint32_t node_size, uint32_t num_alloc_pages)
     {
       vinfo_log("alloc_page");
-      if (ftruncate(fd_, node_size * num_nodes) < 0) {
-        error_log("ftruncate failed.");
-        return false;
-      }
-      map_ = (char *) _mmap(fd_, node_size * num_nodes, oflags_);
-      if (map_ == NULL) {
-        error_log("mmap failed. ftruncating back ...");
-        if (ftruncate(fd_, node_size * prev_num_nodes) < 0) {
+      if (num_alloc_pages < num_nodes) {
+        uint32_t num_pages_extended = num_alloc_pages + ALLOCATE_UNIT;
+
+        if (map_ != NULL) {
+          if (munmap(map_, node_size * num_alloc_pages) < 0) {
+            error_log("munmap failed.");
+            return false;
+          }
+          map_ = NULL;
+        }
+        if (ftruncate(fd_, node_size * num_pages_extended) < 0) {
           error_log("ftruncate failed.");
           return false;
         }
-        return false;
+        map_ = (char *) _mmap(fd_, node_size * num_pages_extended, oflags_);
+        if (map_ == NULL) {
+          error_log("mmap failed. ftruncating back ...");
+          if (ftruncate(fd_, node_size * num_alloc_pages) < 0) {
+            error_log("ftruncate failed.");
+            return false;
+          }
+          return false;
+        }
+        dh_ = (btree_header_t *) map_;
+        ++(dh_->num_resized);
+        dh_->num_alloc_pages = num_pages_extended;
       }
-      dh_ = (btree_header_t *) map_;
       dh_->num_nodes = num_nodes;
-      ++(dh_->num_resized);
       num_nodes_ = num_nodes;
       return true;
     }
@@ -1189,8 +1195,8 @@ namespace DBM {
       *up_entry = get_up_entry(node, slots, num_moves, new_node->h->id);
       if (!node->h->is_leaf) {
         if (num_moves == 1) {
-          // [TODO] throwing error for now
-          throw std::runtime_error("something bad happened. never comes here usually.");
+          error_log("something bad happened. usually never reaches here.");
+          return false;
         } else {
           --num_moves; // the entry is pushed up in non-leaf node
         }
@@ -1467,12 +1473,12 @@ namespace DBM {
           } else if (op_mode == OP_CUR_LAST) {
             c->slot_index = 0;
           } else if (op_mode == OP_CUR_GET) {
-            find_res_t *r = find_key(node, key->data, key->size);
-            if (r->type == KEY_FOUND) {
+            find_res_t r;
+            find_key(node, key->data, key->size, &r);
+            if (r.type == KEY_FOUND) {
               char *p = (char *) node->b + node->h->free_off;
-              c->slot_index = (r->slot_p - p) / sizeof(slot_t);
+              c->slot_index = (r.slot_p - p) / sizeof(slot_t);
             }
-            delete r;
           } else {
             error_log("operation not supported");
             res = false;

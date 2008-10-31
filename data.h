@@ -62,7 +62,6 @@ namespace DBM {
     typedef struct {
       uint32_t num_blocks;
       uint32_t block_size;
-      uint32_t bytes_used;
       block_id_t cur_block_id;
       padding_mode_t pmode;
       uint32_t padding;
@@ -122,7 +121,6 @@ namespace DBM {
       if (stat_buf.st_size == 0 && oflags & DB_CREAT) {
         dh.num_blocks = 0;
         dh.block_size = (block_size_ == 0) ? stat_buf.st_blksize : block_size_;
-        dh.bytes_used = 0;
         dh.cur_block_id = 0;
         dh.pmode = pmode_;
         dh.padding = padding_;
@@ -404,7 +402,7 @@ namespace DBM {
 
     off_t calc_off(block_id_t id, uint16_t off)
     {
-      return (id-1) * dh_->block_size + header_size_ + off;
+      return (off_t) (id-1) * dh_->block_size + header_size_ + off;
     }
 
     uint32_t get_pow_of_2_ceiled(uint32_t size, int start)
@@ -422,7 +420,7 @@ namespace DBM {
       vinfo_log("extend_blocks");
       dh_->cur_block_id = dh_->num_blocks + 1;
       dh_->num_blocks += append_num_blocks;
-      if (ftruncate(fd_, header_size_ + dh_->block_size * dh_->num_blocks) < 0) {
+      if (ftruncate(fd_, header_size_ + (off_t) dh_->block_size * dh_->num_blocks) < 0) {
         error_log("ftruncate failed.");
         return false;
       }

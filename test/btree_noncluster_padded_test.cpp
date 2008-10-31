@@ -74,7 +74,6 @@ namespace {
    * omode: rdonly
    **/
   TEST_F(BtreeTest, GetPaddedTest) {
-    bt->set_noncluster_params(Lux::DBM::Padded);
     std::string db_name = get_db_name(db_num_);
     ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::DB_RDONLY));
 
@@ -121,7 +120,6 @@ namespace {
    * omode: rdonly
    **/
   TEST_F(BtreeTest, CursorPaddedTest) {
-    bt->set_noncluster_params(Lux::DBM::Padded);
     std::string db_name = get_db_name(db_num_);
     ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::DB_RDONLY));
 
@@ -177,7 +175,6 @@ namespace {
    * omode: rdwr
    **/
   TEST_F(BtreeTest, DelPaddedTest) {
-    bt->set_noncluster_params(Lux::DBM::Padded);
     std::string db_name = get_db_name(db_num_);
     ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::DB_RDWR));
 
