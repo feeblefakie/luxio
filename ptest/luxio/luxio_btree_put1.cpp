@@ -28,6 +28,7 @@ int main(int argc, char *argv[])
     exit(1);
   }
 
+  //bt->set_bulk_loading(true);
   for (int i = 0; i < rnum; ++i) {
     char key[9];
     memset(key, 0, 9);
@@ -37,6 +38,7 @@ int main(int argc, char *argv[])
       std::cerr << "put failed." << std::endl;
     }
   }
+  //bt->set_bulk_loading(false);
   bt->close();
   delete bt;
 
