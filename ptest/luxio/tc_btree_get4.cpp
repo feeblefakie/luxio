@@ -29,9 +29,8 @@ int main(int argc, char **argv){
 
   t1 = gettimeofday_sec();
   TCBDB *bdb = tcbdbnew();
-  tcbdbtune(bdb, 240, -1, -1, -1, -1, 0);
-  //tcbdbtune(bdb, 480, -1, -1, -1, -1, BDBTDEFLATE);
-  //tcbdbsetcache(bdb, 20480, 10240);
+  tcbdbtune(bdb, 5, -1, -1, -1, -1, 0);
+  tcbdbsetcache(bdb, 300, 100);
 
   if (!tcbdbopen(bdb, argv[1], BDBOWRITER | BDBOCREAT)) {
     ecode = tcbdbecode(bdb);
