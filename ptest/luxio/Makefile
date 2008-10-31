@@ -23,7 +23,8 @@ prog=clean \
 	 tc_btree_put5 tc_btree_get5 \
 	 tc_btree_put6 tc_btree_get6 \
 	 tc_btree_put7 tc_btree_get7 \
-	 select
+	 select \
+	 get_random_data
 all: $(prog)
 
 luxio_btree_put1: luxio_btree_put1.cpp ../../btree.h ../../data.h 
@@ -70,6 +71,9 @@ luxio_btree_get7: luxio_btree_get7.cpp ../../btree.h ../../data.h
 
 select: select.cpp ../../btree.h ../../data.h
 	g++ -g $< -o $@ -lpthread -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 -DDEBUG -O2
+
+get_random_data: get_random_data.cpp
+	g++ -g $< -o $@
 
 bdb_btree_put1: bdb_btree_put1.cpp
 	g++ -g $< -o $@ $(BDB_CPPFLAGS) $(BDB_LDFLAGS)
