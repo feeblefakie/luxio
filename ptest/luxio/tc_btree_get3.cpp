@@ -29,7 +29,6 @@ int main(int argc, char **argv){
     exit(1);
   }
 
-  int rnum = atoi(argv[2]);
   int ecode;
   char *key, *value;
 
