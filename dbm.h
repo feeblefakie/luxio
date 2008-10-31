@@ -21,6 +21,7 @@
 // for UINT8_MAX
 #define __STDC_LIMIT_MACROS
 
+#include "config.h"
 #include "types.h"
 #include "util.h"
 #include <unistd.h>
