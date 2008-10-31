@@ -20,7 +20,9 @@
 
 #include "dbm.h"
 #include "data.h"
+#ifdef HAVE_LIBPTHREAD
 #include <pthread.h>
+#endif
 
 #define ALLOC_AND_COPY(s1, s2, size) \
   char s1[size+1]; \
@@ -151,10 +153,12 @@ namespace DBM {
       padding_(0),
       is_bulk_loading_(false)
     {
+#ifdef HAVE_LIBPTHREAD
       if (pthread_rwlock_init(&rwlock_, NULL) != 0) {
         error_log("pthread_rwlock_init failed");
         exit(-1);
       }
+#endif
     }
 
     ~Btree()
@@ -166,20 +170,26 @@ namespace DBM {
       if (map_ != NULL) {
         close();
       }
+#ifdef HAVE_LIBPTHREAD
       if (pthread_rwlock_destroy(&rwlock_) != 0) {
         error_log("pthread_rwlock_destroy failed");
         exit(-1);
       }
+#endif
     }
 
     bool open(std::string db_name, db_flags_t oflags)
     {
       if (lock_type_ == LOCK_THREAD) {
+#ifdef HAVE_LIBPTHREAD
         pthread_rwlock_wrlock(&rwlock_);
+#endif
       }
       bool res = open_(db_name, oflags);
       if (lock_type_ == LOCK_THREAD) {
+#ifdef HAVE_LIBPTHREAD
         pthread_rwlock_unlock(&rwlock_);
+#endif
       }
 
       return res;
@@ -530,7 +540,9 @@ namespace DBM {
     uint32_t page_size_;
     CMP cmp_;
     Data *dt_;
+#ifdef HAVE_LIBPTHREAD
     pthread_rwlock_t rwlock_;
+#endif
     uint32_t num_nodes_;
     uint32_t node_size_;
     uint32_t num_resized_;
@@ -1368,7 +1380,9 @@ namespace DBM {
         return true;
       } else if (lock_type_ == LOCK_THREAD) {
         // thread level locking
+#ifdef HAVE_LIBPTHREAD
         pthread_rwlock_unlock(&rwlock_);
+#endif
       } else {
         // process level locking
         if (flock(fd_, LOCK_UN) != 0) { return false; }
@@ -1382,7 +1396,9 @@ namespace DBM {
         return true;
       } else if (lock_type_ == LOCK_THREAD) {
         // thread level locking
+#ifdef HAVE_LIBPTHREAD
         pthread_rwlock_rdlock(&rwlock_);
+#endif
       } else {
         // process level locking
         if (flock(fd_, LOCK_SH) != 0) { 
@@ -1404,7 +1420,9 @@ namespace DBM {
         return true;
       } else if (lock_type_ == LOCK_THREAD) {
         // thread level locking
+#ifdef HAVE_LIBPTHREAD
         pthread_rwlock_wrlock(&rwlock_);
+#endif
       } else {
         // process level locking
         if (flock(fd_, LOCK_EX) != 0) { 
