@@ -29,9 +29,8 @@ int main(int argc, char **argv){
 
   t1 = gettimeofday_sec();
   TCBDB *bdb = tcbdbnew();
-  tcbdbtune(bdb, 240, -1, -1, -1, -1, 0);
-  //tcbdbtune(bdb, 480, -1, -1, -1, -1, BDBTDEFLATE);
-  tcbdbsetcache(bdb, 20480, 10240);
+  tcbdbtune(bdb, 5, -1, -1, -1, -1, 0);
+  tcbdbsetcache(bdb, 300, 100);
 
   if (!tcbdbopen(bdb, argv[1], BDBOWRITER | BDBOCREAT)) {
     ecode = tcbdbecode(bdb);
@@ -43,7 +42,8 @@ int main(int argc, char **argv){
     memset(key, 0, 9);
     sprintf(key,"%08d", i);
     char *val = new char[307201]; // 100K
-    sprintf(val, "%0307200d", i);
+    memset(val, 0, 307201);
+    sprintf(val, "%0102400d", i);
     sprintf(val + 102400, "%0102400d", i);
     sprintf(val + 102400*2, "%0102400d", i);
 
