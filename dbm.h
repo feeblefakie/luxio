@@ -15,8 +15,8 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
-#ifndef LUX_DBM_H
-#define LUX_DBM_H
+#ifndef LUX_IO_H
+#define LUX_IO_H
 
 // for UINT8_MAX
 #define __STDC_LIMIT_MACROS
@@ -39,7 +39,7 @@
 #include <stdexcept>
 
 namespace Lux {
-namespace DBM {
+namespace IO {
 
   static const uint32_t MIN_PAGESIZE = 1024;
   static const uint32_t MAX_PAGESIZE = 65536;

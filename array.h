@@ -15,8 +15,8 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
-#ifndef LUX_DBM_ARRAY_H
-#define LUX_DBM_ARRAY_H
+#ifndef LUX_IO_ARRAY_H
+#define LUX_IO_ARRAY_H
 
 #include "dbm.h"
 #include "data.h"
@@ -25,7 +25,7 @@
 #endif
 
 namespace Lux {
-namespace DBM {
+namespace IO {
 
   const char *MAGIC = "LUXAR001";
   const int DEFAULT_PAGESIZE = getpagesize();

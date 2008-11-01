@@ -15,13 +15,13 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
-#ifndef LUX_DBM_DATA_H
-#define LUX_DBM_DATA_H
+#ifndef LUX_IO_DATA_H
+#define LUX_IO_DATA_H
 
 #include "dbm.h"
 
 namespace Lux {
-namespace DBM {
+namespace IO {
 
   const static uint8_t AREA_FREE = 0;
   const static uint8_t AREA_ALLOCATED = 1;

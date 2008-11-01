@@ -15,8 +15,8 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
-#ifndef LUX_DBM_BTREE_H
-#define LUX_DBM_BTREE_H
+#ifndef LUX_IO_BTREE_H
+#define LUX_IO_BTREE_H
 
 #include "dbm.h"
 #include "data.h"
@@ -30,7 +30,7 @@
   s1[size] = '\0';
 
 namespace Lux {
-namespace DBM {
+namespace IO {
 
   const char *MAGIC = "LUXBT001";
   static const uint32_t MAX_KSIZE = 255;
