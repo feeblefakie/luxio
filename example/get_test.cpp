@@ -13,7 +13,7 @@ int main(void)
     sprintf(str, "%08d", i);
 
     Lux::IO::data_t key = {str, strlen(str)};
-    Lux::IO::data_t *val = bt->get(&key);
+    Lux::IO::data_t *val = bt->get(&key); // select operation
 
     // do something with the val
     // *(int *) val->data
