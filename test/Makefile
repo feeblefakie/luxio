@@ -22,8 +22,8 @@ data_test: data_test.cpp
 array_test: array_test.cpp
 	g++ -g $< -o $@ $(LDFLAGS) -lpthread
 
-mysyscalls: mysyscalls.c
-	gcc -shared -fPIC -o mysyscalls.so $< -ldl
+mylibc: mylibc.c
+	gcc -shared -fPIC -o mylibc.so $< -ldl
 
 get: get.cpp
 	g++ -g $< -o $@ $ -lpthread $(LDFLAGS) -DDEBUG -DDEBUG_VINFO
@@ -53,5 +53,5 @@ check:
 	./array_test
 
 clean:
-	rm -rf $(progs) *.bidx *.aidx *.data get getm put putm del info *.gcda *.gcno *.dSYM
+	rm -rf $(progs) *.bidx *.aidx *.data get getm put putm del info *.gcda *.gcno *.dSYM *.so
 
