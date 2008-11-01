@@ -36,7 +36,7 @@ AC_HEADER_TIME
 
 # Checks for library functions.
 AC_FUNC_MMAP
-AC_CHECK_FUNCS([ftruncate getpagesize gettimeofday memmove memset mkdir munmap pow strchr])
+AC_CHECK_FUNCS([ftruncate getpagesize gettimeofday memmove memset mkdir munmap strchr])
 
 AC_CONFIG_FILES([Makefile])
 AC_OUTPUT
