@@ -506,6 +506,8 @@ uninstall-am: uninstall-info-am uninstall-libluxio_includeHEADERS
 dist-hook:
 	for subdir in $(EXTRA_DIR); do \
 		cp -rp $$subdir $(distdir); \
+		rm -rf $(distdir)/$$subdir/.svn; \
+		rm -rf $(distdir)/$$subdir/*/.svn; \
 	done
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.

@@ -6,5 +6,7 @@ EXTRA_DIR = example test ptest
 dist-hook:
 	for subdir in $(EXTRA_DIR); do \
 		cp -rp $$subdir $(distdir); \
+		rm -rf $(distdir)/$$subdir/.svn; \
+		rm -rf $(distdir)/$$subdir/*/.svn; \
 	done
 
