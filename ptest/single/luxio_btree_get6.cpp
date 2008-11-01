@@ -26,7 +26,7 @@ int main(int argc, char *argv[])
   }
 
   t1 = gettimeofday_sec();
-  Lux::DBM::Btree *bt = new Lux::DBM::Btree(Lux::DBM::NONCLUSTER);
+  Lux::IO::Btree *bt = new Lux::IO::Btree(Lux::IO::NONCLUSTER);
   if (!bt->open(argv[2], Lux::DB_RDONLY)) {
     std::cerr << "open failed" << std::endl;
     exit(1);
@@ -43,8 +43,8 @@ int main(int argc, char *argv[])
     char *val = new char[102401]; // 100K
     sprintf(val, "%0102400d", atoi(valp));
 
-    Lux::DBM::data_t key_data = {key, strlen(key)};
-    Lux::DBM::data_t *val_data = bt->get(&key_data);
+    Lux::IO::data_t key_data = {key, strlen(key)};
+    Lux::IO::data_t *val_data = bt->get(&key_data);
     if (val_data != NULL) {
       if (strcmp(val, (char *) val_data->data) != 0) {
         std::cout << "[error] value incorrect." << (char *) val_data->data << " expected [" << val << "]" << std::endl;

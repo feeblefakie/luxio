@@ -22,7 +22,7 @@ int main(int argc, char *argv[])
   int rnum = atoi(argv[2]);
 
   t1 = gettimeofday_sec();
-  Lux::DBM::Btree *bt = new Lux::DBM::Btree(Lux::DBM::CLUSTER);
+  Lux::IO::Btree *bt = new Lux::IO::Btree(Lux::IO::CLUSTER);
   if (!bt->open(argv[1], Lux::DB_CREAT)) {
     std::cerr << "open failed" << std::endl;
     exit(1);

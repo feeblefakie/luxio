@@ -8,7 +8,7 @@ int main(int argc, char *argv[])
     exit(1);
   }
 
-  Lux::DBM::Btree *bt = new Lux::DBM::Btree(Lux::DBM::NONCLUSTER);
+  Lux::IO::Btree *bt = new Lux::IO::Btree(Lux::IO::NONCLUSTER);
   if (!bt->open(argv[1], Lux::DB_CREAT)) {
     std::cerr << "error happned" << std::endl;
     exit(-1);
@@ -18,7 +18,7 @@ int main(int argc, char *argv[])
   memset(key, 0, 256);
   memcpy(key, argv[2], 256);
 
-  Lux::DBM::data_t *val_data = bt->get(key, strlen(key));
+  Lux::IO::data_t *val_data = bt->get(key, strlen(key));
   if (val_data != NULL) {
     std::cout << "value: " << (char *) val_data->data << std::endl;
     bt->clean_data(val_data);

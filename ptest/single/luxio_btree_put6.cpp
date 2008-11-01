@@ -27,11 +27,11 @@ int main(int argc, char *argv[])
   }
 
   t1 = gettimeofday_sec();
-  Lux::DBM::Btree *bt = new Lux::DBM::Btree(Lux::DBM::NONCLUSTER);
+  Lux::IO::Btree *bt = new Lux::IO::Btree(Lux::IO::NONCLUSTER);
   if (mode == 0) {
-    bt->set_noncluster_params(Lux::DBM::Linked);
+    bt->set_noncluster_params(Lux::IO::Linked);
   } else {
-    bt->set_noncluster_params(Lux::DBM::Padded);
+    bt->set_noncluster_params(Lux::IO::Padded);
   }
   if (!bt->open(argv[2], Lux::DB_CREAT)) {
     std::cerr << "open failed" << std::endl;
@@ -48,8 +48,8 @@ int main(int argc, char *argv[])
     *valp++ = '\0';
     char *val = new char[102401]; // 100K
     sprintf(val, "%0102400d", atoi(valp));
-    Lux::DBM::data_t key_data = {key, strlen(key)};
-    Lux::DBM::data_t val_data = {val, strlen(val)};
+    Lux::IO::data_t key_data = {key, strlen(key)};
+    Lux::IO::data_t val_data = {val, strlen(val)};
 
     if (!bt->put(&key_data, &val_data)) {
       std::cerr << "put failed." << std::endl;

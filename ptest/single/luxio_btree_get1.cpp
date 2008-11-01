@@ -25,7 +25,7 @@ int main(int argc, char *argv[])
 
   double t1, t2;
   t1 = gettimeofday_sec();
-  Lux::DBM::Btree *bt = new Lux::DBM::Btree(Lux::DBM::CLUSTER);
+  Lux::IO::Btree *bt = new Lux::IO::Btree(Lux::IO::CLUSTER);
   if (!bt->open(argv[1], Lux::DB_RDONLY)) {
     std::cerr << "open failed" << std::endl;
     exit(1);
@@ -36,13 +36,13 @@ int main(int argc, char *argv[])
     memset(key, 0, 9);
     sprintf(key,"%08d", i);
 
-    Lux::DBM::data_t key_data = {key, strlen(key)};
+    Lux::IO::data_t key_data = {key, strlen(key)};
     if (usermem) {
       int32_t val;
-      Lux::DBM::data_t val_data = {&val, 0, sizeof(int32_t)};
-      Lux::DBM::data_t *val_p = &val_data;
+      Lux::IO::data_t val_data = {&val, 0, sizeof(int32_t)};
+      Lux::IO::data_t *val_p = &val_data;
 
-      if (bt->get(&key_data, &val_p, Lux::DBM::USER)) {
+      if (bt->get(&key_data, &val_p, Lux::IO::USER)) {
         if (val != i) {
           std::cout << "[error] value incorrect." << std::endl;
         }
@@ -50,7 +50,7 @@ int main(int argc, char *argv[])
         std::cout << "[error] entry not found for [" << key << "]" << std::endl;
       } 
     } else {
-      Lux::DBM::data_t *val_data = bt->get(&key_data);
+      Lux::IO::data_t *val_data = bt->get(&key_data);
       if (val_data != NULL) {
         if (*(int32_t *) val_data->data != i) {
           std::cout << "[error] value incorrect." << std::endl;
