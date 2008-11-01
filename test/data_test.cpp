@@ -35,7 +35,7 @@ namespace {
       return db_name;
     }
    
-    void data_test(Lux::DBM::Data *dt)
+    void data_test(Lux::IO::Data *dt)
     {
       std::ifstream fin;
       fin.open("./data.txt", std::ios::in);
@@ -44,14 +44,14 @@ namespace {
         exit(-1);
       }
 
-      std::vector<Lux::DBM::data_ptr_t *> vec;
+      std::vector<Lux::IO::data_ptr_t *> vec;
       std::vector<std::string> chunks;
-      Lux::DBM::data_ptr_t *data_ptr;
+      Lux::IO::data_ptr_t *data_ptr;
       std::string line;
       std::string chunk;
       int i = 0;
       while (getline(fin, line)) {
-        Lux::DBM::data_t data = {line.c_str(), line.size()};
+        Lux::IO::data_t data = {line.c_str(), line.size()};
         if (i == 0) {
           data_ptr = dt->put(&data);
         } else if (i % APPEND_LINES == 0) {
@@ -71,12 +71,12 @@ namespace {
       }
       fin.close();
      
-      std::vector<Lux::DBM::data_ptr_t *>::iterator itr = vec.begin();
-      std::vector<Lux::DBM::data_ptr_t *>::iterator itr_end = vec.end();
+      std::vector<Lux::IO::data_ptr_t *>::iterator itr = vec.begin();
+      std::vector<Lux::IO::data_ptr_t *>::iterator itr_end = vec.end();
 
       i = 0;
       while (itr != itr_end) {
-        Lux::DBM::data_t *data = dt->get(*itr);
+        Lux::IO::data_t *data = dt->get(*itr);
         ASSERT_EQ(chunks[i].size(), data->size);
         ASSERT_TRUE(strncmp(chunks[i].c_str(), (char *) data->data, data->size) == 0);
         dt->clean_data(data);
@@ -86,13 +86,13 @@ namespace {
       }
     }
 
-    Lux::DBM::Data *dt; 
+    Lux::IO::Data *dt; 
     std::string db_name_;
 
   };
 
   TEST_F(DataTest, PaddedDataTest) {
-    dt = new Lux::DBM::PaddedData();
+    dt = new Lux::IO::PaddedData();
     std::string db_name = get_db_name(++db_num_);
     ASSERT_EQ(true, dt->open(db_name.c_str(), Lux::DB_CREAT));
 
@@ -106,8 +106,8 @@ namespace {
   }
 
   TEST_F(DataTest, NoPaddedDataTest) {
-    dt = new Lux::DBM::PaddedData();
-    dt->set_padding(Lux::DBM::NOPADDING);
+    dt = new Lux::IO::PaddedData();
+    dt->set_padding(Lux::IO::NOPADDING);
     std::string db_name = get_db_name(++db_num_);
     ASSERT_EQ(true, dt->open(db_name.c_str(), Lux::DB_CREAT));
 
@@ -117,8 +117,8 @@ namespace {
   }
 
   TEST_F(DataTest, FixedPaddedDataTest) {
-    dt = new Lux::DBM::PaddedData();
-    dt->set_padding(Lux::DBM::FIXEDLEN);
+    dt = new Lux::IO::PaddedData();
+    dt->set_padding(Lux::IO::FIXEDLEN);
     std::string db_name = get_db_name(++db_num_);
     ASSERT_EQ(true, dt->open(db_name.c_str(), Lux::DB_CREAT));
 
@@ -128,8 +128,8 @@ namespace {
   }
 
   TEST_F(DataTest, RatioPaddedDataTest) {
-    dt = new Lux::DBM::PaddedData();
-    dt->set_padding(Lux::DBM::RATIO);
+    dt = new Lux::IO::PaddedData();
+    dt->set_padding(Lux::IO::RATIO);
     std::string db_name = get_db_name(++db_num_);
     ASSERT_EQ(true, dt->open(db_name.c_str(), Lux::DB_CREAT));
 
@@ -139,9 +139,9 @@ namespace {
   }
 
   TEST_F(DataTest, MinBlockSizePaddedDataTest) {
-    dt = new Lux::DBM::PaddedData();
-    dt->set_block_size(Lux::DBM::MIN_BLOCKSIZE);
-    dt->set_padding(Lux::DBM::RATIO);
+    dt = new Lux::IO::PaddedData();
+    dt->set_block_size(Lux::IO::MIN_BLOCKSIZE);
+    dt->set_padding(Lux::IO::RATIO);
     std::string db_name = get_db_name(++db_num_);
     ASSERT_EQ(true, dt->open(db_name.c_str(), Lux::DB_CREAT));
 
@@ -151,9 +151,9 @@ namespace {
   }
 
   TEST_F(DataTest, MaxBlockSizePaddedDataTest) {
-    dt = new Lux::DBM::PaddedData();
-    dt->set_block_size(Lux::DBM::MAX_BLOCKSIZE);
-    dt->set_padding(Lux::DBM::RATIO);
+    dt = new Lux::IO::PaddedData();
+    dt->set_block_size(Lux::IO::MAX_BLOCKSIZE);
+    dt->set_padding(Lux::IO::RATIO);
     std::string db_name = get_db_name(++db_num_);
     ASSERT_EQ(true, dt->open(db_name.c_str(), Lux::DB_CREAT));
 
@@ -163,8 +163,8 @@ namespace {
   }
 
   TEST_F(DataTest, LinkedDataTest) {
-    dt = new Lux::DBM::LinkedData();
-    dt->set_padding(Lux::DBM::PO2);
+    dt = new Lux::IO::LinkedData();
+    dt->set_padding(Lux::IO::PO2);
     std::string db_name = get_db_name(++db_num_);
     ASSERT_EQ(true, dt->open(db_name.c_str(), Lux::DB_CREAT));
 
@@ -178,8 +178,8 @@ namespace {
   }
 
   TEST_F(DataTest, NoLinkedDataTest) {
-    dt = new Lux::DBM::LinkedData();
-    dt->set_padding(Lux::DBM::NOPADDING);
+    dt = new Lux::IO::LinkedData();
+    dt->set_padding(Lux::IO::NOPADDING);
     std::string db_name = get_db_name(++db_num_);
     ASSERT_EQ(true, dt->open(db_name.c_str(), Lux::DB_CREAT));
 
@@ -189,8 +189,8 @@ namespace {
   }
 
   TEST_F(DataTest, FixedLinkedDataTest) {
-    dt = new Lux::DBM::LinkedData();
-    dt->set_padding(Lux::DBM::FIXEDLEN);
+    dt = new Lux::IO::LinkedData();
+    dt->set_padding(Lux::IO::FIXEDLEN);
     std::string db_name = get_db_name(++db_num_);
     ASSERT_EQ(true, dt->open(db_name.c_str(), Lux::DB_CREAT));
 
@@ -200,8 +200,8 @@ namespace {
   }
 
   TEST_F(DataTest, RatioLinkedDataTest) {
-    dt = new Lux::DBM::LinkedData();
-    dt->set_padding(Lux::DBM::RATIO);
+    dt = new Lux::IO::LinkedData();
+    dt->set_padding(Lux::IO::RATIO);
     std::string db_name = get_db_name(++db_num_);
     ASSERT_EQ(true, dt->open(db_name.c_str(), Lux::DB_CREAT));
 
@@ -211,9 +211,9 @@ namespace {
   }
 
   TEST_F(DataTest, MinBlockSizeLinkedDataTest) {
-    dt = new Lux::DBM::LinkedData();
-    dt->set_block_size(Lux::DBM::MIN_BLOCKSIZE);
-    dt->set_padding(Lux::DBM::RATIO);
+    dt = new Lux::IO::LinkedData();
+    dt->set_block_size(Lux::IO::MIN_BLOCKSIZE);
+    dt->set_padding(Lux::IO::RATIO);
     std::string db_name = get_db_name(++db_num_);
     ASSERT_EQ(true, dt->open(db_name.c_str(), Lux::DB_CREAT));
 
@@ -223,9 +223,9 @@ namespace {
   }
 
   TEST_F(DataTest, MaxBlockSizeLinkedDataTest) {
-    dt = new Lux::DBM::LinkedData();
-    dt->set_block_size(Lux::DBM::MAX_BLOCKSIZE);
-    dt->set_padding(Lux::DBM::RATIO);
+    dt = new Lux::IO::LinkedData();
+    dt->set_block_size(Lux::IO::MAX_BLOCKSIZE);
+    dt->set_padding(Lux::IO::RATIO);
     std::string db_name = get_db_name(++db_num_);
     ASSERT_EQ(true, dt->open(db_name.c_str(), Lux::DB_CREAT));
 

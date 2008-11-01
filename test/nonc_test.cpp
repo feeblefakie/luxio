@@ -7,17 +7,17 @@
 
 int num_entries_ = TINY_NUM_ENTRIES;
 
-void put_and_cursor(Lux::DBM::Btree *bt);
+void put_and_cursor(Lux::IO::Btree *bt);
 
 int main(void)
 {
-  Lux::DBM::Btree *btl = new Lux::DBM::Btree(Lux::DBM::NONCLUSTER);
-  btl->set_noncluster_params(Lux::DBM::Linked);
+  Lux::IO::Btree *btl = new Lux::IO::Btree(Lux::IO::NONCLUSTER);
+  btl->set_noncluster_params(Lux::IO::Linked);
   if (!btl->open("tmp_linked", Lux::DB_CREAT)) {
     std::cerr << "open failed." << std::endl;
   }
-  Lux::DBM::Btree *btp = new Lux::DBM::Btree(Lux::DBM::NONCLUSTER);
-  btp->set_noncluster_params(Lux::DBM::Padded);
+  Lux::IO::Btree *btp = new Lux::IO::Btree(Lux::IO::NONCLUSTER);
+  btp->set_noncluster_params(Lux::IO::Padded);
   if (!btp->open("tmp_padded", Lux::DB_CREAT)) {
     std::cerr << "open failed." << std::endl;
   }
@@ -35,7 +35,7 @@ int main(void)
   delete btp;
 }
 
-void put_and_cursor(Lux::DBM::Btree *bt)
+void put_and_cursor(Lux::IO::Btree *bt)
 {
   for (int i = 0; i < num_entries_; ++i) {
     char key[9];
@@ -50,26 +50,26 @@ void put_and_cursor(Lux::DBM::Btree *bt)
       std::cerr << "put failed." << std::endl;
     }
     // no updae
-    if (!bt->put(key, strlen(key), &i, sizeof(int), Lux::DBM::NOOVERWRITE)) {
+    if (!bt->put(key, strlen(key), &i, sizeof(int), Lux::IO::NOOVERWRITE)) {
       std::cerr << "put failed." << std::endl;
     }
   }
 
-  Lux::DBM::cursor_t *c = bt->cursor_init();
+  Lux::IO::cursor_t *c = bt->cursor_init();
   if (c == NULL) {
     std::cerr << "cursor_init failed." << std::endl;
   }
 
   int num = 1000;
   char buf[9] = "00001000";
-  Lux::DBM::data_t key;
+  Lux::IO::data_t key;
   key.data = buf;
   key.size = 8;
   if (!bt->get(c, &key)) {
     std::cerr << "get failed." << std::endl;
   }
-  Lux::DBM::data_t *k, *v;
-  if (!bt->cursor_get(c, &k, &v, Lux::DBM::SYSTEM)) {
+  Lux::IO::data_t *k, *v;
+  if (!bt->cursor_get(c, &k, &v, Lux::IO::SYSTEM)) {
     std::cerr << "get failed." << std::endl;
   }
   if (num != *(int *) v->data) {
@@ -79,8 +79,8 @@ void put_and_cursor(Lux::DBM::Btree *bt)
   bt->clean_data(v);
 
   while (bt->next(c)) {
-    Lux::DBM::data_t *key, *val;
-    if (!bt->cursor_get(c, &key, &val, Lux::DBM::SYSTEM)) {
+    Lux::IO::data_t *key, *val;
+    if (!bt->cursor_get(c, &key, &val, Lux::IO::SYSTEM)) {
       std::cerr << "cursor_get failed" << std::endl;
     }
     ++num;
@@ -98,8 +98,8 @@ void put_and_cursor(Lux::DBM::Btree *bt)
     std::cerr << "first failed" << std::endl;
   }
   do {
-    Lux::DBM::data_t *key, *val;
-    if (!bt->cursor_get(c, &key, &val, Lux::DBM::SYSTEM)) {
+    Lux::IO::data_t *key, *val;
+    if (!bt->cursor_get(c, &key, &val, Lux::IO::SYSTEM)) {
       std::cerr << "cursor_get failed" << std::endl;
     }
     if (num != *(int *) val->data) {
@@ -117,8 +117,8 @@ void put_and_cursor(Lux::DBM::Btree *bt)
     std::cerr << "last failed" << std::endl;
   }
   do {
-    Lux::DBM::data_t *key, *val;
-    if (!bt->cursor_get(c, &key, &val, Lux::DBM::SYSTEM)) {
+    Lux::IO::data_t *key, *val;
+    if (!bt->cursor_get(c, &key, &val, Lux::IO::SYSTEM)) {
       std::cerr << "cursor_get failed" << std::endl;
     }
     if (num != *(int *) val->data) {

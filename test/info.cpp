@@ -8,11 +8,11 @@ int main(int argc, char *argv[])
     exit(1);
   }
 
-  Lux::DBM::Btree *bt;
+  Lux::IO::Btree *bt;
   if (strcmp(argv[2], "c") == 0) { 
-     bt = new Lux::DBM::Btree(Lux::DBM::CLUSTER, 8);
+     bt = new Lux::IO::Btree(Lux::IO::CLUSTER, 8);
   } else if (strcmp(argv[2], "n") == 0) {
-     bt = new Lux::DBM::Btree(Lux::DBM::NONCLUSTER);
+     bt = new Lux::IO::Btree(Lux::IO::NONCLUSTER);
   } else {
     std::cerr << "select c or n" << std::endl;
     exit(-1);
