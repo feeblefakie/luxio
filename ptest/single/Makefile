@@ -151,4 +151,4 @@ tc_btree_get7: tc_btree_get7.cpp
 #	g++ -g $< -o $@ -lpthread -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64
 
 clean:
-	rm -rf $(prog) *.bidx *.data *.aidx bdb[1-7] tc[1-7]
+	rm -rf $(prog) *.bidx *.data *.aidx bdb[1-7] tc[1-7] *.dSYM
