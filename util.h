@@ -29,7 +29,7 @@
 
 namespace Lux {
 
-  void _mkdir(const char *str)
+  static void _mkdir(const char *str)
   {
     std::string str_(str); 
     int n = -1; 
@@ -44,7 +44,7 @@ namespace Lux {
     }
   }
 
-  int _open(const char *pathname, int flags, mode_t mode)
+  static int _open(const char *pathname, int flags, mode_t mode)
   {
     int oflags = O_RDONLY;
 
@@ -61,7 +61,7 @@ namespace Lux {
     return ::open(pathname, oflags, mode);
   }
   
-  ssize_t _read(int fd, void *buf, size_t count)
+  static ssize_t _read(int fd, void *buf, size_t count)
   {
     char *p = reinterpret_cast<char *>(buf);
     const char * const end_p = p + count;
@@ -84,7 +84,7 @@ namespace Lux {
     return count;
   }
 
-  ssize_t _write(int fd, const void *buf, size_t count)
+  static ssize_t _write(int fd, const void *buf, size_t count)
   {
     const char *p = reinterpret_cast<const char *>(buf);
     const char * const end_p = p + count;
@@ -105,7 +105,7 @@ namespace Lux {
     return count;
   }
 
-  bool _pwrite(int fd, const void *buf, size_t nbyte, off_t offset)
+  static bool _pwrite(int fd, const void *buf, size_t nbyte, off_t offset)
   {
     if (lseek(fd, offset, SEEK_SET) < 0) {
       return false;
@@ -117,7 +117,7 @@ namespace Lux {
     // [TODO] pwrite 
   }
 
-  bool _pread(int fd, void *buf, size_t nbyte, off_t offset)
+  static bool _pread(int fd, void *buf, size_t nbyte, off_t offset)
   {
     if (lseek(fd, offset, SEEK_SET) < 0) {
       return false;
@@ -129,7 +129,7 @@ namespace Lux {
     // [TODO] pread
   }
 
-  void *_mmap(int fd, size_t size, int flags)
+  static void *_mmap(int fd, size_t size, int flags)
   {
     int prot = PROT_READ;
     if (flags & DB_RDWR || flags & DB_CREAT) {
