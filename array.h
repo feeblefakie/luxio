@@ -42,7 +42,7 @@ namespace IO {
   } array_header_t;
 
   /*
-   * Class Btree
+   * Class Array
    */
   class Array {
   public:
@@ -253,11 +253,16 @@ namespace IO {
       return true;
     }
 
-    void set_index_type(db_index_t index_type)
+    void set_index_type(db_index_t index_type, uint8_t data_size)
     {
-      if (index_type == CLUSTER ||
-          index_type == NONCLUSTER) {
-        index_type_ = index_type;
+      if (index_type != CLUSTER && index_type != NONCLUSTER) {
+        return 0;
+      }
+      index_type_ = index_type;
+      if (index_type == CLUSTER) {
+        data_size_ = data_size;
+      } else {
+        data_size_ = sizeof(data_ptr_t);
       }
     } 
 
