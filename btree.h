@@ -119,21 +119,6 @@ namespace IO {
     bool is_set;
   } cursor_t;
 
-  // comparison functions
-  int str_cmp_func(data_t &d1, data_t &d2)
-  {
-    return strcmp((char *) d1.data, (char *) d2.data);
-  }
-  int int32_cmp_func(data_t &d1, data_t &d2)
-  {
-    return (*(int32_t *) d1.data - *(int32_t *) d2.data);
-  };
-  int uint32_cmp_func(data_t &d1, data_t &d2)
-  {
-    if (*(uint32_t *) d1.data < *(uint32_t *) d2.data) return -1; 
-    else if (*(uint32_t *) d1.data == *(uint32_t *) d2.data) return 0;
-    else return 1;
-  };
   typedef int (*CMP)(data_t &d1, data_t &d2);
 
   /*
@@ -478,6 +463,24 @@ namespace IO {
 
       return res;
     }
+
+    // comparison functions
+    static int str_cmp_func(data_t &d1, data_t &d2)
+    {
+      return strcmp((char *) d1.data, (char *) d2.data);
+    }
+
+    static int int32_cmp_func(data_t &d1, data_t &d2)
+    {
+      return (*(int32_t *) d1.data - *(int32_t *) d2.data);
+    };
+
+    static int uint32_cmp_func(data_t &d1, data_t &d2)
+    {
+      if (*(uint32_t *) d1.data < *(uint32_t *) d2.data) return -1; 
+      else if (*(uint32_t *) d1.data == *(uint32_t *) d2.data) return 0;
+      else return 1;
+    };
 
     void show_root(void)
     {
