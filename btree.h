@@ -307,6 +307,14 @@ namespace IO {
       return res;
     }
 
+    void set_index_type(db_index_t index_type)
+    {
+      if (index_type == CLUSTER ||
+          index_type == NONCLUSTER) {
+        index_type_ = index_type;
+      }
+    } 
+
     void set_page_size(uint32_t page_size)
     {
       if (page_size > MAX_PAGESIZE || 
