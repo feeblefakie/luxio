@@ -32,7 +32,7 @@
 namespace Lux {
 namespace IO {
 
-  const char *MAGIC = "LUXBT001";
+  static const char *BTMAGIC = "LUXBT001";
   static const uint32_t MAX_KSIZE = 255;
   static const uint32_t CLUSTER_MAX_VSIZE = 255;
   static const uint32_t NONCLUSTER_MAX_VSIZE = UINT32_MAX;
@@ -586,7 +586,7 @@ namespace IO {
       memset(&dh, 0, sizeof(btree_header_t));
       if (stat_buf.st_size == 0 && oflags & DB_CREAT) {
         // initialize the header for the newly created file
-        memcpy(dh.magic, MAGIC, strlen(MAGIC));
+        memcpy(dh.magic, BTMAGIC, strlen(BTMAGIC));
         dh.num_keys = 0;
         // one for db_header, one for root node and one for leaf node
         dh.num_nodes = 3;

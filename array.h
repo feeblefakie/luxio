@@ -27,7 +27,7 @@
 namespace Lux {
 namespace IO {
 
-  const char *MAGIC = "LUXAR001";
+  static const char *ARYMAGIC = "LUXAR001";
   const int DEFAULT_PAGESIZE = getpagesize();
 
   // global header
@@ -342,7 +342,7 @@ namespace IO {
       array_header_t dh;
       memset(&dh, 0, sizeof(array_header_t));
       if (stat_buf.st_size == 0 && oflags & DB_CREAT) {
-        memcpy(dh.magic, MAGIC, strlen(MAGIC));
+        memcpy(dh.magic, ARYMAGIC, strlen(ARYMAGIC));
         dh.num_keys = 0;
         // one for db_header
         dh.num_pages = 1;
