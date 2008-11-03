@@ -253,6 +253,14 @@ namespace IO {
       return true;
     }
 
+    void set_index_type(db_index_t index_type)
+    {
+      if (index_type == CLUSTER ||
+          index_type == NONCLUSTER) {
+        index_type_ = index_type;
+      }
+    } 
+
     void set_lock_type(lock_type_t lock_type)
     {
       lock_type_ = lock_type;
