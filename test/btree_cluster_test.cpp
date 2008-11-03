@@ -374,7 +374,7 @@ namespace {
    **/
   TEST_F(BtreeTest, PutTestKeyInt32) {
     std::string db_name = get_db_name(++db_num_);
-    bt->set_cmp_func(Lux::IO::int32_cmp_func);
+    bt->set_cmp_func(Lux::IO::Btree::int32_cmp_func);
     ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::DB_CREAT));
 
     for (int i = 0; i < num_entries_; ++i) {
@@ -398,7 +398,7 @@ namespace {
    **/
   TEST_F(BtreeTest, GetTestKeyInt32) {
     std::string db_name = get_db_name(db_num_);
-    bt->set_cmp_func(Lux::IO::int32_cmp_func);
+    bt->set_cmp_func(Lux::IO::Btree::int32_cmp_func);
     ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::DB_RDONLY));
 
     for (int i = 0; i < num_entries_; ++i) {
@@ -425,7 +425,7 @@ namespace {
 
   TEST_F(BtreeTest, PutTestKeyUint32) {
     std::string db_name = get_db_name(++db_num_);
-    bt->set_cmp_func(Lux::IO::uint32_cmp_func);
+    bt->set_cmp_func(Lux::IO::Btree::uint32_cmp_func);
     ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::DB_CREAT));
 
     for (int i = 0; i < num_entries_; ++i) {
@@ -442,7 +442,7 @@ namespace {
 
   TEST_F(BtreeTest, GetTestKeyUint32) {
     std::string db_name = get_db_name(db_num_);
-    bt->set_cmp_func(Lux::IO::uint32_cmp_func);
+    bt->set_cmp_func(Lux::IO::Btree::uint32_cmp_func);
     ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::DB_RDONLY));
 
     for (int i = 0; i < num_entries_; ++i) {
@@ -506,7 +506,7 @@ namespace {
    **/
   TEST_F(BtreeTest, ValueSizeLimitationTest) {
     std::string db_name = get_db_name(++db_num_);
-    bt->set_cmp_func(Lux::IO::int32_cmp_func);
+    bt->set_cmp_func(Lux::IO::Btree::int32_cmp_func);
     ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::DB_CREAT));
 
     int key = 10;
