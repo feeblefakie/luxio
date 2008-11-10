@@ -457,7 +457,18 @@ namespace IO {
       if (search_free_pool(size, &pool)) {
         data_ptr->id = pool.id;
         data_ptr->off = pool.off;
-        if (!add_free_pool(pool.id, pool.off + size, pool.size - size)) {
+
+        // calculate id and offset for the unused free space
+        // and put it back to the free pools
+        div_t d = div(size, dh_->block_size);
+        uint32_t num_blocks = d.quot;
+        uint32_t off = d.rem + pool.off;
+        if (off >= dh_->block_size) { 
+          ++num_blocks;
+          off -= dh_->block_size; // must be held by uint16_t
+        }
+        if (!add_free_pool(pool.id + num_blocks, 
+                           (uint16_t) off, pool.size - size)) {
           return NULL;
         }
       } else {
