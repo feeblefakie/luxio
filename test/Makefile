@@ -1,4 +1,4 @@
-LDFLAGS=-L/usr/local/lib -lgtest -fprofile-arcs -ftest-coverage #-DDEBUG #-DDEBUG_VINFO
+LDFLAGS=-L/usr/local/lib -lgtest -fprofile-arcs -ftest-coverage -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 #-DDEBUG -DDEBUG_VINFO
 progs=btree_cluster_test \
 	  btree_noncluster_padded_test \
 	  btree_noncluster_linked_test \
