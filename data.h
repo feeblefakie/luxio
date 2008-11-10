@@ -37,6 +37,7 @@ namespace IO {
     NOPADDING,
     FIXEDLEN,
     RATIO,
+    BLOCKALIGNED,
     PO2 // power of 2
   } padding_mode_t;
 
@@ -81,7 +82,7 @@ namespace IO {
 
   public:
     Data(store_mode_t smode,
-         padding_mode_t pmode = PO2, uint32_t padding = DEFAULT_PADDING)
+         padding_mode_t pmode = BLOCKALIGNED, uint32_t padding = DEFAULT_PADDING)
     : smode_(smode),
       pmode_(pmode),
       padding_(padding),
@@ -307,6 +308,13 @@ namespace IO {
         case RATIO:
           padded_size = size + size * dh_->padding / 100;
           break;
+        case BLOCKALIGNED:
+          {
+            div_t d = div(size, dh_->block_size);
+            uint32_t num_blocks = d.rem > 0 ? d.quot + 1 : d.quot;
+            padded_size = dh_->block_size * num_blocks;
+          }
+          break;
         default: // PO2
           padded_size = (uint32_t) pows_[get_pow_of_2_ceiled(size, 5)-1];
       }
@@ -497,7 +505,7 @@ namespace IO {
     } record_t;
 
   public:
-    PaddedData(padding_mode_t pmode = PO2, uint32_t padding = DEFAULT_PADDING)
+    PaddedData(padding_mode_t pmode = BLOCKALIGNED, uint32_t padding = DEFAULT_PADDING)
     : Data(Padded, pmode, padding)
     {}
     virtual ~PaddedData() {}
@@ -753,7 +761,7 @@ namespace IO {
     } record_t;
 
   public:
-    LinkedData(padding_mode_t pmode = PO2, uint32_t padding = DEFAULT_PADDING)
+    LinkedData(padding_mode_t pmode = BLOCKALIGNED, uint32_t padding = DEFAULT_PADDING)
     : Data(Linked, pmode, padding)
     {}
     virtual ~LinkedData() {}
