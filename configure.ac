@@ -33,10 +33,11 @@ AC_TYPE_OFF_T
 AC_TYPE_SIZE_T
 AC_CHECK_MEMBERS([struct stat.st_blksize])
 AC_HEADER_TIME
+AC_SYS_LARGEFILE
 
 # Checks for library functions.
 AC_FUNC_MMAP
-AC_CHECK_FUNCS([ftruncate getpagesize gettimeofday memmove memset mkdir munmap strchr])
+AC_CHECK_FUNCS([ftruncate getpagesize gettimeofday memmove memset mkdir munmap strchr pread pwrite])
 
 AC_CONFIG_FILES([Makefile])
 AC_OUTPUT

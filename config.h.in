@@ -42,6 +42,12 @@
 /* define if the compiler implements namespaces */
 #undef HAVE_NAMESPACES
 
+/* Define to 1 if you have the `pread' function. */
+#undef HAVE_PREAD
+
+/* Define to 1 if you have the `pwrite' function. */
+#undef HAVE_PWRITE
+
 /* define if the compiler supports ISO C++ standard library */
 #undef HAVE_STD
 
@@ -110,6 +116,12 @@
 
 /* Version number of package */
 #undef VERSION
+
+/* Number of bits in a file offset, on hosts where this is settable. */
+#undef _FILE_OFFSET_BITS
+
+/* Define for large files, on AIX-style hosts. */
+#undef _LARGE_FILES
 
 /* Define to empty if `const' does not conform to ANSI C. */
 #undef const
