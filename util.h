@@ -107,26 +107,36 @@ namespace Lux {
 
   static bool _pwrite(int fd, const void *buf, size_t nbyte, off_t offset)
   {
+    if (pwrite(fd, buf, nbyte, offset) < 0) {
+      perror("pwrite failed");
+      return false;
+    }
+    /*
     if (lseek(fd, offset, SEEK_SET) < 0) {
       return false;
     }
     if (_write(fd, buf, nbyte) < 0) {
       return false; 
     }
+    */
     return true;
-    // [TODO] pwrite 
   }
 
   static bool _pread(int fd, void *buf, size_t nbyte, off_t offset)
   {
+    if (pread(fd, buf, nbyte, offset) < 0) {
+      perror("pread failed");
+      return false;
+    }
+    /*
     if (lseek(fd, offset, SEEK_SET) < 0) {
       return false;
     }
     if (_read(fd, buf, nbyte) < 0) {
       return false; 
     } 
+    */
     return true;
-    // [TODO] pread
   }
 
   static void *_mmap(int fd, size_t size, int flags)
