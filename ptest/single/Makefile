@@ -16,6 +16,8 @@ prog=clean \
 	 bdb_btree_put3 bdb_btree_get3 \
 	 bdb_btree_put4 bdb_btree_get4 \
 	 bdb_btree_put5 bdb_btree_get5 \
+	 bdb_btree_put6 bdb_btree_get6 \
+	 bdb_btree_put7 bdb_btree_get7 \
 	 tc_btree_put1 tc_btree_get1 \
 	 tc_btree_put2 tc_btree_get2 \
 	 tc_btree_put3 tc_btree_get3 \
@@ -64,10 +66,10 @@ luxio_btree_get6: luxio_btree_get6.cpp ../../btree.h ../../data.h
 	g++ -g $< -o $@ -lpthread -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 -DDEBUG -O2
 
 luxio_btree_put7: luxio_btree_put7.cpp ../../btree.h ../../data.h 
-	g++ -g $< -o $@ -lpthread -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 -DDEBUG -O2
+	g++ -g $< -o $@ -lpthread -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 -O2
 
 luxio_btree_get7: luxio_btree_get7.cpp ../../btree.h ../../data.h
-	g++ -g $< -o $@ -lpthread -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 -DDEBUG -O2
+	g++ -g $< -o $@ -lpthread -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 -O2
 
 select: select.cpp ../../btree.h ../../data.h
 	g++ -g $< -o $@ -lpthread -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 -DDEBUG -O2
@@ -103,6 +105,18 @@ bdb_btree_put5: bdb_btree_put5.cpp
 	g++ -g $< -o $@ $(BDB_CPPFLAGS) $(BDB_LDFLAGS)
 
 bdb_btree_get5: bdb_btree_get5.cpp
+	g++ -g $< -o $@ $(BDB_CPPFLAGS) $(BDB_LDFLAGS)
+
+bdb_btree_put6: bdb_btree_put6.cpp
+	g++ -g $< -o $@ $(BDB_CPPFLAGS) $(BDB_LDFLAGS)
+
+bdb_btree_get6: bdb_btree_get6.cpp
+	g++ -g $< -o $@ $(BDB_CPPFLAGS) $(BDB_LDFLAGS)
+
+bdb_btree_put7: bdb_btree_put7.cpp
+	g++ -g $< -o $@ $(BDB_CPPFLAGS) $(BDB_LDFLAGS)
+
+bdb_btree_get7: bdb_btree_get7.cpp
 	g++ -g $< -o $@ $(BDB_CPPFLAGS) $(BDB_LDFLAGS)
 
 tc_btree_put1: tc_btree_put1.cpp
