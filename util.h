@@ -1,6 +1,8 @@
 #ifndef LUX_UTIL_H
 #define LUX_UTIL_H
 
+#define _XOPEN_SOURCE 50
+
 #include "types.h"
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -8,6 +10,7 @@
 #include <errno.h>
 #include <string>
 #include <iostream>
+#include <unistd.h>
 
 #ifdef DEBUG
 #define error_log(msg) \
@@ -29,7 +32,7 @@
 
 namespace Lux {
 
-  static void _mkdir(const char *str)
+  static inline void _mkdir(const char *str)
   {
     std::string str_(str); 
     int n = -1; 
@@ -44,7 +47,7 @@ namespace Lux {
     }
   }
 
-  static int _open(const char *pathname, int flags, mode_t mode)
+  static inline int _open(const char *pathname, int flags, mode_t mode)
   {
     int oflags = O_RDONLY;
 
@@ -61,7 +64,7 @@ namespace Lux {
     return ::open(pathname, oflags, mode);
   }
   
-  static ssize_t _read(int fd, void *buf, size_t count)
+  static inline ssize_t _read(int fd, void *buf, size_t count)
   {
     char *p = reinterpret_cast<char *>(buf);
     const char * const end_p = p + count;
@@ -84,7 +87,7 @@ namespace Lux {
     return count;
   }
 
-  static ssize_t _write(int fd, const void *buf, size_t count)
+  static inline ssize_t _write(int fd, const void *buf, size_t count)
   {
     const char *p = reinterpret_cast<const char *>(buf);
     const char * const end_p = p + count;
@@ -105,7 +108,7 @@ namespace Lux {
     return count;
   }
 
-  static bool _pwrite(int fd, const void *buf, size_t nbyte, off_t offset)
+  static inline bool _pwrite(int fd, const void *buf, size_t nbyte, off_t offset)
   {
     if (pwrite(fd, buf, nbyte, offset) < 0) {
       perror("pwrite failed");
@@ -122,7 +125,7 @@ namespace Lux {
     return true;
   }
 
-  static bool _pread(int fd, void *buf, size_t nbyte, off_t offset)
+  static inline bool _pread(int fd, void *buf, size_t nbyte, off_t offset)
   {
     if (pread(fd, buf, nbyte, offset) < 0) {
       perror("pread failed");
@@ -139,7 +142,7 @@ namespace Lux {
     return true;
   }
 
-  static void *_mmap(int fd, size_t size, int flags)
+  static inline void *_mmap(int fd, size_t size, int flags)
   {
     int prot = PROT_READ;
     if (flags & DB_RDWR || flags & DB_CREAT) {
