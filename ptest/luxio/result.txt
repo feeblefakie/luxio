@@ -139,15 +139,21 @@
             % ./tc_btree_get5 tc5 20000
             get time: 135.535
 
-* test6
+* test6 (random long value)
 
     - luxio
         - put
             % ./luxio_btree_put6 random_data.50000.sorted luxio6 0
             put time: 92.3264
+
+            77.099 with pwrite
+
         - get
             % ./luxio_btree_get6 random_data.50000.sorted luxio6
             get time: 128.76
+
+            101.833 with pread
+
         - get (without page cache)
             % ./luxio_btree_get6 random_data.50000.sorted luxio6
             get time: 127.723
@@ -181,9 +187,17 @@
             % ./luxio_btree_put7 random_data.20000.sorted luxio7 0
             put time: 252.625
 
+            (pwriteにしたら)
+            % time ./luxio_btree_put7 random_data.20000.sorted luxio7 0
+            put time: 180.007
+
         - get
             % ./luxio_btree_get7 random_data.20000.sorted luxio7  
             get time: 220.877
+
+          preadにしたら
+           % time ./luxio_btree_get7 random_data.20000.sorted luxio7
+           get time: 149.934
 
         - get (without page cache)
             % ./luxio_btree_get7 random_data.20000.sorted luxio7
@@ -222,3 +236,35 @@
 -rw-r--r-- 1 hiroyuki hiroyuki 7.6G 10月 31 10:30 tc6.saved
 -rw-r--r-- 1 hiroyuki hiroyuki  12G 10月 31 13:38 tc7
 
+
+
+[MySQL]
+
+ % time ./a.out random_data.50000.sorted
+./a.out random_data.50000.sorted  7.20s user 1.52s system 8% cpu 1:38.69 total
+
+% time ./append random_data.20000.sorted
+./append random_data.20000.sorted  12.38s user 2.69s system 4% cpu 5:02.78
+total
+% ./select
+Usage: ./select file
+hiroyuki@kenny ~/dev/rdbms/mysql/ptest
+% time ./select random_data.20000.sorted
+./select random_data.20000.sorted  7.54s user 2.14s system 11% cpu 1:25.70 total
+
+% time ./select random_data.20000.sorted
+./select random_data.20000.sorted  3.42s user 1.19s system 4% cpu 1:48.90
+total
+
+
+
+sparsefile改善後
+% time ./luxio_btree_put7 random_data.20000.sorted luxio7 0
+put time: 206.945
+./luxio_btree_put7 random_data.20000.sorted luxio7 0  15.04s user 33.81s
+system 23% cpu 3:26.97 total
+hiroyuki@kenny ~/svn/luxio-release_0.1-branch/ptest/single
+% time ./luxio_btree_get7 random_data.20000.sorted luxio7
+get time: 116.289
+./luxio_btree_get7 random_data.20000.sorted luxio7  11.99s user 5.29s system
+14% cpu 1:56.51 total
