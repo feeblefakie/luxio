@@ -825,7 +825,7 @@ namespace IO {
         }
         u.size += data->size;
       } else {
-        if (h.num_units == UINT8_MAX) {
+        if (h.num_units == std::numeric_limits<uint8_t>::max()) {
           error_log("exceeds link limitation.");
           return NULL;
         }

@@ -18,9 +18,6 @@
 #ifndef LUX_IO_H
 #define LUX_IO_H
 
-// for UINT8_MAX
-#define __STDC_LIMIT_MACROS
-
 #include "config.h"
 #include "types.h"
 #include "util.h"
@@ -37,6 +34,7 @@
 #include <assert.h>
 #include <iostream>
 #include <stdexcept>
+#include <limits>
 
 namespace Lux {
 namespace IO {

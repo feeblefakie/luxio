@@ -35,7 +35,8 @@ namespace IO {
   static const char *BTMAGIC = "LUXBT001";
   static const uint32_t MAX_KSIZE = 255;
   static const uint32_t CLUSTER_MAX_VSIZE = 255;
-  static const uint32_t NONCLUSTER_MAX_VSIZE = UINT32_MAX;
+  static const uint32_t NONCLUSTER_MAX_VSIZE
+                          = std::numeric_limits<uint32_t>::max();
   static const uint32_t ALLOCATE_UNIT = 100;
 
   // global header
