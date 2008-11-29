@@ -138,7 +138,8 @@ namespace IO {
       if (dh_->index_type == CLUSTER) {
         data = new data_t;
         data->size = dh_->data_size;
-        data->data = new char[dh_->data_size];
+        data->data = new char[dh_->data_size + 1];
+        ((char *) data->data)[dh_->data_size] = '\0';
         memcpy((char *) data->data, map_ + off, dh_->data_size);
       } else {
         data_ptr_t *data_ptr = (data_ptr_t *) (map_ + off);
@@ -161,12 +162,16 @@ namespace IO {
       if (dh_->index_type == CLUSTER) {
         if (atype == SYSTEM) {
           *data = new data_t;
-          (*data)->data = (char *) new char[dh_->data_size];
+          (*data)->data = (char *) new char[dh_->data_size + 1];
+          ((char *) (*data)->data)[dh_->data_size] = '\0';
         } else {
           if ((*data)->user_alloc_size < dh_->data_size) {
             error_log("allocated size is too small for the data.");
             unlock_db();
             return false;
+          }
+          if ((*data)->user_alloc_size >= dh_->data_size + 1) {
+            ((char *) (*data)->data)[dh_->data_size] = '\0';
           }
         }
         memcpy((char *) (*data)->data, map_ + off, dh_->data_size);
