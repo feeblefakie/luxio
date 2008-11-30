@@ -171,6 +171,10 @@ namespace IO {
         }
         map_ = NULL;
       }
+      if (fsync(fd_) < 0) {
+        error_log("fsync failed.");
+        return false;
+      }
       if (::close(fd_) < 0) {
         error_log("close failed.");
         return false;
@@ -316,7 +320,14 @@ namespace IO {
           }
           break;
         default: // PO2
-          padded_size = (uint32_t) pows_[get_pow_of_2_ceiled(size, 5)-1];
+          //padded_size = (uint32_t) pows_[get_pow_of_2_ceiled(size, 5)-1];
+          {
+            uint32_t p = get_pow_of_2_ceiled(size, 5);
+            if (p > 10 && p < 25) {
+              p += 1; // extra boost [TODO] should be specified in API
+            }
+            padded_size = (uint32_t) pows_[p-1];
+          }
       }
       if (padded_size < MIN_RECORD_SIZE) {
         padded_size = MIN_RECORD_SIZE;
@@ -431,6 +442,14 @@ namespace IO {
       if (ftruncate(fd_, header_size_ + (off_t) dh_->block_size * dh_->num_blocks) < 0) {
         error_log("ftruncate failed.");
         return false;
+      }
+      // [TODO] it's workaround for no sparseness.
+      char buf[dh_->block_size];
+      memset(buf, 0, dh_->block_size);
+      off_t size = header_size_ + (off_t) dh_->block_size * dh_->num_blocks;
+      for (int64_t i = (off_t) dh_->cur_block_id * dh_->block_size;
+           i < size; i += dh_->block_size) {
+        _pwrite(fd_, buf, dh_->block_size, i);
       }
       return true;
     }
@@ -837,7 +856,10 @@ namespace IO {
         // create a new unit and put the rest of the data into the unit
         data_t new_data = {(char *) data->data + unused_size, data->size - unused_size};
         unit_t *unit = init_unit(&new_data);
-        uint32_t padding = get_padded_size(unit->h->size);
+        //uint32_t padding = get_padded_size(unit->h->size);
+        // [TODO] workaround
+        uint32_t padding = unit->h->padded_size > u.padded_size ? 
+                                unit->h->padded_size : u.padded_size;
         unit->h->padded_size = padding > u.padded_size ? padding : u.padded_size;
         data_ptr_t *dp = put_unit(unit);
 
