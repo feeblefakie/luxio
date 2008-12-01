@@ -447,7 +447,7 @@ namespace IO {
       char buf[dh_->block_size];
       memset(buf, 0, dh_->block_size);
       off_t size = header_size_ + (off_t) dh_->block_size * dh_->num_blocks;
-      for (int64_t i = (off_t) dh_->cur_block_id * dh_->block_size;
+      for (int64_t i = (off_t) dh_->cur_block_id * dh_->block_size + header_size_;
            i < size; i += dh_->block_size) {
         _pwrite(fd_, buf, dh_->block_size, i);
       }
