@@ -324,7 +324,7 @@ namespace IO {
           {
             uint32_t p = get_pow_of_2_ceiled(size, 5);
             if (p > 10 && p < 25) {
-              p += 1; // extra boost [TODO] should be specified in API
+              p += 3; // extra boost [TODO] should be specified in API
             }
             padded_size = (uint32_t) pows_[p-1];
           }
@@ -447,8 +447,8 @@ namespace IO {
       char buf[dh_->block_size];
       memset(buf, 0, dh_->block_size);
       off_t size = header_size_ + (off_t) dh_->block_size * dh_->num_blocks;
-      for (int64_t i = (off_t) dh_->cur_block_id * dh_->block_size + header_size_;
-           i < size; i += dh_->block_size) {
+      int64_t i = (off_t) (dh_->cur_block_id - 1) * dh_->block_size + header_size_;
+      for (; i < size; i += dh_->block_size) {
         _pwrite(fd_, buf, dh_->block_size, i);
       }
       return true;
