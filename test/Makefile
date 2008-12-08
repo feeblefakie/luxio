@@ -1,4 +1,5 @@
-LDFLAGS=-L/usr/local/lib -lgtest -fprofile-arcs -ftest-coverage -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 #-DDEBUG -DDEBUG_VINFO
+#LDFLAGS=-L/usr/local/lib -lgtest -fprofile-arcs -ftest-coverage -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 #-DDEBUG -DDEBUG_VINFO
+LDFLAGS=-L/usr/local/lib -lgtest -fprofile-arcs -ftest-coverage -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 #-DDEBUG #-DDEBUG_VINFO
 progs=btree_cluster_test \
 	  btree_noncluster_padded_test \
 	  btree_noncluster_linked_test \
@@ -44,6 +45,9 @@ info: info.cpp
 	g++ -g $< -o $@ -lpthread $(LDFLAGS) -DDEBUG -DDEBUG_VINFO
 
 easy-checker: get getm put putm del info
+
+btree_thread_test: btree_thread_test.cpp
+	g++ -g $< -o $@ -lpthread
 
 check:
 	./btree_cluster_test
