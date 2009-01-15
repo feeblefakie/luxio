@@ -4,7 +4,8 @@ progs=btree_cluster_test \
 	  btree_noncluster_padded_test \
 	  btree_noncluster_linked_test \
 	  data_test \
-	  array_test
+	  array_test \
+	  btree_thread_test
 
 all: clean $(progs)
 
