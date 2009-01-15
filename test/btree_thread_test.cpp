@@ -22,6 +22,7 @@ int num_reads = 0;
 bool write_finished = false;
 typedef void *(*PROC)(void *);
 Lux::IO::Btree *bt;
+Lux::IO::Btree *btr;
 
 int main(int argc, char *argv[])
 {
@@ -33,9 +34,20 @@ int main(int argc, char *argv[])
     exit(1);
   }
 
+  //bt = new Lux::IO::Btree(Lux::IO::CLUSTER);
   bt = new Lux::IO::Btree(Lux::IO::CLUSTER);
   bt->set_lock_type(Lux::IO::LOCK_THREAD);
-  bt->open("bttt", Lux::DB_CREAT);
+  if (!bt->open("bttt", Lux::DB_CREAT)) {
+    std::cerr << "open failed" << std::endl;
+    exit(1);
+  }
+  
+  btr = new Lux::IO::Btree(Lux::IO::CLUSTER);
+  btr->set_lock_type(Lux::IO::LOCK_THREAD);
+  if (!btr->open("bttt", Lux::DB_RDONLY)) {
+    std::cerr << "open failed" << std::endl;
+    exit(1);
+  }
 
   rnum = atoi(argv[1]);
   num_reads = atoi(argv[2]);
@@ -101,15 +113,19 @@ void read_ramdom(int *num)
   while (!write_finished) {
     char key[9];
     memset(key, 0, 9);
+    if (num_recs == 0) {
+      usleep(1);
+      continue;
+    }
     int rec_num = (int) (random() % num_recs);
     sprintf(key,"%08d", rec_num);
 
-    Lux::IO::data_t *val_data = bt->get(key, strlen(key));
+    Lux::IO::data_t *val_data = btr->get(key, strlen(key));
     if (val_data != NULL) {
       if (rec_num != *(uint32_t *) val_data->data) {
         std::cout << "[error] value incorrect." << std::endl;
       }
-      bt->clean_data(val_data);
+      btr->clean_data(val_data);
     } else {
       std::cout << "[error] entry not found. [" << key << "]" << std::endl;
     } 
