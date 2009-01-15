@@ -381,7 +381,6 @@ namespace IO {
       page_size_ = dh_->page_size;
       num_resized_ = dh_->num_resized;
 
-
       if (index_type_ != dh_->index_type) {
         error_log("wrong index type");
         return false;
