@@ -555,7 +555,7 @@ namespace IO {
 #ifdef HAVE_LIBPTHREAD
     pthread_rwlock_t rwlock_;
 #endif
-    uint32_t num_nodes_;
+    uint32_t num_allocated_;
     uint32_t node_size_;
     uint32_t num_resized_;
     lock_type_t lock_type_;
@@ -646,7 +646,7 @@ namespace IO {
       }
 
       dh_ = (btree_header_t *) map_;
-      num_nodes_ = dh_->num_nodes;
+      num_allocated_ = dh_->num_alloc_pages;
       node_size_ = dh_->node_size;
       num_resized_ = dh_->num_resized;
 
@@ -1195,7 +1195,6 @@ namespace IO {
         dh_->num_alloc_pages = num_pages_extended;
       }
       dh_->num_nodes = num_nodes;
-      num_nodes_ = num_nodes;
       return true;
     }
     
@@ -1369,18 +1368,19 @@ namespace IO {
 
     bool remap(void)
     {
-      uint32_t num_nodes = dh_->num_nodes;
-      if (munmap(map_, node_size_ * num_nodes_) < 0) {
+      // saved because map_ is being unmmaped
+      uint32_t num_alloc_pages = dh_->num_alloc_pages;
+      if (munmap(map_, node_size_ * num_allocated_) < 0) {
         error_log("munmap failed.");
         return false;
       }
-      map_ = (char *) _mmap(fd_, node_size_ * num_nodes, oflags_);
+      map_ = (char *) _mmap(fd_, node_size_ * num_alloc_pages, oflags_);
       if (map_ == NULL) {
         error_log("mmap failed");
         return false;
       }
       dh_ = (btree_header_t *) map_;
-      num_nodes_ = dh_->num_nodes;
+      num_allocated_ = num_alloc_pages;
       num_resized_ = dh_->num_resized;
 
       return true;
