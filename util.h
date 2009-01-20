@@ -101,30 +101,6 @@ namespace Lux {
     }
     return count;
   }
-  /*
-  static inline ssize_t _read(int fd, void *buf, size_t count)
-  {
-    char *p = reinterpret_cast<char *>(buf);
-    const char * const end_p = p + count;
-
-    while (p < end_p) {
-      const int num_bytes = read(fd, p, end_p - p);
-      if (num_bytes < 0) {
-        if (errno == EINTR) {
-          continue;
-        }
-        perror("read failed");
-        break;
-      }
-      p += num_bytes;
-    }
-
-    if (p != end_p) {
-      return -1;
-    }
-    return count;
-  }
-  */
 
   static inline ssize_t _write(int fd, const void *buf, size_t count)
   {
@@ -146,60 +122,6 @@ namespace Lux {
     }
     return count;
   }
-  /*
-  static inline ssize_t _write(int fd, const void *buf, size_t count)
-  {
-    const char *p = reinterpret_cast<const char *>(buf);
-    const char * const end_p = p + count;
-
-    while (p < end_p) {
-      const int num_bytes = write(fd, p, end_p - p);
-      if (num_bytes < 0) {
-        if (errno == EINTR) continue;
-        perror("write failed");
-        break;
-      }
-      p += num_bytes;
-    }
-
-    if (p != end_p) {
-      return -1;
-    }
-    return count;
-  }
-  */
-
-  static inline bool _pwrite(int fd, const void *buf, size_t nbyte, off_t offset)
-  {
-    const char *p = reinterpret_cast<const char *>(buf);
-    const char * const end_p = p + nbyte;
-
-    while (p < end_p) {
-      int num_bytes;
-      SAFE_SYSCALL(num_bytes, pwrite(fd, p, end_p - p, offset));
-      if (num_bytes < 0) {
-        perror("write failed");
-        break;
-      }
-      p += num_bytes;
-      offset += num_bytes;
-    }
-
-    if (p != end_p) {
-      return false;
-    }
-    return true;
-  }
-  /*
-  static inline bool _pwrite(int fd, const void *buf, size_t nbyte, off_t offset)
-  {
-    if (pwrite(fd, buf, nbyte, offset) < 0) {
-      perror("pwrite failed");
-      return false;
-    }
-    return true;
-  }
-*/
 
   static inline bool _pread(int fd, void *buf, size_t nbyte, off_t offset)
   {
@@ -222,16 +144,28 @@ namespace Lux {
     }
     return true;
   }
-  /*
-  static inline bool _pread(int fd, void *buf, size_t nbyte, off_t offset)
+
+  static inline bool _pwrite(int fd, const void *buf, size_t nbyte, off_t offset)
   {
-    if (pread(fd, buf, nbyte, offset) < 0) {
-      perror("pread failed");
+    const char *p = reinterpret_cast<const char *>(buf);
+    const char * const end_p = p + nbyte;
+
+    while (p < end_p) {
+      int num_bytes;
+      SAFE_SYSCALL(num_bytes, pwrite(fd, p, end_p - p, offset));
+      if (num_bytes < 0) {
+        perror("write failed");
+        break;
+      }
+      p += num_bytes;
+      offset += num_bytes;
+    }
+
+    if (p != end_p) {
       return false;
     }
     return true;
   }
-  */
 
   static inline void *_mmap(int fd, size_t size, int flags)
   {
