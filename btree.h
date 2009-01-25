@@ -248,6 +248,7 @@ namespace IO {
 
     bool put(data_t *k, data_t *v, insert_mode_t flags = OVERWRITE)
     {
+      static char data[CLUSTER_MAX_VSIZE + sizeof(uint8_t)];
       bool res = true;
       if (!check_key(k->size) || !check_val(v->size)) {
         return false;
@@ -255,10 +256,10 @@ namespace IO {
       if (!wlock_db()) { return false; }
 
       uint32_t val_size = v->size + sizeof(uint8_t);
-      char *data = new char[val_size];
-      data_t val = {data, val_size}; // for size prepended
+      data_t val = {data, val_size}; // for prepended size in cluster mode
       uint32_t entry_size = k->size;
       if (dh_->index_type == CLUSTER) {
+        memset(data, 0, CLUSTER_MAX_VSIZE + sizeof(uint8_t));
         prepend_size_and_copy(data, (char *) v->data, v->size);
         v = &val;
         entry_size += val.size;
