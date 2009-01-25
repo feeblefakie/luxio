@@ -255,7 +255,7 @@ namespace IO {
       if (!wlock_db()) { return false; }
 
       uint32_t val_size = v->size + sizeof(uint8_t);
-      char data[val_size];
+      char *data = new char[val_size];
       data_t val = {data, val_size}; // for size prepended
       uint32_t entry_size = k->size;
       if (dh_->index_type == CLUSTER) {
