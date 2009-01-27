@@ -176,6 +176,7 @@ namespace Lux {
 
     void *p = mmap(0, size, prot, MAP_SHARED, fd, 0);  
     if (p == MAP_FAILED) {
+      perror("mmap failed.");
       return NULL;
     }
     return p;
