@@ -1135,6 +1135,9 @@ namespace IO {
         }
       }
 
+      // [NOTICE] test code
+      delete [] checked;
+
       slot_t *slot = slots + middle;
       r->slot_p = (char *) slot;
 
@@ -1268,6 +1271,9 @@ namespace IO {
       set_node_header(node->h, off, num_stays);
       // make a link
       node->h->next_id = new_node->h->id;
+
+      // [NOTICE] test code
+      delete [] tmp_node;
 
       return true;
     }
