@@ -29,6 +29,7 @@ namespace IO {
 
   static const char *ARYMAGIC = "LUXAR001";
   const int DEFAULT_PAGESIZE = getpagesize();
+  static const uint32_t ALLOCATE_UNIT = 100;
 
   // global header
   typedef struct {
@@ -350,7 +351,7 @@ namespace IO {
         memcpy(dh.magic, ARYMAGIC, strlen(ARYMAGIC));
         dh.num_keys = 0;
         // one for db_header
-        dh.num_pages = 1;
+        dh.num_pages = ALLOCATE_UNIT;
         dh.page_size = getpagesize();
         dh.num_resized = 0;
         dh.index_type = index_type_;
@@ -415,6 +416,9 @@ namespace IO {
         error_log("mmap failed.");
         return false;
       }
+      dh_ = (array_header_t *) map_;
+      dh_->num_pages = num_pages;
+      num_pages_ = num_pages;
 
       return true;
     }
@@ -429,14 +433,16 @@ namespace IO {
           return false;
         }
       }
+
+      // large size allocation for fragmentation in both disk and memory.
+      if (prev_num_pages + ALLOCATE_UNIT > num_pages) {
+        num_pages = prev_num_pages + ALLOCATE_UNIT;
+      }
      
       if (!alloc_pages(num_pages, page_size)) {
         return false;
       }
-      dh_ = (array_header_t *) map_;
-      dh_->num_pages = num_pages;
       ++(dh_->num_resized);
-      num_pages_ = num_pages;
 
       // fill zero in the newly allocated pages
       memset(map_ + dh_->page_size * prev_num_pages, 0, 
