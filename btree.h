@@ -37,7 +37,7 @@ namespace IO {
   static const uint32_t CLUSTER_MAX_VSIZE = 255;
   static const uint32_t NONCLUSTER_MAX_VSIZE
                           = std::numeric_limits<uint32_t>::max();
-  static const uint32_t ALLOCATE_UNIT = 100;
+  static const uint32_t BT_ALLOCATE_UNIT = 100;
 
   // global header
   typedef struct {
@@ -1174,7 +1174,7 @@ namespace IO {
     {
       vinfo_log("alloc_page");
       if (num_alloc_pages < num_nodes) {
-        uint32_t num_pages_extended = num_alloc_pages + ALLOCATE_UNIT;
+        uint32_t num_pages_extended = num_alloc_pages + BT_ALLOCATE_UNIT;
 
         if (map_ != NULL) {
           if (munmap(map_, node_size * num_alloc_pages) < 0) {

@@ -29,7 +29,7 @@ namespace IO {
 
   static const char *ARYMAGIC = "LUXAR001";
   const int DEFAULT_PAGESIZE = getpagesize();
-  static const uint32_t ALLOCATE_UNIT = 100;
+  static const uint32_t ARY_ALLOCATE_UNIT = 100;
 
   // global header
   typedef struct {
@@ -351,7 +351,7 @@ namespace IO {
         memcpy(dh.magic, ARYMAGIC, strlen(ARYMAGIC));
         dh.num_keys = 0;
         // one for db_header
-        dh.num_pages = ALLOCATE_UNIT;
+        dh.num_pages = ARY_ALLOCATE_UNIT;
         dh.page_size = getpagesize();
         dh.num_resized = 0;
         dh.index_type = index_type_;
@@ -435,8 +435,8 @@ namespace IO {
       }
 
       // large size allocation for fragmentation in both disk and memory.
-      if (prev_num_pages + ALLOCATE_UNIT > num_pages) {
-        num_pages = prev_num_pages + ALLOCATE_UNIT;
+      if (prev_num_pages + ARY_ALLOCATE_UNIT > num_pages) {
+        num_pages = prev_num_pages + ARY_ALLOCATE_UNIT;
       }
      
       if (!alloc_pages(num_pages, page_size)) {
