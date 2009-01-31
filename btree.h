@@ -1181,6 +1181,7 @@ namespace IO {
       return alloc_page(dh_->num_nodes + 1, dh_->node_size, dh_->num_alloc_pages);
     }
 
+    // [TODO] should have both alloc_pages and realloc_pages like array.h
     bool alloc_page(uint32_t num_nodes, uint32_t node_size, uint32_t num_alloc_pages)
     {
       vinfo_log("alloc_page");
