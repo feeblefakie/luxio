@@ -20,6 +20,7 @@
 
 #include "dbm.h"
 #include "data.h"
+#include "exception.h"
 #ifdef HAVE_LIBPTHREAD
 #include <pthread.h>
 #endif
@@ -269,8 +270,23 @@ namespace IO {
       entry_t entry = {(char *) k->data, k->size,
                        (char *) v->data, v->size,
                        entry_size, flags};
-    
-      res = insert(&entry);
+
+      // [TODO] should return error status
+      try {
+        res = insert(&entry);
+      } catch (const std::bad_alloc &e) {
+        res = false;
+      } catch (const disk_alloc_error &e) {
+        error_log(e.what());
+        error_log("possibly out of disk space");
+        res = false;
+      } catch (const mmap_alloc_error &e) {
+        error_log(e.what());
+        error_log("possibly out of memory");
+        res = false;
+      } catch (const fatal_error &e) {
+        throw;
+      }
 
       if (!unlock_db()) { return false; }
       return res;
@@ -1178,18 +1194,25 @@ namespace IO {
           }
           map_ = NULL;
         }
-        if (ftruncate(fd_, node_size * num_pages_extended) < 0) {
-          error_log("ftruncate failed.");
-          return false;
-        }
-        map_ = (char *) _mmap(fd_, node_size * num_pages_extended, oflags_);
-        if (map_ == NULL) {
-          error_log("mmap failed. ftruncating back ...");
-          if (ftruncate(fd_, node_size * num_alloc_pages) < 0) {
-            error_log("ftruncate failed.");
-            return false;
+        try {
+          if (ftruncate(fd_, node_size * num_pages_extended) < 0) {
+            throw disk_alloc_error("ftruncate failed.");
           }
-          return false;
+          map_ = (char *) _mmap(fd_, node_size * num_pages_extended, oflags_);
+          if (map_ == NULL) {
+            throw mmap_alloc_error("mmap failed.");
+          }
+        } catch (const disk_alloc_error &e) {
+          throw;
+        } catch (const mmap_alloc_error &e) {
+          if (ftruncate(fd_, node_size * num_alloc_pages) < 0) {
+            throw fatal_error("ftruncate the previous size failed.");
+          }
+          map_ = (char *) _mmap(fd_, node_size * num_alloc_pages, oflags_);
+          if (map_ == NULL) {
+            throw fatal_error("mmap the previous size failed.");
+          }
+          throw;
         }
         dh_ = (btree_header_t *) map_;
         ++(dh_->num_resized);
