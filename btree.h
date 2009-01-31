@@ -1092,9 +1092,7 @@ namespace IO {
       // [TODO] API should be changed ? : take data_t instead of key and key_size
       data_t k = {key, key_size};
 
-      // [NOTICE] allocate in heap for test
-      //char checked[node->h->num_keys];
-      char *checked = new char[node->h->num_keys];
+      char checked[node->h->num_keys];
       memset(checked, 0, node->h->num_keys);
 
       // binary search
@@ -1134,9 +1132,6 @@ namespace IO {
           is_going_upper = false;
         }
       }
-
-      // [NOTICE] test code
-      delete [] checked;
 
       slot_t *slot = slots + middle;
       r->slot_p = (char *) slot;
@@ -1247,9 +1242,7 @@ namespace IO {
       new_node->h->prev_id = node->h->id;
       
       // copy staying entries into the buffers
-      // [NOTICE] allocate in heap for test
-      //char tmp_node[dh_->node_size];
-      char *tmp_node = new char[dh_->node_size];
+      char tmp_node[dh_->node_size];
       node_t n;
       node_t *np = &n;
       np->b = (node_body_t *) (tmp_node + sizeof(node_header_t));
@@ -1271,9 +1264,6 @@ namespace IO {
       set_node_header(node->h, off, num_stays);
       // make a link
       node->h->next_id = new_node->h->id;
-
-      // [NOTICE] test code
-      delete [] tmp_node;
 
       return true;
     }
