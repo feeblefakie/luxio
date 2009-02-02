@@ -627,7 +627,8 @@ namespace IO {
           error_log("write failed.");
           return false;
         }
-        if (!alloc_page(dh.num_nodes, dh.node_size, 0)) {
+        //if (!alloc_page(dh.num_nodes, dh.node_size, 0)) {
+        if (!alloc_pages(BT_ALLOCATE_UNIT, dh.node_size)) {
           error_log("alloc_page failed.");
           return false;
         }
@@ -1174,14 +1175,67 @@ namespace IO {
       return;
     }
 
+    // [TODO] return value should be void
     bool append_page(void)
     {
       vinfo_log("append_page");
       // one page appending
-      return alloc_page(dh_->num_nodes + 1, dh_->node_size, dh_->num_alloc_pages);
+      return realloc_pages(dh_->num_nodes + 1, dh_->node_size);
+    }
+
+    // [TODO] return value should be void
+    bool alloc_pages(uint32_t num_pages, uint32_t page_size)
+    {
+      if (ftruncate(fd_, page_size * num_pages) < 0) {
+        throw disk_alloc_error("ftruncate failed.");
+      }
+      map_ = (char *) _mmap(fd_, page_size * num_pages, oflags_);
+      if (map_ == NULL) {
+        throw mmap_alloc_error("mmap failed.");
+      }
+      dh_ = (btree_header_t *) map_;
+      ++(dh_->num_resized);
+      dh_->num_alloc_pages = num_pages;
+      return true;
+    }
+
+    // [TODO] return value should be void
+    bool realloc_pages(uint32_t num_pages, uint32_t page_size)
+    {
+      if (dh_->num_alloc_pages < num_pages) {
+        // saved in non-mapped area
+        uint32_t num_alloc_pages = dh_->num_alloc_pages;
+        uint32_t num_pages_extended = num_alloc_pages + BT_ALLOCATE_UNIT;
+
+        if (map_ != NULL) {
+          if (munmap(map_, page_size * num_alloc_pages) < 0) {
+            error_log("munmap failed.");
+            return false;
+          }
+          map_ = NULL;
+        }
+
+        try {
+          alloc_pages(num_pages_extended, page_size);
+        } catch (const disk_alloc_error &e) {
+          throw;
+        } catch (const mmap_alloc_error &e) {
+          if (ftruncate(fd_, page_size * num_alloc_pages) < 0) {
+            throw fatal_error("ftruncate the previous size failed.");
+          }
+          map_ = (char *) _mmap(fd_, page_size * num_alloc_pages, oflags_);
+          if (map_ == NULL) {
+            throw fatal_error("mmap the previous size failed.");
+          }
+          throw;
+        }
+      }
+      dh_->num_nodes = num_pages;
+      return true;
     }
 
     // [TODO] should have both alloc_pages and realloc_pages like array.h
+    /*
     bool alloc_page(uint32_t num_nodes, uint32_t node_size, uint32_t num_alloc_pages)
     {
       vinfo_log("alloc_page");
@@ -1222,6 +1276,7 @@ namespace IO {
       dh_->num_nodes = num_nodes;
       return true;
     }
+    */
     
     bool split_node(node_t *node, node_t *new_node, up_entry_t **up_entry)
     {
