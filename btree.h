@@ -138,7 +138,8 @@ namespace IO {
     void set_lock_type(lock_type_t lock_type);
     void set_noncluster_params(store_mode_t smode,
                                padding_mode_t pmode = PO2,
-                               uint32_t padding = 20);
+                               uint32_t padding = 0, // for FIXED
+                               uint32_t extra_exponent = 0); // for PO2
     void set_cmp_func(CMP cmp);
     void set_bulk_loading(bool is_bulk_loading);
     void clean_data(data_t *d);
@@ -179,6 +180,7 @@ namespace IO {
     store_mode_t smode_;
     padding_mode_t pmode_;
     uint32_t padding_;
+    uint32_t extra_exponent_;
     bool is_bulk_loading_;
 
     bool open_(std::string db_name, db_flags_t oflags);

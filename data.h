@@ -73,6 +73,7 @@ namespace IO {
     : smode_(smode),
       pmode_(pmode),
       padding_(padding),
+      extra_exponent_(0),
       block_size_(0),
       header_size_(getpagesize()),
       map_(NULL)
@@ -175,6 +176,11 @@ namespace IO {
       padding_ = padding;
     }
 
+    void set_po2_extra_exponent(uint32_t extra_exponent)
+    {
+      extra_exponent_ = extra_exponent;
+    }
+
     void set_block_size(uint32_t block_size)
     {
       if (block_size > MAX_BLOCKSIZE || 
@@ -244,6 +250,7 @@ namespace IO {
     db_header_t *dh_;
     padding_mode_t pmode_;
     uint32_t padding_;
+    uint32_t extra_exponent_;
     store_mode_t smode_;
     uint32_t block_size_;
     uint32_t header_size_;
@@ -307,11 +314,14 @@ namespace IO {
           }
           break;
         default: // PO2
-          //padded_size = (uint32_t) pows_[get_pow_of_2_ceiled(size, 5)-1];
           {
             uint32_t p = get_pow_of_2_ceiled(size, 5);
-            if (p > 10 && p < 25) {
-              p += 3; // extra boost [TODO] should be specified in API
+            // extra exponent is only valid for more than 4096 bytes
+            if (p > 10) {
+              p += extra_exponent_;
+            }
+            if (p > 32) {
+              p = 32;
             }
             padded_size = (uint32_t) pows_[p-1];
           }

@@ -42,6 +42,7 @@ namespace IO {
     smode_(Linked),
     pmode_(PO2),
     padding_(0),
+    extra_exponent_(0),
     is_bulk_loading_(false)
   {
 #ifdef LUXIO_HAVE_LIBPTHREAD
@@ -238,12 +239,13 @@ namespace IO {
   }
 
   // only for noncluster database
-  void Btree::set_noncluster_params(store_mode_t smode,
-                                    padding_mode_t pmode, uint32_t padding)
+  void Btree::set_noncluster_params(store_mode_t smode, padding_mode_t pmode,
+                                    uint32_t padding, uint32_t extra_exponent)
   {
     smode_ = smode;
     pmode_ = pmode;
     padding_ = padding;
+    extra_exponent_ = extra_exponent;
   }
 
   void Btree::set_cmp_func(CMP cmp)
@@ -566,6 +568,7 @@ namespace IO {
       } else {
         error_log("specified store mode doesn't exitst.");
       }
+      dt_->set_po2_extra_exponent(extra_exponent_);
       std::string data_db_name = db_name + ".data";
       if (!dt_->open(data_db_name.c_str(), oflags)) {
         error_log("opening data database failed.");
