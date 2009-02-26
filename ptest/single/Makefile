@@ -1,6 +1,8 @@
+LUXIO_CPPFLAGS=-O2
+LUXIO_LDFLAGS=-L../../.libs -lluxio
 BDB_CPPFLAGS=-I/usr/local/include -I/opt/local/include/db46 -O2
 BDB_LDFLAGS=-L/usr/local/lib -ldb -L/opt/local/lib/db46 -ldb -L/usr/lib -ldb
-TC_CPPFLAGS=-I/opt/local/include
+TC_CPPFLAGS=-I/opt/local/include -O2
 TC_LDFLAGS=-L/usr/local/lib -ltokyocabinet -L/opt/local/lib -ltokyocabinet 
 
 prog=clean \
@@ -30,49 +32,49 @@ prog=clean \
 all: $(prog)
 
 luxio_btree_put1: luxio_btree_put1.cpp ../../btree.h ../../data.h 
-	g++ -g $< -o $@ -lpthread -O2
+	g++ -g $< -o $@ $(LUXIO_CPPFLAGS) $(LUXIO_LDFLAGS)
 
 luxio_btree_get1: luxio_btree_get1.cpp ../../btree.h ../../data.h
-	g++ -g $< -o $@ -lpthread -O2
+	g++ -g $< -o $@ $(LUXIO_CPPFLAGS) $(LUXIO_LDFLAGS)
 
 luxio_btree_put2: luxio_btree_put2.cpp ../../btree.h ../../data.h 
-	g++ -g $< -o $@ -lpthread -O2
+	g++ -g $< -o $@ $(LUXIO_CPPFLAGS) $(LUXIO_LDFLAGS)
 
 luxio_btree_get2: luxio_btree_get2.cpp ../../btree.h ../../data.h
-	g++ -g $< -o $@ -lpthread -O2
+	g++ -g $< -o $@ $(LUXIO_CPPFLAGS) $(LUXIO_LDFLAGS)
 
 luxio_btree_put3: luxio_btree_put3.cpp ../../btree.h ../../data.h 
-	g++ -g $< -o $@ -lpthread -O2
+	g++ -g $< -o $@ $(LUXIO_CPPFLAGS) $(LUXIO_LDFLAGS)
 
 luxio_btree_get3: luxio_btree_get3.cpp ../../btree.h ../../data.h
-	g++ -g $< -o $@ -lpthread -O2
+	g++ -g $< -o $@ $(LUXIO_CPPFLAGS) $(LUXIO_LDFLAGS)
 
 luxio_btree_put4: luxio_btree_put4.cpp ../../btree.h ../../data.h 
-	g++ -g $< -o $@ -lpthread -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 -DDEBUG -O2
+	g++ -g $< -o $@ $(LUXIO_CPPFLAGS) $(LUXIO_LDFLAGS)
 
 luxio_btree_get4: luxio_btree_get4.cpp ../../btree.h ../../data.h
-	g++ -g $< -o $@ -lpthread -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 -DDEBUG -O2
+	g++ -g $< -o $@ $(LUXIO_CPPFLAGS) $(LUXIO_LDFLAGS)
 
 luxio_btree_put5: luxio_btree_put5.cpp ../../btree.h ../../data.h 
-	g++ -g $< -o $@ -lpthread -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 -DDEBUG -O2
+	g++ -g $< -o $@ $(LUXIO_CPPFLAGS) $(LUXIO_LDFLAGS)
 
 luxio_btree_get5: luxio_btree_get5.cpp ../../btree.h ../../data.h
-	g++ -g $< -o $@ -lpthread -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 -DDEBUG -O2
+	g++ -g $< -o $@ $(LUXIO_CPPFLAGS) $(LUXIO_LDFLAGS)
 
 luxio_btree_put6: luxio_btree_put6.cpp ../../btree.h ../../data.h 
-	g++ -g $< -o $@ -lpthread -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 -DDEBUG -O2
+	g++ -g $< -o $@ $(LUXIO_CPPFLAGS) $(LUXIO_LDFLAGS)
 
 luxio_btree_get6: luxio_btree_get6.cpp ../../btree.h ../../data.h
-	g++ -g $< -o $@ -lpthread -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 -DDEBUG -O2
+	g++ -g $< -o $@ $(LUXIO_CPPFLAGS) $(LUXIO_LDFLAGS)
 
 luxio_btree_put7: luxio_btree_put7.cpp ../../btree.h ../../data.h 
-	g++ -g $< -o $@ -lpthread -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 -O2
+	g++ -g $< -o $@ $(LUXIO_CPPFLAGS) $(LUXIO_LDFLAGS)
 
 luxio_btree_get7: luxio_btree_get7.cpp ../../btree.h ../../data.h
-	g++ -g $< -o $@ -lpthread -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 -O2
+	g++ -g $< -o $@ $(LUXIO_CPPFLAGS) $(LUXIO_LDFLAGS)
 
 select: select.cpp ../../btree.h ../../data.h
-	g++ -g $< -o $@ -lpthread -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 -DDEBUG -O2
+	g++ -g $< -o $@ $(LUXIO_CPPFLAGS) $(LUXIO_LDFLAGS)
 
 get_random_data: get_random_data.cpp
 	g++ -g $< -o $@
