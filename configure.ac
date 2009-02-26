@@ -17,6 +17,7 @@ AC_PROG_MAKE_SET
 AC_PROG_RANLIB
 
 # Checks for libraries.
+AC_PROG_LIBTOOL
 AC_CHECK_LIB([pthread], [pthread_rwlock_init])
 
 AC_CXX_HAVE_STD
