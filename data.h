@@ -28,19 +28,6 @@ namespace IO {
   const static uint32_t DEFAULT_PADDING = 20; // depends on the context
   const static uint32_t MIN_RECORD_SIZE = 32;
 
-  typedef enum {
-    Padded,
-    Linked
-  } store_mode_t;
-
-  typedef enum {
-    NOPADDING,
-    FIXEDLEN,
-    RATIO,
-    BLOCKALIGNED,
-    PO2 // power of 2
-  } padding_mode_t;
-
 #pragma pack(1)
     typedef struct {
       uint8_t type; // allocated or free

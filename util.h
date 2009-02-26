@@ -1,8 +1,6 @@
 #ifndef LUX_UTIL_H
 #define LUX_UTIL_H
 
-#define _XOPEN_SOURCE 50
-
 #include "types.h"
 #include <sys/stat.h>
 #include <fcntl.h>

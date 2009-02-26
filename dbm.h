@@ -18,9 +18,8 @@
 #ifndef LUX_IO_H
 #define LUX_IO_H
 
-#include "config.h"
+#include "luxio-config.h"
 #include "types.h"
-#include "util.h"
 #include <unistd.h>
 #include <stdint.h>
 #include <sys/file.h>
@@ -79,6 +78,19 @@ namespace IO {
     USER,
     SYSTEM
   } alloc_type_t;
+
+  typedef enum {
+    Padded,
+    Linked
+  } store_mode_t;
+
+  typedef enum {
+    NOPADDING,
+    FIXEDLEN,
+    RATIO,
+    BLOCKALIGNED,
+    PO2 // power of 2
+  } padding_mode_t;
 
 }
 }
