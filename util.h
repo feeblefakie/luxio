@@ -1,5 +1,22 @@
-#ifndef LUX_UTIL_H
-#define LUX_UTIL_H
+/*
+ * Copyright (C) 2008-2009 Hiroyuki Yamada
+ *  
+ * This program is free software; you can redistribute it and/or modify it 
+ * under the terms of the GNU Lesser General Public License as published 
+ * by the Free Software Foundation; version 3 of the License.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU Lesser General Public License for more details.
+ * 
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+ */
+
+#ifndef LUX_IO_UTIL_H
+#define LUX_IO_UTIL_H
 
 #include "types.h"
 #include <sys/stat.h>
@@ -46,6 +63,7 @@
   SAFE_SYSCALL3(result, expr, (result < 0))
 
 namespace Lux {
+namespace IO {
 
   static inline void _mkdir(const char *str)
   {
@@ -180,6 +198,7 @@ namespace Lux {
     return p;
   }
 
+}
 }
 
 #endif

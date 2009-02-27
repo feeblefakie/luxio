@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008 Hiroyuki Yamada
+ * Copyright (C) 2008-2009 Hiroyuki Yamada
  *  
  * This program is free software; you can redistribute it and/or modify it 
  * under the terms of the GNU Lesser General Public License as published 
@@ -15,10 +15,11 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
-#ifndef LUX_TYPES_H
-#define LUX_TYPES_H
+#ifndef LUX_IO_TYPES_H
+#define LUX_IO_TYPES_H
 
 namespace Lux {
+namespace IO {
 
   typedef int db_flags_t;
   const static db_flags_t DB_RDONLY = 0x0000;
@@ -26,6 +27,7 @@ namespace Lux {
   const static db_flags_t DB_CREAT = 0x0200;
   const static db_flags_t DB_TRUNC = 0x0400;
 
+}
 }
 
 #endif
