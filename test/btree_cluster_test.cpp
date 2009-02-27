@@ -44,7 +44,7 @@ namespace {
    **/
   TEST_F(BtreeTest, PutTest) {
     std::string db_name = get_db_name(++db_num_);
-    ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::DB_CREAT));
+    ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::IO::DB_CREAT));
 
     for (int i = 0; i < num_entries_; ++i) {
       char key[9];
@@ -73,7 +73,7 @@ namespace {
    **/
   TEST_F(BtreeTest, GetTest) {
     std::string db_name = get_db_name(db_num_);
-    ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::DB_RDONLY));
+    ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::IO::DB_RDONLY));
 
     for (int i = 0; i < num_entries_; ++i) {
       char key[9];
@@ -120,7 +120,7 @@ namespace {
    **/
   TEST_F(BtreeTest, DebugPrintTest) {
     std::string db_name = get_db_name(db_num_);
-    ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::DB_RDONLY));
+    ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::IO::DB_RDONLY));
 
 #ifdef DEBUG
     bt->show_db_header();
@@ -140,7 +140,7 @@ namespace {
    **/
   TEST_F(BtreeTest, CursorTest) {
     std::string db_name = get_db_name(db_num_);
-    ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::DB_RDONLY));
+    ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::IO::DB_RDONLY));
 
     char buf[9] = "00001000";
     Lux::IO::data_t key;
@@ -195,7 +195,7 @@ namespace {
    **/
   TEST_F(BtreeTest, DelTest) {
     std::string db_name = get_db_name(db_num_);
-    ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::DB_RDWR));
+    ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::IO::DB_RDWR));
 
     for (int i = 0; i < num_entries_; ++i) {
       if (i % 2 == 0) {
@@ -218,7 +218,7 @@ namespace {
 
   TEST_F(BtreeTest, PutAgainTest) {
     std::string db_name = get_db_name(db_num_);
-    ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::DB_RDWR));
+    ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::IO::DB_RDWR));
     
     int num = num_entries_ * 5;
     for (int i = num_entries_; i < num; ++i) {
@@ -235,7 +235,7 @@ namespace {
 
   TEST_F(BtreeTest, VariableLengthValueTest) {
     std::string db_name = get_db_name(++db_num_);
-    ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::DB_CREAT));
+    ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::IO::DB_CREAT));
 
     for (int i = 0; i < num_entries_; ++i) {
       char key[9];
@@ -276,7 +276,7 @@ namespace {
 
   TEST_F(BtreeTest, VariableLengthValueLargeTest) {
     std::string db_name = get_db_name(++db_num_);
-    ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::DB_CREAT));
+    ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::IO::DB_CREAT));
 
     for (int i = 0; i < num_entries_; ++i) {
       char key[9];
@@ -324,7 +324,7 @@ namespace {
    **/
   TEST_F(BtreeTest, PutTestRandom) {
     std::string db_name = get_db_name(++db_num_);
-    ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::DB_CREAT));
+    ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::IO::DB_CREAT));
 
     for (int i = 0; i < num_entries_; ++i) {
       char key[9];
@@ -347,7 +347,7 @@ namespace {
    **/
   TEST_F(BtreeTest, GetTestRandom) {
     std::string db_name = get_db_name(db_num_);
-    ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::DB_RDONLY));
+    ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::IO::DB_RDONLY));
 
     for (int i = 0; i < num_entries_; ++i) {
       char key[9];
@@ -375,7 +375,7 @@ namespace {
   TEST_F(BtreeTest, PutTestKeyInt32) {
     std::string db_name = get_db_name(++db_num_);
     bt->set_cmp_func(Lux::IO::Btree::int32_cmp_func);
-    ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::DB_CREAT));
+    ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::IO::DB_CREAT));
 
     for (int i = 0; i < num_entries_; ++i) {
       char val[9];
@@ -399,7 +399,7 @@ namespace {
   TEST_F(BtreeTest, GetTestKeyInt32) {
     std::string db_name = get_db_name(db_num_);
     bt->set_cmp_func(Lux::IO::Btree::int32_cmp_func);
-    ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::DB_RDONLY));
+    ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::IO::DB_RDONLY));
 
     for (int i = 0; i < num_entries_; ++i) {
       char val[9];
@@ -426,7 +426,7 @@ namespace {
   TEST_F(BtreeTest, PutTestKeyUint32) {
     std::string db_name = get_db_name(++db_num_);
     bt->set_cmp_func(Lux::IO::Btree::uint32_cmp_func);
-    ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::DB_CREAT));
+    ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::IO::DB_CREAT));
 
     for (int i = 0; i < num_entries_; ++i) {
       char val[9];
@@ -443,7 +443,7 @@ namespace {
   TEST_F(BtreeTest, GetTestKeyUint32) {
     std::string db_name = get_db_name(db_num_);
     bt->set_cmp_func(Lux::IO::Btree::uint32_cmp_func);
-    ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::DB_RDONLY));
+    ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::IO::DB_RDONLY));
 
     for (int i = 0; i < num_entries_; ++i) {
       char val[9];
@@ -475,7 +475,7 @@ namespace {
    **/
   TEST_F(BtreeTest, KeySizeLimitationTest) {
     std::string db_name = get_db_name(++db_num_);
-    ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::DB_CREAT));
+    ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::IO::DB_CREAT));
 
     char key1[Lux::IO::MAX_KSIZE+1];
     memset(key1, 0, Lux::IO::MAX_KSIZE + 1);
@@ -507,7 +507,7 @@ namespace {
   TEST_F(BtreeTest, ValueSizeLimitationTest) {
     std::string db_name = get_db_name(++db_num_);
     bt->set_cmp_func(Lux::IO::Btree::int32_cmp_func);
-    ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::DB_CREAT));
+    ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::IO::DB_CREAT));
 
     int key = 10;
     char val1[Lux::IO::CLUSTER_MAX_VSIZE+1];
@@ -540,7 +540,7 @@ namespace {
   TEST_F(BtreeTest, ProcessTest) {
     std::string db_name = get_db_name(++db_num_);
     bt->set_lock_type(Lux::IO::LOCK_PROCESS);
-    ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::DB_CREAT));
+    ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::IO::DB_CREAT));
 
     for (int i = 0; i < num_entries_; ++i) {
       char key[9];
@@ -573,7 +573,7 @@ namespace {
   TEST_F(BtreeTest, ThreadTest) {
     std::string db_name = get_db_name(++db_num_);
     bt->set_lock_type(Lux::IO::LOCK_THREAD);
-    ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::DB_CREAT));
+    ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::IO::DB_CREAT));
 
     for (int i = 0; i < num_entries_; ++i) {
       char key[9];
@@ -606,7 +606,7 @@ namespace {
   TEST_F(BtreeTest, PutTestPageSizeSmallest) {
     std::string db_name = get_db_name(++db_num_);
     bt->set_page_size(1024);
-    ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::DB_CREAT));
+    ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::IO::DB_CREAT));
 
     for (int i = 0; i < num_entries_; ++i) {
       char key[9];
@@ -638,7 +638,7 @@ namespace {
   TEST_F(BtreeTest, PutTestPageSizeBiggest) {
     std::string db_name = get_db_name(++db_num_);
     bt->set_page_size(65536);
-    ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::DB_CREAT));
+    ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::IO::DB_CREAT));
 
     for (int i = 0; i < num_entries_; ++i) {
       char key[9];
@@ -669,7 +669,7 @@ namespace {
    **/
   TEST_F(BtreeTest, PutTestWithBulkLoading) {
     std::string db_name = get_db_name(++db_num_);
-    ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::DB_CREAT));
+    ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::IO::DB_CREAT));
 
     bt->set_bulk_loading(true);
     for (int i = 0; i < num_entries_; ++i) {

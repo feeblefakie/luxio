@@ -47,7 +47,7 @@ namespace {
   TEST_F(BtreeTest, PutLinkedTest) {
     bt->set_noncluster_params(Lux::IO::Linked);
     std::string db_name = get_db_name(++db_num_);
-    ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::DB_CREAT));
+    ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::IO::DB_CREAT));
 
     for (int i = 0; i < num_entries_; ++i) {
       char key[9];
@@ -75,7 +75,7 @@ namespace {
    **/
   TEST_F(BtreeTest, GetLinkedTest) {
     std::string db_name = get_db_name(db_num_);
-    ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::DB_RDONLY));
+    ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::IO::DB_RDONLY));
 
     for (int i = 0; i < num_entries_; ++i) {
       char key[9];
@@ -121,7 +121,7 @@ namespace {
    **/
   TEST_F(BtreeTest, CursorLinkedTest) {
     std::string db_name = get_db_name(db_num_);
-    ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::DB_RDONLY));
+    ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::IO::DB_RDONLY));
 
     Lux::IO::cursor_t *c = bt->cursor_init();
     int num = 1000;
@@ -180,7 +180,7 @@ namespace {
    **/
   TEST_F(BtreeTest, DelLinkedTest) {
     std::string db_name = get_db_name(db_num_);
-    ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::DB_RDWR));
+    ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::IO::DB_RDWR));
 
     for (int i = 0; i < num_entries_; ++i) {
       if (i % 2 == 0) {
@@ -210,7 +210,7 @@ namespace {
   TEST_F(BtreeTest, AppendLinkedTest) {
     bt->set_noncluster_params(Lux::IO::Linked);
     std::string db_name = get_db_name(++db_num_);
-    ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::DB_CREAT));
+    ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::IO::DB_CREAT));
 
     for (int i = 0; i < num_entries_; ++i) {
       char key[41];
@@ -236,7 +236,7 @@ namespace {
   TEST_F(BtreeTest, GetAppendedLinkedTest) {
     bt->set_noncluster_params(Lux::IO::Linked);
     std::string db_name = get_db_name(db_num_);
-    ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::DB_RDONLY));
+    ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::IO::DB_RDONLY));
 
     for (int i = 0; i < num_entries_; ++i) {
       char key[41];
@@ -286,7 +286,7 @@ namespace {
   TEST_F(BtreeTest, UpdateLinkedTest) {
     bt->set_noncluster_params(Lux::IO::Linked);
     std::string db_name = get_db_name(++db_num_);
-    ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::DB_CREAT));
+    ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::IO::DB_CREAT));
 
     for (int i = 0; i < num_entries_; ++i) {
       char key[41];
@@ -312,7 +312,7 @@ namespace {
   TEST_F(BtreeTest, GetUpdatedLinkedTest) {
     bt->set_noncluster_params(Lux::IO::Linked);
     std::string db_name = get_db_name(db_num_);
-    ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::DB_RDONLY));
+    ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::IO::DB_RDONLY));
 
     for (int i = 0; i < num_entries_; ++i) {
       char key[41];

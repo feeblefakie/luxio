@@ -1,3 +1,4 @@
+#include "../util.h"
 #include "../data.h"
 #include <gtest/gtest.h> 
 #include <iostream>
@@ -94,7 +95,7 @@ namespace {
   TEST_F(DataTest, PaddedDataTest) {
     dt = new Lux::IO::PaddedData();
     std::string db_name = get_db_name(++db_num_);
-    ASSERT_EQ(true, dt->open(db_name.c_str(), Lux::DB_CREAT));
+    ASSERT_EQ(true, dt->open(db_name.c_str(), Lux::IO::DB_CREAT));
 
     data_test(dt);
 #ifdef DEBUG
@@ -109,7 +110,7 @@ namespace {
     dt = new Lux::IO::PaddedData();
     dt->set_padding(Lux::IO::NOPADDING);
     std::string db_name = get_db_name(++db_num_);
-    ASSERT_EQ(true, dt->open(db_name.c_str(), Lux::DB_CREAT));
+    ASSERT_EQ(true, dt->open(db_name.c_str(), Lux::IO::DB_CREAT));
 
     data_test(dt);
 
@@ -120,7 +121,7 @@ namespace {
     dt = new Lux::IO::PaddedData();
     dt->set_padding(Lux::IO::FIXEDLEN);
     std::string db_name = get_db_name(++db_num_);
-    ASSERT_EQ(true, dt->open(db_name.c_str(), Lux::DB_CREAT));
+    ASSERT_EQ(true, dt->open(db_name.c_str(), Lux::IO::DB_CREAT));
 
     data_test(dt);
 
@@ -131,7 +132,7 @@ namespace {
     dt = new Lux::IO::PaddedData();
     dt->set_padding(Lux::IO::RATIO);
     std::string db_name = get_db_name(++db_num_);
-    ASSERT_EQ(true, dt->open(db_name.c_str(), Lux::DB_CREAT));
+    ASSERT_EQ(true, dt->open(db_name.c_str(), Lux::IO::DB_CREAT));
 
     data_test(dt);
 
@@ -143,7 +144,7 @@ namespace {
     dt->set_block_size(Lux::IO::MIN_BLOCKSIZE);
     dt->set_padding(Lux::IO::RATIO);
     std::string db_name = get_db_name(++db_num_);
-    ASSERT_EQ(true, dt->open(db_name.c_str(), Lux::DB_CREAT));
+    ASSERT_EQ(true, dt->open(db_name.c_str(), Lux::IO::DB_CREAT));
 
     data_test(dt);
 
@@ -155,7 +156,7 @@ namespace {
     dt->set_block_size(Lux::IO::MAX_BLOCKSIZE);
     dt->set_padding(Lux::IO::RATIO);
     std::string db_name = get_db_name(++db_num_);
-    ASSERT_EQ(true, dt->open(db_name.c_str(), Lux::DB_CREAT));
+    ASSERT_EQ(true, dt->open(db_name.c_str(), Lux::IO::DB_CREAT));
 
     data_test(dt);
 
@@ -166,7 +167,7 @@ namespace {
     dt = new Lux::IO::LinkedData();
     dt->set_padding(Lux::IO::PO2);
     std::string db_name = get_db_name(++db_num_);
-    ASSERT_EQ(true, dt->open(db_name.c_str(), Lux::DB_CREAT));
+    ASSERT_EQ(true, dt->open(db_name.c_str(), Lux::IO::DB_CREAT));
 
     data_test(dt);
 #ifdef DEBUG
@@ -181,7 +182,7 @@ namespace {
     dt = new Lux::IO::LinkedData();
     dt->set_padding(Lux::IO::NOPADDING);
     std::string db_name = get_db_name(++db_num_);
-    ASSERT_EQ(true, dt->open(db_name.c_str(), Lux::DB_CREAT));
+    ASSERT_EQ(true, dt->open(db_name.c_str(), Lux::IO::DB_CREAT));
 
     data_test(dt);
 
@@ -192,7 +193,7 @@ namespace {
     dt = new Lux::IO::LinkedData();
     dt->set_padding(Lux::IO::FIXEDLEN);
     std::string db_name = get_db_name(++db_num_);
-    ASSERT_EQ(true, dt->open(db_name.c_str(), Lux::DB_CREAT));
+    ASSERT_EQ(true, dt->open(db_name.c_str(), Lux::IO::DB_CREAT));
 
     data_test(dt);
 
@@ -203,7 +204,7 @@ namespace {
     dt = new Lux::IO::LinkedData();
     dt->set_padding(Lux::IO::RATIO);
     std::string db_name = get_db_name(++db_num_);
-    ASSERT_EQ(true, dt->open(db_name.c_str(), Lux::DB_CREAT));
+    ASSERT_EQ(true, dt->open(db_name.c_str(), Lux::IO::DB_CREAT));
 
     data_test(dt);
 
@@ -215,7 +216,7 @@ namespace {
     dt->set_block_size(Lux::IO::MIN_BLOCKSIZE);
     dt->set_padding(Lux::IO::RATIO);
     std::string db_name = get_db_name(++db_num_);
-    ASSERT_EQ(true, dt->open(db_name.c_str(), Lux::DB_CREAT));
+    ASSERT_EQ(true, dt->open(db_name.c_str(), Lux::IO::DB_CREAT));
 
     data_test(dt);
 
@@ -227,7 +228,7 @@ namespace {
     dt->set_block_size(Lux::IO::MAX_BLOCKSIZE);
     dt->set_padding(Lux::IO::RATIO);
     std::string db_name = get_db_name(++db_num_);
-    ASSERT_EQ(true, dt->open(db_name.c_str(), Lux::DB_CREAT));
+    ASSERT_EQ(true, dt->open(db_name.c_str(), Lux::IO::DB_CREAT));
 
     data_test(dt);
 

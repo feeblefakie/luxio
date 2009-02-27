@@ -197,7 +197,7 @@ namespace {
   TEST_F(ArrayTest, PutTest) {
     ary = new Lux::IO::Array(Lux::IO::CLUSTER);
     std::string db_name = get_db_name(++db_num_);
-    ASSERT_EQ(true, ary->open(db_name.c_str(), Lux::DB_CREAT));
+    ASSERT_EQ(true, ary->open(db_name.c_str(), Lux::IO::DB_CREAT));
 
     for (int i = 0; i < num_entries_; ++i) {
       // put
@@ -212,7 +212,7 @@ namespace {
   TEST_F(ArrayTest, GetTest) {
     ary = new Lux::IO::Array(Lux::IO::CLUSTER);
     std::string db_name = get_db_name(db_num_);
-    ASSERT_EQ(true, ary->open(db_name.c_str(), Lux::DB_RDONLY));
+    ASSERT_EQ(true, ary->open(db_name.c_str(), Lux::IO::DB_RDONLY));
 
     GetClusterTest(ary);
 
@@ -223,7 +223,7 @@ namespace {
   TEST_F(ArrayTest, UpdateTest) {
     ary = new Lux::IO::Array(Lux::IO::CLUSTER);
     std::string db_name = get_db_name(++db_num_);
-    ASSERT_EQ(true, ary->open(db_name.c_str(), Lux::DB_CREAT));
+    ASSERT_EQ(true, ary->open(db_name.c_str(), Lux::IO::DB_CREAT));
 
     for (int i = 0; i < num_entries_; ++i) {
       // put
@@ -238,7 +238,7 @@ namespace {
   TEST_F(ArrayTest, GetUpdateTest) {
     ary = new Lux::IO::Array(Lux::IO::CLUSTER);
     std::string db_name = get_db_name(db_num_);
-    ASSERT_EQ(true, ary->open(db_name.c_str(), Lux::DB_RDONLY));
+    ASSERT_EQ(true, ary->open(db_name.c_str(), Lux::IO::DB_RDONLY));
 
     GetClusterTest(ary);
 
@@ -249,7 +249,7 @@ namespace {
   TEST_F(ArrayTest, DebugPrintTest) {
     ary = new Lux::IO::Array(Lux::IO::CLUSTER);
     std::string db_name = get_db_name(db_num_);
-    ASSERT_EQ(true, ary->open(db_name.c_str(), Lux::DB_RDONLY));
+    ASSERT_EQ(true, ary->open(db_name.c_str(), Lux::IO::DB_RDONLY));
 
 #ifdef DEBUG
     ary->show_db_header();
@@ -263,7 +263,7 @@ namespace {
   TEST_F(ArrayTest, DelTest) {
     ary = new Lux::IO::Array(Lux::IO::CLUSTER);
     std::string db_name = get_db_name(db_num_);
-    ASSERT_EQ(true, ary->open(db_name.c_str(), Lux::DB_RDWR));
+    ASSERT_EQ(true, ary->open(db_name.c_str(), Lux::IO::DB_RDWR));
 
     DelClusterTest(ary);
 
@@ -275,7 +275,7 @@ namespace {
     ary = new Lux::IO::Array(Lux::IO::NONCLUSTER);
     ary->set_noncluster_params(Lux::IO::Padded);
     std::string db_name = get_db_name(++db_num_);
-    ASSERT_EQ(true, ary->open(db_name.c_str(), Lux::DB_CREAT));
+    ASSERT_EQ(true, ary->open(db_name.c_str(), Lux::IO::DB_CREAT));
 
     PutNonClusterTest(ary);
 
@@ -287,7 +287,7 @@ namespace {
     ary = new Lux::IO::Array(Lux::IO::NONCLUSTER);
     ary->set_noncluster_params(Lux::IO::Padded);
     std::string db_name = get_db_name(db_num_);
-    ASSERT_EQ(true, ary->open(db_name.c_str(), Lux::DB_RDONLY));
+    ASSERT_EQ(true, ary->open(db_name.c_str(), Lux::IO::DB_RDONLY));
 
     GetNonClusterTest(ary);
 
@@ -299,7 +299,7 @@ namespace {
     ary = new Lux::IO::Array(Lux::IO::NONCLUSTER);
     ary->set_noncluster_params(Lux::IO::Padded);
     std::string db_name = get_db_name(db_num_);
-    ASSERT_EQ(true, ary->open(db_name.c_str(), Lux::DB_CREAT));
+    ASSERT_EQ(true, ary->open(db_name.c_str(), Lux::IO::DB_CREAT));
 
     DelNonClusterTest(ary);
 
@@ -311,7 +311,7 @@ namespace {
     ary = new Lux::IO::Array(Lux::IO::NONCLUSTER);
     ary->set_noncluster_params(Lux::IO::Padded);
     std::string db_name = get_db_name(++db_num_);
-    ASSERT_EQ(true, ary->open(db_name.c_str(), Lux::DB_CREAT));
+    ASSERT_EQ(true, ary->open(db_name.c_str(), Lux::IO::DB_CREAT));
 
     UpdateNonClusterTest(ary);
 
@@ -323,7 +323,7 @@ namespace {
     ary = new Lux::IO::Array(Lux::IO::NONCLUSTER);
     ary->set_noncluster_params(Lux::IO::Padded);
     std::string db_name = get_db_name(db_num_);
-    ASSERT_EQ(true, ary->open(db_name.c_str(), Lux::DB_RDONLY));
+    ASSERT_EQ(true, ary->open(db_name.c_str(), Lux::IO::DB_RDONLY));
 
     GetUpdateNonClusterTest(ary);
 
@@ -335,7 +335,7 @@ namespace {
     ary = new Lux::IO::Array(Lux::IO::NONCLUSTER);
     ary->set_noncluster_params(Lux::IO::Padded);
     std::string db_name = get_db_name(++db_num_);
-    ASSERT_EQ(true, ary->open(db_name.c_str(), Lux::DB_CREAT));
+    ASSERT_EQ(true, ary->open(db_name.c_str(), Lux::IO::DB_CREAT));
 
     AppendNonClusterTest(ary);
 
@@ -347,7 +347,7 @@ namespace {
     ary = new Lux::IO::Array(Lux::IO::NONCLUSTER);
     ary->set_noncluster_params(Lux::IO::Padded);
     std::string db_name = get_db_name(db_num_);
-    ASSERT_EQ(true, ary->open(db_name.c_str(), Lux::DB_RDONLY));
+    ASSERT_EQ(true, ary->open(db_name.c_str(), Lux::IO::DB_RDONLY));
 
     GetAppendNonClusterTest(ary);
 
@@ -359,7 +359,7 @@ namespace {
     ary = new Lux::IO::Array(Lux::IO::NONCLUSTER);
     ary->set_noncluster_params(Lux::IO::Linked);
     std::string db_name = get_db_name(++db_num_);
-    ASSERT_EQ(true, ary->open(db_name.c_str(), Lux::DB_CREAT));
+    ASSERT_EQ(true, ary->open(db_name.c_str(), Lux::IO::DB_CREAT));
 
     PutNonClusterTest(ary);
 
@@ -371,7 +371,7 @@ namespace {
     ary = new Lux::IO::Array(Lux::IO::NONCLUSTER);
     ary->set_noncluster_params(Lux::IO::Linked);
     std::string db_name = get_db_name(db_num_);
-    ASSERT_EQ(true, ary->open(db_name.c_str(), Lux::DB_RDONLY));
+    ASSERT_EQ(true, ary->open(db_name.c_str(), Lux::IO::DB_RDONLY));
 
     GetNonClusterTest(ary);
 
@@ -383,7 +383,7 @@ namespace {
     ary = new Lux::IO::Array(Lux::IO::NONCLUSTER);
     ary->set_noncluster_params(Lux::IO::Linked);
     std::string db_name = get_db_name(db_num_);
-    ASSERT_EQ(true, ary->open(db_name.c_str(), Lux::DB_CREAT));
+    ASSERT_EQ(true, ary->open(db_name.c_str(), Lux::IO::DB_CREAT));
 
     DelNonClusterTest(ary);
 
@@ -395,7 +395,7 @@ namespace {
     ary = new Lux::IO::Array(Lux::IO::NONCLUSTER);
     ary->set_noncluster_params(Lux::IO::Linked);
     std::string db_name = get_db_name(++db_num_);
-    ASSERT_EQ(true, ary->open(db_name.c_str(), Lux::DB_CREAT));
+    ASSERT_EQ(true, ary->open(db_name.c_str(), Lux::IO::DB_CREAT));
 
     UpdateNonClusterTest(ary);
 
@@ -407,7 +407,7 @@ namespace {
     ary = new Lux::IO::Array(Lux::IO::NONCLUSTER);
     ary->set_noncluster_params(Lux::IO::Linked);
     std::string db_name = get_db_name(db_num_);
-    ASSERT_EQ(true, ary->open(db_name.c_str(), Lux::DB_RDONLY));
+    ASSERT_EQ(true, ary->open(db_name.c_str(), Lux::IO::DB_RDONLY));
 
     GetUpdateNonClusterTest(ary);
 
@@ -419,7 +419,7 @@ namespace {
     ary = new Lux::IO::Array(Lux::IO::NONCLUSTER);
     ary->set_noncluster_params(Lux::IO::Linked);
     std::string db_name = get_db_name(++db_num_);
-    ASSERT_EQ(true, ary->open(db_name.c_str(), Lux::DB_CREAT));
+    ASSERT_EQ(true, ary->open(db_name.c_str(), Lux::IO::DB_CREAT));
 
     AppendNonClusterTest(ary);
 
@@ -431,7 +431,7 @@ namespace {
     ary = new Lux::IO::Array(Lux::IO::NONCLUSTER);
     ary->set_noncluster_params(Lux::IO::Linked);
     std::string db_name = get_db_name(db_num_);
-    ASSERT_EQ(true, ary->open(db_name.c_str(), Lux::DB_RDONLY));
+    ASSERT_EQ(true, ary->open(db_name.c_str(), Lux::IO::DB_RDONLY));
 
     GetAppendNonClusterTest(ary);
 
@@ -443,7 +443,7 @@ namespace {
     ary = new Lux::IO::Array(Lux::IO::CLUSTER);
     ary->set_lock_type(Lux::IO::LOCK_PROCESS);
     std::string db_name = get_db_name(++db_num_);
-    ASSERT_EQ(true, ary->open(db_name.c_str(), Lux::DB_CREAT));
+    ASSERT_EQ(true, ary->open(db_name.c_str(), Lux::IO::DB_CREAT));
 
     for (int i = 0; i < num_entries_; ++i) {
       // put
@@ -459,7 +459,7 @@ namespace {
     ary = new Lux::IO::Array(Lux::IO::CLUSTER);
     ary->set_lock_type(Lux::IO::LOCK_THREAD);
     std::string db_name = get_db_name(++db_num_);
-    ASSERT_EQ(true, ary->open(db_name.c_str(), Lux::DB_CREAT));
+    ASSERT_EQ(true, ary->open(db_name.c_str(), Lux::IO::DB_CREAT));
 
     for (int i = 0; i < num_entries_; ++i) {
       // put

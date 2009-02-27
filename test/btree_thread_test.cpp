@@ -37,14 +37,14 @@ int main(int argc, char *argv[])
   //bt = new Lux::IO::Btree(Lux::IO::CLUSTER);
   bt = new Lux::IO::Btree(Lux::IO::CLUSTER);
   bt->set_lock_type(Lux::IO::LOCK_THREAD);
-  if (!bt->open("bttt", Lux::DB_CREAT)) {
+  if (!bt->open("bttt", Lux::IO::DB_CREAT)) {
     std::cerr << "open failed" << std::endl;
     exit(1);
   }
   
   btr = new Lux::IO::Btree(Lux::IO::CLUSTER);
   btr->set_lock_type(Lux::IO::LOCK_THREAD);
-  if (!btr->open("bttt", Lux::DB_RDONLY)) {
+  if (!btr->open("bttt", Lux::IO::DB_RDONLY)) {
     std::cerr << "open failed" << std::endl;
     exit(1);
   }
