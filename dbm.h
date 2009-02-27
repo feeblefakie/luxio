@@ -15,14 +15,11 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
-#ifndef LUX_DBM_H
-#define LUX_DBM_H
+#ifndef LUX_IO_H
+#define LUX_IO_H
 
-// for UINT8_MAX
-#define __STDC_LIMIT_MACROS
-
+#include "luxio-config.h"
 #include "types.h"
-#include "util.h"
 #include <unistd.h>
 #include <stdint.h>
 #include <sys/file.h>
@@ -36,9 +33,10 @@
 #include <assert.h>
 #include <iostream>
 #include <stdexcept>
+#include <limits>
 
 namespace Lux {
-namespace DBM {
+namespace IO {
 
   static const uint32_t MIN_PAGESIZE = 1024;
   static const uint32_t MAX_PAGESIZE = 65536;
@@ -80,6 +78,19 @@ namespace DBM {
     USER,
     SYSTEM
   } alloc_type_t;
+
+  typedef enum {
+    Padded,
+    Linked
+  } store_mode_t;
+
+  typedef enum {
+    NOPADDING,
+    FIXEDLEN,
+    RATIO,
+    BLOCKALIGNED,
+    PO2 // power of 2
+  } padding_mode_t;
 
 }
 }

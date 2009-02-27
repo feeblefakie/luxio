@@ -15,30 +15,18 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
-#ifndef LUX_DBM_DATA_H
-#define LUX_DBM_DATA_H
+#ifndef LUX_IO_DATA_H
+#define LUX_IO_DATA_H
 
 #include "dbm.h"
 
 namespace Lux {
-namespace DBM {
+namespace IO {
 
   const static uint8_t AREA_FREE = 0;
   const static uint8_t AREA_ALLOCATED = 1;
   const static uint32_t DEFAULT_PADDING = 20; // depends on the context
   const static uint32_t MIN_RECORD_SIZE = 32;
-
-  typedef enum {
-    Padded,
-    Linked
-  } store_mode_t;
-
-  typedef enum {
-    NOPADDING,
-    FIXEDLEN,
-    RATIO,
-    PO2 // power of 2
-  } padding_mode_t;
 
 #pragma pack(1)
     typedef struct {
@@ -81,10 +69,11 @@ namespace DBM {
 
   public:
     Data(store_mode_t smode,
-         padding_mode_t pmode = PO2, uint32_t padding = DEFAULT_PADDING)
+         padding_mode_t pmode = BLOCKALIGNED, uint32_t padding = DEFAULT_PADDING)
     : smode_(smode),
       pmode_(pmode),
       padding_(padding),
+      extra_exponent_(0),
       block_size_(0),
       header_size_(getpagesize()),
       map_(NULL)
@@ -170,6 +159,10 @@ namespace DBM {
         }
         map_ = NULL;
       }
+      if (fsync(fd_) < 0) {
+        error_log("fsync failed.");
+        return false;
+      }
       if (::close(fd_) < 0) {
         error_log("close failed.");
         return false;
@@ -181,6 +174,11 @@ namespace DBM {
     {
       pmode_ = pmode;
       padding_ = padding;
+    }
+
+    void set_po2_extra_exponent(uint32_t extra_exponent)
+    {
+      extra_exponent_ = extra_exponent;
     }
 
     void set_block_size(uint32_t block_size)
@@ -252,6 +250,7 @@ namespace DBM {
     db_header_t *dh_;
     padding_mode_t pmode_;
     uint32_t padding_;
+    uint32_t extra_exponent_;
     store_mode_t smode_;
     uint32_t block_size_;
     uint32_t header_size_;
@@ -307,8 +306,25 @@ namespace DBM {
         case RATIO:
           padded_size = size + size * dh_->padding / 100;
           break;
+        case BLOCKALIGNED:
+          {
+            div_t d = div(size, dh_->block_size);
+            uint32_t num_blocks = d.rem > 0 ? d.quot + 1 : d.quot;
+            padded_size = dh_->block_size * num_blocks;
+          }
+          break;
         default: // PO2
-          padded_size = (uint32_t) pows_[get_pow_of_2_ceiled(size, 5)-1];
+          {
+            uint32_t p = get_pow_of_2_ceiled(size, 5);
+            // extra exponent is only valid for more than 4096 bytes
+            if (p > 10) {
+              p += extra_exponent_;
+            }
+            if (p > 32) {
+              p = 32;
+            }
+            padded_size = (uint32_t) pows_[p-1];
+          }
       }
       if (padded_size < MIN_RECORD_SIZE) {
         padded_size = MIN_RECORD_SIZE;
@@ -424,6 +440,14 @@ namespace DBM {
         error_log("ftruncate failed.");
         return false;
       }
+      // [TODO] it's workaround for no sparseness.
+      char buf[dh_->block_size];
+      memset(buf, 0, dh_->block_size);
+      off_t size = header_size_ + (off_t) dh_->block_size * dh_->num_blocks;
+      int64_t i = (off_t) (dh_->cur_block_id - 1) * dh_->block_size + header_size_;
+      for (; i < size; i += dh_->block_size) {
+        _pwrite(fd_, buf, dh_->block_size, i);
+      }
       return true;
     }
 
@@ -449,7 +473,18 @@ namespace DBM {
       if (search_free_pool(size, &pool)) {
         data_ptr->id = pool.id;
         data_ptr->off = pool.off;
-        if (!add_free_pool(pool.id, pool.off + size, pool.size - size)) {
+
+        // calculate id and offset for the unused free space
+        // and put it back to the free pools
+        div_t d = div(size, dh_->block_size);
+        uint32_t num_blocks = d.quot;
+        uint32_t off = d.rem + pool.off;
+        if (off >= dh_->block_size) { 
+          ++num_blocks;
+          off -= dh_->block_size; // must be held by uint16_t
+        }
+        if (!add_free_pool(pool.id + num_blocks, 
+                           (uint16_t) off, pool.size - size)) {
           return NULL;
         }
       } else {
@@ -497,7 +532,7 @@ namespace DBM {
     } record_t;
 
   public:
-    PaddedData(padding_mode_t pmode = PO2, uint32_t padding = DEFAULT_PADDING)
+    PaddedData(padding_mode_t pmode = BLOCKALIGNED, uint32_t padding = DEFAULT_PADDING)
     : Data(Padded, pmode, padding)
     {}
     virtual ~PaddedData() {}
@@ -753,7 +788,7 @@ namespace DBM {
     } record_t;
 
   public:
-    LinkedData(padding_mode_t pmode = PO2, uint32_t padding = DEFAULT_PADDING)
+    LinkedData(padding_mode_t pmode = BLOCKALIGNED, uint32_t padding = DEFAULT_PADDING)
     : Data(Linked, pmode, padding)
     {}
     virtual ~LinkedData() {}
@@ -806,7 +841,7 @@ namespace DBM {
         }
         u.size += data->size;
       } else {
-        if (h.num_units == UINT8_MAX) {
+        if (h.num_units == std::numeric_limits<uint8_t>::max()) {
           error_log("exceeds link limitation.");
           return NULL;
         }
@@ -818,7 +853,10 @@ namespace DBM {
         // create a new unit and put the rest of the data into the unit
         data_t new_data = {(char *) data->data + unused_size, data->size - unused_size};
         unit_t *unit = init_unit(&new_data);
-        uint32_t padding = get_padded_size(unit->h->size);
+        //uint32_t padding = get_padded_size(unit->h->size);
+        // [TODO] workaround
+        uint32_t padding = unit->h->padded_size > u.padded_size ? 
+                                unit->h->padded_size : u.padded_size;
         unit->h->padded_size = padding > u.padded_size ? padding : u.padded_size;
         data_ptr_t *dp = put_unit(unit);
 

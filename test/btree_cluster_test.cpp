@@ -13,7 +13,7 @@ namespace {
   protected:  
     virtual void SetUp()
     {
-      bt = new Lux::DBM::Btree(Lux::DBM::CLUSTER);
+      bt = new Lux::IO::Btree(Lux::IO::CLUSTER);
       db_name_ = "btc_test";
       num_entries_ = DEFAULT_NUM_ENTRIES;
     }
@@ -30,7 +30,7 @@ namespace {
       return db_name;
     }
    
-    Lux::DBM::Btree *bt; 
+    Lux::IO::Btree *bt; 
     std::string db_name_;
     uint32_t num_entries_;
   };
@@ -58,7 +58,7 @@ namespace {
                 &i, sizeof(int)));
       // no updae
       ASSERT_EQ(true, bt->put(key, strlen(key),
-                &i, sizeof(int), Lux::DBM::NOOVERWRITE));
+                &i, sizeof(int), Lux::IO::NOOVERWRITE));
     }
     ASSERT_EQ(true, bt->close());
     delete bt;
@@ -81,7 +81,7 @@ namespace {
       sprintf(key, "%08d", i);
 
       // sequential, system memory
-      Lux::DBM::data_t *val_data = bt->get(key, strlen(key));
+      Lux::IO::data_t *val_data = bt->get(key, strlen(key));
       ASSERT_TRUE(val_data != NULL);
       ASSERT_TRUE(i == *(int *) val_data->data);
       bt->clean_data(val_data);
@@ -99,9 +99,9 @@ namespace {
       memset(key, 0, 9);
       sprintf(key, "%08d", i);
       int val;
-      Lux::DBM::data_t key_data = {key, strlen(key)};
-      Lux::DBM::data_t val_data2 = {&val, 0, sizeof(int)};
-      Lux::DBM::data_t *val_p = &val_data2;
+      Lux::IO::data_t key_data = {key, strlen(key)};
+      Lux::IO::data_t val_data2 = {&val, 0, sizeof(int)};
+      Lux::IO::data_t *val_p = &val_data2;
 
       // sequntial, user memory
       ASSERT_EQ(true, bt->get(&key_data, &val_p));
@@ -143,16 +143,16 @@ namespace {
     ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::DB_RDONLY));
 
     char buf[9] = "00001000";
-    Lux::DBM::data_t key;
+    Lux::IO::data_t key;
     int num = 1000;
     key.data = buf;
     key.size = 8;
-    Lux::DBM::cursor_t *c = bt->cursor_init();
+    Lux::IO::cursor_t *c = bt->cursor_init();
     ASSERT_TRUE(c != NULL);
     ASSERT_EQ(true, bt->get(c, &key));
     while (bt->next(c)) {
-      Lux::DBM::data_t *key, *val;
-      ASSERT_EQ(true, bt->cursor_get(c, &key, &val, Lux::DBM::SYSTEM));
+      Lux::IO::data_t *key, *val;
+      ASSERT_EQ(true, bt->cursor_get(c, &key, &val, Lux::IO::SYSTEM));
       ++num;
       ASSERT_EQ(num, *(int *) val->data);
 
@@ -162,8 +162,8 @@ namespace {
     num = 0;
     ASSERT_EQ(true, bt->first(c));
     do {
-      Lux::DBM::data_t *key, *val;
-      ASSERT_EQ(true, bt->cursor_get(c, &key, &val, Lux::DBM::SYSTEM));
+      Lux::IO::data_t *key, *val;
+      ASSERT_EQ(true, bt->cursor_get(c, &key, &val, Lux::IO::SYSTEM));
       ASSERT_EQ(num, *(int *) val->data);
       ++num;
 
@@ -173,8 +173,8 @@ namespace {
     num = num_entries_ - 1;
     ASSERT_EQ(true, bt->last(c));
     do {
-      Lux::DBM::data_t *key, *val;
-      ASSERT_EQ(true, bt->cursor_get(c, &key, &val, Lux::DBM::SYSTEM));
+      Lux::IO::data_t *key, *val;
+      ASSERT_EQ(true, bt->cursor_get(c, &key, &val, Lux::IO::SYSTEM));
       ASSERT_EQ(num, *(int *) val->data);
       --num;
 
@@ -205,7 +205,7 @@ namespace {
       memset(key, 0, 9);
       sprintf(key, "%08d", i);
 
-      Lux::DBM::data_t *val_data = bt->get(key, strlen(key));
+      Lux::IO::data_t *val_data = bt->get(key, strlen(key));
       ASSERT_TRUE(val_data != NULL);
       bt->clean_data(val_data);
       ASSERT_EQ(true, bt->del(key, strlen(key)));
@@ -256,7 +256,7 @@ namespace {
       // put
       ASSERT_EQ(true, bt->put(key, strlen(key), val, strlen(val)));
 
-      Lux::DBM::data_t *val_data = bt->get(key, strlen(key));
+      Lux::IO::data_t *val_data = bt->get(key, strlen(key));
       ASSERT_TRUE(val_data != NULL);
       ASSERT_EQ(strlen(val), val_data->size);
       ASSERT_TRUE(strcmp((char *) val_data->data, val) == 0);
@@ -264,10 +264,10 @@ namespace {
 
       char rval[32];
       memset(rval, 0, 32);
-      Lux::DBM::data_t key_data = {key, strlen(key)};
-      Lux::DBM::data_t val_data2 = {rval, 0, 32}; // allocated memory size: 32
-      Lux::DBM::data_t *val_p = &val_data2;
-      ASSERT_EQ(true, bt->get(&key_data, &val_p, Lux::DBM::USER));
+      Lux::IO::data_t key_data = {key, strlen(key)};
+      Lux::IO::data_t val_data2 = {rval, 0, 32}; // allocated memory size: 32
+      Lux::IO::data_t *val_p = &val_data2;
+      ASSERT_EQ(true, bt->get(&key_data, &val_p, Lux::IO::USER));
       ASSERT_TRUE(strcmp((char *) val_p->data, val) == 0);
     }
     ASSERT_EQ(true, bt->close());
@@ -297,7 +297,7 @@ namespace {
       // put
       ASSERT_EQ(true, bt->put(key, strlen(key), val, strlen(val)));
 
-      Lux::DBM::data_t *val_data = bt->get(key, strlen(key));
+      Lux::IO::data_t *val_data = bt->get(key, strlen(key));
       ASSERT_TRUE(val_data != NULL);
       ASSERT_EQ(strlen(val), val_data->size);
       ASSERT_TRUE(strcmp((char *) val_data->data, val) == 0);
@@ -305,10 +305,10 @@ namespace {
 
       char rval[128];
       memset(rval, 0, 128);
-      Lux::DBM::data_t key_data = {key, strlen(key)};
-      Lux::DBM::data_t val_data2 = {rval, 0, 128}; // allocated memory size: 128
-      Lux::DBM::data_t *val_p = &val_data2;
-      ASSERT_EQ(true, bt->get(&key_data, &val_p, Lux::DBM::USER));
+      Lux::IO::data_t key_data = {key, strlen(key)};
+      Lux::IO::data_t val_data2 = {rval, 0, 128}; // allocated memory size: 128
+      Lux::IO::data_t *val_p = &val_data2;
+      ASSERT_EQ(true, bt->get(&key_data, &val_p, Lux::IO::USER));
       ASSERT_TRUE(strcmp((char *) val_p->data, val) == 0);
     }
     ASSERT_EQ(true, bt->close());
@@ -355,7 +355,7 @@ namespace {
       int num = rand() % num_entries_;
       sprintf(key, "%08d", num);
 
-      Lux::DBM::data_t *val_data = bt->get(key, strlen(key));
+      Lux::IO::data_t *val_data = bt->get(key, strlen(key));
       if (val_data != NULL) {
         ASSERT_TRUE(num == *(int *) val_data->data);
         bt->clean_data(val_data);
@@ -374,7 +374,7 @@ namespace {
    **/
   TEST_F(BtreeTest, PutTestKeyInt32) {
     std::string db_name = get_db_name(++db_num_);
-    bt->set_cmp_func(Lux::DBM::int32_cmp_func);
+    bt->set_cmp_func(Lux::IO::Btree::int32_cmp_func);
     ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::DB_CREAT));
 
     for (int i = 0; i < num_entries_; ++i) {
@@ -398,7 +398,7 @@ namespace {
    **/
   TEST_F(BtreeTest, GetTestKeyInt32) {
     std::string db_name = get_db_name(db_num_);
-    bt->set_cmp_func(Lux::DBM::int32_cmp_func);
+    bt->set_cmp_func(Lux::IO::Btree::int32_cmp_func);
     ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::DB_RDONLY));
 
     for (int i = 0; i < num_entries_; ++i) {
@@ -407,15 +407,15 @@ namespace {
       sprintf(val, "%08d", i);
 
       int32_t key = -i;
-      Lux::DBM::data_t *val_data = bt->get(&key, sizeof(int32_t));
+      Lux::IO::data_t *val_data = bt->get(&key, sizeof(int32_t));
       ASSERT_TRUE(val_data != NULL);
       ASSERT_EQ(0, strcmp((char *) val_data->data, val));
       bt->clean_data(val_data);
 
-      Lux::DBM::data_t key_data = {&key, sizeof(int32_t)};
-      Lux::DBM::data_t val_data2 = {val, 0, 9}; // user allocated sizeof(int32_t)
-      Lux::DBM::data_t *val_p = &val_data2;
-      ASSERT_EQ(true, bt->get(&key_data, &val_p, Lux::DBM::USER));
+      Lux::IO::data_t key_data = {&key, sizeof(int32_t)};
+      Lux::IO::data_t val_data2 = {val, 0, 9}; // user allocated sizeof(int32_t)
+      Lux::IO::data_t *val_p = &val_data2;
+      ASSERT_EQ(true, bt->get(&key_data, &val_p, Lux::IO::USER));
       ASSERT_EQ(val_p->size, strlen(val));
       ASSERT_TRUE(strcmp((char *) val_p->data, val) == 0);
     }
@@ -425,7 +425,7 @@ namespace {
 
   TEST_F(BtreeTest, PutTestKeyUint32) {
     std::string db_name = get_db_name(++db_num_);
-    bt->set_cmp_func(Lux::DBM::uint32_cmp_func);
+    bt->set_cmp_func(Lux::IO::Btree::uint32_cmp_func);
     ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::DB_CREAT));
 
     for (int i = 0; i < num_entries_; ++i) {
@@ -442,7 +442,7 @@ namespace {
 
   TEST_F(BtreeTest, GetTestKeyUint32) {
     std::string db_name = get_db_name(db_num_);
-    bt->set_cmp_func(Lux::DBM::uint32_cmp_func);
+    bt->set_cmp_func(Lux::IO::Btree::uint32_cmp_func);
     ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::DB_RDONLY));
 
     for (int i = 0; i < num_entries_; ++i) {
@@ -451,15 +451,15 @@ namespace {
       sprintf(val, "%08d", i);
 
       uint32_t key = i;
-      Lux::DBM::data_t *val_data = bt->get(&key, sizeof(uint32_t));
+      Lux::IO::data_t *val_data = bt->get(&key, sizeof(uint32_t));
       ASSERT_TRUE(val_data != NULL);
       ASSERT_EQ(0, strcmp((char *) val_data->data, val));
       bt->clean_data(val_data);
 
-      Lux::DBM::data_t key_data = {&key, sizeof(uint32_t)};
-      Lux::DBM::data_t val_data2 = {val, 0, 9}; // user allocated sizeof(int32_t)
-      Lux::DBM::data_t *val_p = &val_data2;
-      ASSERT_EQ(true, bt->get(&key_data, &val_p, Lux::DBM::USER));
+      Lux::IO::data_t key_data = {&key, sizeof(uint32_t)};
+      Lux::IO::data_t val_data2 = {val, 0, 9}; // user allocated sizeof(int32_t)
+      Lux::IO::data_t *val_p = &val_data2;
+      ASSERT_EQ(true, bt->get(&key_data, &val_p, Lux::IO::USER));
       ASSERT_EQ(val_p->size, strlen(val));
       ASSERT_TRUE(strcmp((char *) val_p->data, val) == 0);
     }
@@ -477,16 +477,16 @@ namespace {
     std::string db_name = get_db_name(++db_num_);
     ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::DB_CREAT));
 
-    char key1[Lux::DBM::MAX_KSIZE+1];
-    memset(key1, 0, Lux::DBM::MAX_KSIZE + 1);
-    memset(key1, 'a', Lux::DBM::MAX_KSIZE);
-    char key2[Lux::DBM::MAX_KSIZE+2];
-    memset(key2, 0, Lux::DBM::MAX_KSIZE + 2);
-    memset(key2, 'a', Lux::DBM::MAX_KSIZE + 1);
+    char key1[Lux::IO::MAX_KSIZE+1];
+    memset(key1, 0, Lux::IO::MAX_KSIZE + 1);
+    memset(key1, 'a', Lux::IO::MAX_KSIZE);
+    char key2[Lux::IO::MAX_KSIZE+2];
+    memset(key2, 0, Lux::IO::MAX_KSIZE + 2);
+    memset(key2, 'a', Lux::IO::MAX_KSIZE + 1);
     int val = 10;
 
     ASSERT_EQ(true, bt->put(key1, strlen(key1), &val, sizeof(int)));
-    Lux::DBM::data_t *val_data = bt->get(key1, strlen(key1));
+    Lux::IO::data_t *val_data = bt->get(key1, strlen(key1));
     ASSERT_TRUE(val_data != NULL);
     bt->clean_data(val_data);
     ASSERT_EQ(false, bt->put(key2, strlen(key2), &val, sizeof(int)));
@@ -506,19 +506,19 @@ namespace {
    **/
   TEST_F(BtreeTest, ValueSizeLimitationTest) {
     std::string db_name = get_db_name(++db_num_);
-    bt->set_cmp_func(Lux::DBM::int32_cmp_func);
+    bt->set_cmp_func(Lux::IO::Btree::int32_cmp_func);
     ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::DB_CREAT));
 
     int key = 10;
-    char val1[Lux::DBM::CLUSTER_MAX_VSIZE+1];
-    memset(val1, 0, Lux::DBM::CLUSTER_MAX_VSIZE + 1);
-    memset(val1, 'a', Lux::DBM::CLUSTER_MAX_VSIZE);
-    char val2[Lux::DBM::CLUSTER_MAX_VSIZE+2];
-    memset(val2, 0, Lux::DBM::CLUSTER_MAX_VSIZE + 2);
-    memset(val2, 'a', Lux::DBM::CLUSTER_MAX_VSIZE + 1);
+    char val1[Lux::IO::CLUSTER_MAX_VSIZE+1];
+    memset(val1, 0, Lux::IO::CLUSTER_MAX_VSIZE + 1);
+    memset(val1, 'a', Lux::IO::CLUSTER_MAX_VSIZE);
+    char val2[Lux::IO::CLUSTER_MAX_VSIZE+2];
+    memset(val2, 0, Lux::IO::CLUSTER_MAX_VSIZE + 2);
+    memset(val2, 'a', Lux::IO::CLUSTER_MAX_VSIZE + 1);
 
     ASSERT_EQ(false, bt->put(&key, sizeof(int), val2, strlen(val2)));
-    Lux::DBM::data_t *val_data = bt->get(&key, sizeof(int));
+    Lux::IO::data_t *val_data = bt->get(&key, sizeof(int));
     ASSERT_TRUE(val_data == NULL);
     ASSERT_EQ(true, bt->put(&key, sizeof(int), val1, strlen(val1)));
     val_data = bt->get(&key, sizeof(int));
@@ -539,7 +539,7 @@ namespace {
    **/
   TEST_F(BtreeTest, ProcessTest) {
     std::string db_name = get_db_name(++db_num_);
-    bt->set_lock_type(Lux::DBM::LOCK_PROCESS);
+    bt->set_lock_type(Lux::IO::LOCK_PROCESS);
     ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::DB_CREAT));
 
     for (int i = 0; i < num_entries_; ++i) {
@@ -553,7 +553,7 @@ namespace {
       memset(key, 0, 9);
       sprintf(key, "%08d", i);
 
-      Lux::DBM::data_t *val_data = bt->get(key, strlen(key));
+      Lux::IO::data_t *val_data = bt->get(key, strlen(key));
       ASSERT_TRUE(val_data != NULL);
       ASSERT_TRUE(i == *(int *) val_data->data);
       bt->clean_data(val_data);
@@ -572,7 +572,7 @@ namespace {
    **/
   TEST_F(BtreeTest, ThreadTest) {
     std::string db_name = get_db_name(++db_num_);
-    bt->set_lock_type(Lux::DBM::LOCK_THREAD);
+    bt->set_lock_type(Lux::IO::LOCK_THREAD);
     ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::DB_CREAT));
 
     for (int i = 0; i < num_entries_; ++i) {
@@ -586,7 +586,7 @@ namespace {
       memset(key, 0, 9);
       sprintf(key, "%08d", i);
 
-      Lux::DBM::data_t *val_data = bt->get(key, strlen(key));
+      Lux::IO::data_t *val_data = bt->get(key, strlen(key));
       ASSERT_TRUE(val_data != NULL);
       ASSERT_TRUE(i == *(int *) val_data->data);
       bt->clean_data(val_data);
@@ -618,7 +618,7 @@ namespace {
       char key[9];
       memset(key, 0, 9);
       sprintf(key, "%08d", i);
-      Lux::DBM::data_t *val_data = bt->get(key, strlen(key));
+      Lux::IO::data_t *val_data = bt->get(key, strlen(key));
       ASSERT_TRUE(val_data != NULL);
       ASSERT_TRUE(i == *(int *) val_data->data);
       bt->clean_data(val_data);
@@ -651,7 +651,7 @@ namespace {
       char key[9];
       memset(key, 0, 9);
       sprintf(key, "%08d", i);
-      Lux::DBM::data_t *val_data = bt->get(key, strlen(key));
+      Lux::IO::data_t *val_data = bt->get(key, strlen(key));
       ASSERT_TRUE(val_data != NULL);
       ASSERT_TRUE(i == *(int *) val_data->data);
       bt->clean_data(val_data);

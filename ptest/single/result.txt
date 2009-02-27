@@ -1,0 +1,270 @@
+* test1 (sequential insert/select)
+
+    * luxio (cluster index)
+        - put
+            % ./luxio_btree_put1 luxio1 1000000
+            put time: 2.14061
+
+        - put (with bulk loading)
+             % ./luxio_btree_put1 luxio1 1000000             
+             put time: 1.04856
+
+        - get (with page cache)
+            % ./luxio_btree_get1 luxio1 1000000 2
+            get time: 1.8788
+
+        - get (without page cache)
+            % ./luxio_btree_get1 luxio1 1000000 2
+            get time: 2.19688
+
+    * bdb
+        - put
+            % ./bdb_btree_put1 bdb1 1000000
+            put time: 2.53709
+
+        - get (with page cache)
+            % ./bdb_btree_get1 bdb1 1000000 2
+            get time: 2.20803
+
+        - get (without page cache)
+            % ./bdb_btree_get1 bdb1 1000000 2                          
+            get time: 2.30516
+
+    * tc
+        - put
+            % ./tc_btree_put1 tc1 1000000
+            put time: 1.47231
+
+        - get (with page cache)
+            % ./tc_btree_get1 tc1 1000000  
+            get time: 1.24501
+
+        - get (without page cache)
+            % ./tc_btree_get1 tc1 1000000                                
+            get time: 1.31864
+
+* test3 (random insert/select)
+
+    * luxio
+        - put
+            % ./luxio_btree_put3 random_data.sorted luxio3
+            put time: 3.58746
+
+        - get (with page cache)
+            % ./luxio_btree_get3 random_data.sorted luxio3 2
+            get time: 2.42407
+
+        - get (without page cache)
+            % ./luxio_btree_get3 random_data.sorted luxio3 2
+            get time: 3.75085
+
+    * bdb
+        - put
+            % ./bdb_btree_put3 random_data.sorted bdb3    
+            put time: 3.87525
+
+        - get (with page cache)
+            % ./bdb_btree_get3 random_data.sorted bdb3 2 
+            get time: 2.77245
+
+        - get (without page cache)
+            % ./bdb_btree_get3 random_data.sorted bdb3 2                       
+            get time: 37.1636
+
+    * tc
+        - put
+            % ./tc_btree_put3 random_data.sorted tc3      
+            put time: 5.13437
+
+        - get (with page cache)
+            % ./tc_btree_get3 random_data.sorted tc3   
+            get time: 3.05107
+
+        - get (without page cache)
+            % ./tc_btree_get3 random_data.sorted tc3    
+            get time: 6.39741
+
+* test4 (long value)
+    - luxio
+        - put
+            % ./luxio_btree_put4 luxio4 1 50000 
+            put time: 71.3574
+
+        - get
+            % ./luxio_btree_get4 luxio4 50000  
+            get time: 79.2428
+
+        - get (without page cache)
+            % ./luxio_btree_get4 luxio4 50000
+            get time: 78.0298
+
+
+    - bdb
+        - put
+            % ./bdb_btree_put4 bdb4 50000
+            put time: 91.5187
+        - get
+            10分経っても終わらない
+
+    - tc
+        - put
+            % ./tc_btree_put4 tc4 50000
+            put time: 83.4815
+
+        - get
+            % ./tc_btree_get4 tc4 50000
+            get time: 62.3791
+
+        - get (without page cache)
+            % ./tc_btree_get4 tc4 50000
+            get time: 65.1101
+
+
+
+* test5 (long value append)
+    
+    - luxio
+        - put
+            % ./luxio_btree_put5 luxio5 0 20000
+            put time: 209.651
+        - get
+            % ./luxio_btree_get5 luxio5 20000
+            get time: 200.255
+
+    - tc
+        - put
+            % ./tc_btree_put5 tc5 20000
+            put time: 297.505
+        - get 
+            % ./tc_btree_get5 tc5 20000
+            get time: 135.535
+
+* test6 (random long value)
+
+    - luxio
+        - put
+            % ./luxio_btree_put6 random_data.50000.sorted luxio6 0
+            put time: 92.3264
+
+            77.099 with pwrite
+
+        - get
+            % ./luxio_btree_get6 random_data.50000.sorted luxio6
+            get time: 128.76
+
+            101.833 with pread
+
+        - get (without page cache)
+            % ./luxio_btree_get6 random_data.50000.sorted luxio6
+            get time: 127.723
+
+    - tc
+        - put 
+            % ./tc_btree_put6 random_data.50000.sorted tc6
+            put time: 925.255
+
+        - put (120M memory)
+            % ./tc_btree_put6 random_data.50000.sorted tc6
+            put time: 909.258
+
+        - get
+            % ./tc_btree_get6 random_data.50000.sorted tc6   
+            get time: 605.773
+
+        - get (120M memory)
+            % ./tc_btree_get6 random_data.50000.sorted tc6
+            get time: 591.589
+    
+        - get (120M memory + without page cache)
+            % ./tc_btree_get6 random_data.50000.sorted tc6
+            get time: 618.366
+
+
+* test7 (random + append)
+
+    - luxio
+        - put
+            % ./luxio_btree_put7 random_data.20000.sorted luxio7 0
+            put time: 252.625
+
+            (pwriteにしたら)
+            % time ./luxio_btree_put7 random_data.20000.sorted luxio7 0
+            put time: 180.007
+
+        - get
+            % ./luxio_btree_get7 random_data.20000.sorted luxio7  
+            get time: 220.877
+
+          preadにしたら
+           % time ./luxio_btree_get7 random_data.20000.sorted luxio7
+           get time: 149.934
+
+        - get (without page cache)
+            % ./luxio_btree_get7 random_data.20000.sorted luxio7
+            get time: 219.94
+
+    - tc
+        - put
+            % ./tc_btree_put7 random_data.20000.sorted tc7
+            put time: 1511.55
+
+        - get
+            % ./tc_btree_get7 random_data.20000.sorted tc7     
+            get time: 472.326
+
+        - get (without page cache)
+            % ./tc_btree_get7 random_data.20000.sorted tc7      
+            get time: 468.69
+
+-rw-r--r-- 1 hiroyuki hiroyuki  34M 10月 30 20:22 luxio1.bidx
+-rw-r--r-- 1 hiroyuki hiroyuki  24M 10月 30 20:15 luxio3.bidx
+-rw-r--r-- 1 hiroyuki hiroyuki 2.0M 10月 30 23:20 luxio4.bidx
+-rw-r--r-- 1 hiroyuki hiroyuki 6.2G 10月 30 23:20 luxio4.data
+-rw-r--r-- 1 hiroyuki hiroyuki 800K 10月 31 09:29 luxio5.bidx
+-rw-r--r-- 1 hiroyuki hiroyuki 7.5G 10月 31 09:31 luxio5.data
+-rw-r--r-- 1 hiroyuki hiroyuki 1.2M 10月 31 10:33 luxio6.bidx
+-rw-r--r-- 1 hiroyuki hiroyuki 6.3G 10月 31 10:34 luxio6.data
+-rw-r--r-- 1 hiroyuki hiroyuki 800K 10月 31 13:05 luxio7.bidx
+-rw-r--r-- 1 hiroyuki hiroyuki 7.5G 10月 31 13:09 luxio7.data
+
+
+-rw-r--r-- 1 hiroyuki hiroyuki  17M 10月 30 20:30 tc1
+-rw-r--r-- 1 hiroyuki hiroyuki  16M 10月 30 20:21 tc3
+-rw-r--r-- 1 hiroyuki hiroyuki 4.8G 10月 31 09:03 tc4
+-rw-r--r-- 1 hiroyuki hiroyuki 6.5G 10月 31 09:40 tc5
+-rw-r--r-- 1 hiroyuki hiroyuki 7.5G 10月 31 11:59 tc6
+-rw-r--r-- 1 hiroyuki hiroyuki 7.6G 10月 31 10:30 tc6.saved
+-rw-r--r-- 1 hiroyuki hiroyuki  12G 10月 31 13:38 tc7
+
+
+
+[MySQL]
+
+ % time ./a.out random_data.50000.sorted
+./a.out random_data.50000.sorted  7.20s user 1.52s system 8% cpu 1:38.69 total
+
+% time ./append random_data.20000.sorted
+./append random_data.20000.sorted  12.38s user 2.69s system 4% cpu 5:02.78
+total
+% ./select
+Usage: ./select file
+hiroyuki@kenny ~/dev/rdbms/mysql/ptest
+% time ./select random_data.20000.sorted
+./select random_data.20000.sorted  7.54s user 2.14s system 11% cpu 1:25.70 total
+
+% time ./select random_data.20000.sorted
+./select random_data.20000.sorted  3.42s user 1.19s system 4% cpu 1:48.90
+total
+
+
+
+sparsefile改善後
+% time ./luxio_btree_put7 random_data.20000.sorted luxio7 0
+put time: 206.945
+./luxio_btree_put7 random_data.20000.sorted luxio7 0  15.04s user 33.81s
+system 23% cpu 3:26.97 total
+hiroyuki@kenny ~/svn/luxio-release_0.1-branch/ptest/single
+% time ./luxio_btree_get7 random_data.20000.sorted luxio7
+get time: 116.289
+./luxio_btree_get7 random_data.20000.sorted luxio7  11.99s user 5.29s system
+14% cpu 1:56.51 total

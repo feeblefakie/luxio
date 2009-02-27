@@ -8,6 +8,7 @@
 #include <errno.h>
 #include <string>
 #include <iostream>
+#include <unistd.h>
 
 #ifdef DEBUG
 #define error_log(msg) \
@@ -27,9 +28,26 @@
 #define vinfo_log(msg)
 #endif
 
+// System call wrapper 
+// used in gauche. (macro names are changed.)
+// thanks to shirok and kzk.
+// http://kzk9.net/column/write.html
+#define SAFE_SYSCALL3(result, expr, check) \
+  do { \
+    (result) = (expr); \
+    if ((check) && errno == EINTR) { \
+      errno = 0; \
+    } else { \
+      break; \
+    } \
+  } while (1)
+
+#define SAFE_SYSCALL(result, expr) \
+  SAFE_SYSCALL3(result, expr, (result < 0))
+
 namespace Lux {
 
-  void _mkdir(const char *str)
+  static inline void _mkdir(const char *str)
   {
     std::string str_(str); 
     int n = -1; 
@@ -44,7 +62,7 @@ namespace Lux {
     }
   }
 
-  int _open(const char *pathname, int flags, mode_t mode)
+  static inline int _open(const char *pathname, int flags, mode_t mode)
   {
     int oflags = O_RDONLY;
 
@@ -61,17 +79,15 @@ namespace Lux {
     return ::open(pathname, oflags, mode);
   }
   
-  ssize_t _read(int fd, void *buf, size_t count)
+  static inline ssize_t _read(int fd, void *buf, size_t count)
   {
     char *p = reinterpret_cast<char *>(buf);
     const char * const end_p = p + count;
 
     while (p < end_p) {
-      const int num_bytes = read(fd, p, end_p - p);
+      int num_bytes;
+      SAFE_SYSCALL(num_bytes, read(fd, p, end_p - p));
       if (num_bytes < 0) {
-        if (errno == EINTR) {
-          continue;
-        }
         perror("read failed");
         break;
       }
@@ -84,15 +100,15 @@ namespace Lux {
     return count;
   }
 
-  ssize_t _write(int fd, const void *buf, size_t count)
+  static inline ssize_t _write(int fd, const void *buf, size_t count)
   {
     const char *p = reinterpret_cast<const char *>(buf);
     const char * const end_p = p + count;
 
     while (p < end_p) {
-      const int num_bytes = write(fd, p, end_p - p);
+      int num_bytes;
+      SAFE_SYSCALL(num_bytes, write(fd, p, end_p - p));
       if (num_bytes < 0) {
-        if (errno == EINTR) continue;
         perror("write failed");
         break;
       }
@@ -105,31 +121,51 @@ namespace Lux {
     return count;
   }
 
-  bool _pwrite(int fd, const void *buf, size_t nbyte, off_t offset)
+  static inline bool _pread(int fd, void *buf, size_t nbyte, off_t offset)
   {
-    if (lseek(fd, offset, SEEK_SET) < 0) {
+    char *p = reinterpret_cast<char *>(buf);
+    const char * const end_p = p + nbyte;
+
+    while (p < end_p) {
+      int num_bytes;
+      SAFE_SYSCALL(num_bytes, pread(fd, p, end_p - p, offset));
+      if (num_bytes < 0) {
+        perror("read failed");
+        break;
+      }
+      p += num_bytes;
+      offset += num_bytes;
+    }
+
+    if (p != end_p) {
       return false;
     }
-    if (_write(fd, buf, nbyte) < 0) {
-      return false; 
-    }
     return true;
-    // [TODO] pwrite 
   }
 
-  bool _pread(int fd, void *buf, size_t nbyte, off_t offset)
+  static inline bool _pwrite(int fd, const void *buf, size_t nbyte, off_t offset)
   {
-    if (lseek(fd, offset, SEEK_SET) < 0) {
+    const char *p = reinterpret_cast<const char *>(buf);
+    const char * const end_p = p + nbyte;
+
+    while (p < end_p) {
+      int num_bytes;
+      SAFE_SYSCALL(num_bytes, pwrite(fd, p, end_p - p, offset));
+      if (num_bytes < 0) {
+        perror("write failed");
+        break;
+      }
+      p += num_bytes;
+      offset += num_bytes;
+    }
+
+    if (p != end_p) {
       return false;
     }
-    if (_read(fd, buf, nbyte) < 0) {
-      return false; 
-    } 
     return true;
-    // [TODO] pread
   }
 
-  void *_mmap(int fd, size_t size, int flags)
+  static inline void *_mmap(int fd, size_t size, int flags)
   {
     int prot = PROT_READ;
     if (flags & DB_RDWR || flags & DB_CREAT) {
@@ -138,6 +174,7 @@ namespace Lux {
 
     void *p = mmap(0, size, prot, MAP_SHARED, fd, 0);  
     if (p == MAP_FAILED) {
+      perror("mmap failed.");
       return NULL;
     }
     return p;
