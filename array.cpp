@@ -27,6 +27,14 @@ namespace Lux {
 namespace IO {
 
   Array::Array(db_index_t index_type, uint8_t data_size)
+  : map_(NULL),
+    dt_(NULL),
+    smode_(Padded),
+    pmode_(RATIO),
+    padding_(20),
+    lock_type_(NO_LOCK),
+    index_type_(index_type),
+    data_size_(index_type == NONCLUSTER ? sizeof(data_ptr_t) : data_size)
   {
 #ifdef LUXIO_HAVE_LIBPTHREAD
     if (pthread_rwlock_init(&rwlock_, NULL) != 0) {
