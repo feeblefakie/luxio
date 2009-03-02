@@ -56,6 +56,7 @@ check:
 	./btree_noncluster_padded_test
 	./data_test
 	./array_test
+	./btree_thread_test
 
 clean:
 	rm -rf $(progs) *.bidx *.aidx *.data get getm put putm del info *.gcda *.gcno *.dSYM *.so
