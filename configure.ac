@@ -2,10 +2,10 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.59)
-AC_INIT(luxio, 0.2.0, hiroyu@users.sourceforge.net)
+AC_INIT(luxio, 0.2.1, hiroyu@users.sourceforge.net)
 AC_CONFIG_SRCDIR([btree.h])
 AC_CONFIG_HEADER([config.h])
-AM_INIT_AUTOMAKE(luxio, 0.2.0)
+AM_INIT_AUTOMAKE(luxio, 0.2.1)
 
 # Checks for programs.
 AC_PROG_CXX
