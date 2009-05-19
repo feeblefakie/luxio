@@ -379,7 +379,8 @@ namespace IO {
     char *p = (char *) node->b + slot->off;
     if (atype == SYSTEM) {
       *key = new data_t;
-      (*key)->data = new char[slot->size];
+      (*key)->data = new char[slot->size+1];
+      ((char *) (*key)->data)[slot->size] = '\0';
     }
     memcpy((char *) (*key)->data, p, slot->size);
     (*key)->size = slot->size;
