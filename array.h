@@ -62,7 +62,7 @@ namespace IO {
     void set_noncluster_params(store_mode_t smode,
                                padding_mode_t pmode = RATIO,
                                uint32_t padding = 20);
-    void clean_data(data_t *d);
+    static void clean_data(data_t *d);
     void show_db_header(void);
 
   private:

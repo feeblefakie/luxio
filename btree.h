@@ -142,7 +142,7 @@ namespace IO {
                                uint32_t extra_exponent = 0); // for PO2
     void set_cmp_func(CMP cmp);
     void set_bulk_loading(bool is_bulk_loading);
-    void clean_data(data_t *d);
+    static void clean_data(data_t *d);
     // cursor
     cursor_t *cursor_init(void);
     bool cursor_fin(cursor_t *c);
