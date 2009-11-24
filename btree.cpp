@@ -322,6 +322,18 @@ namespace IO {
     return true;
   }
 
+  bool Btree::lower_bound(cursor_t *c, data_t *key)
+  {
+    if (!cursor_find(c, dh_->root_id, key, OP_CUR_LBOUND)) {
+      return false;
+    }
+    if (c->node_id == 0) {
+      return false;
+    }
+    c->is_set = true;
+    return true;
+  }
+
   // next bigger key
   bool Btree::next(cursor_t *c) 
   {
@@ -1433,6 +1445,22 @@ namespace IO {
           if (r.type == KEY_FOUND) {
             char *p = (char *) node->b + node->h->free_off;
             c->slot_index = (r.slot_p - p) / sizeof(slot_t);
+          }
+        } else if (op_mode == OP_CUR_LBOUND) {
+          find_res_t r;
+          find_key(node, key->data, key->size, &r);
+          if (r.type == KEY_FOUND || r.type == KEY_SMALLEST) {
+            char *p = (char *) node->b + node->h->free_off;
+            c->slot_index = (r.slot_p - p) / sizeof(slot_t);
+          } else if (r.type == KEY_BIGGER) {
+            char *p = (char *) node->b + node->h->free_off;
+            if (r.slot_p - p - 1 >= 0) {
+              c->slot_index = (r.slot_p - p - 1) / sizeof(slot_t);
+            } else {
+              res = false;
+            }
+          } else {
+            res = false;
           }
         } else {
           error_log("operation not supported");
