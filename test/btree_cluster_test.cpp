@@ -1,5 +1,7 @@
 #include "../btree.h"
 #include <gtest/gtest.h>
+#include <vector>
+#include <string>
 
 #define SMALL_NUM_ENTRIES 100000
 #define DEFAULT_NUM_ENTRIES 1000000
@@ -683,6 +685,59 @@ namespace {
     ASSERT_EQ(true, bt->close());
     delete bt;
   }
+
+  /* 
+   * operation: cursor lower_bound
+   **/
+  TEST_F(BtreeTest, CursorLowerBoundTest) {
+    std::string db_name = get_db_name(++db_num_);
+    ASSERT_EQ(true, bt->open(db_name.c_str(), Lux::IO::DB_CREAT));
+
+    std::vector<std::string> vec;
+    vec.push_back("aa");
+    vec.push_back("c");
+    vec.push_back("e");
+    vec.push_back("g");
+    vec.push_back("i");
+    for (int i = 0; i < vec.size(); ++i) {
+      const char *key = vec[i].c_str();
+      ASSERT_EQ(true, bt->put(key, strlen(key), &i, sizeof(int)));
+    }
+
+    Lux::IO::cursor_t *c = bt->cursor_init();
+    ASSERT_TRUE(c != NULL);
+
+    char buf[32] = "a";
+    Lux::IO::data_t key;
+    key.data = buf;
+    key.size = 1;
+    ASSERT_EQ(true, bt->lower_bound(c, &key));
+    Lux::IO::data_t *k, *v;
+    ASSERT_EQ(true, bt->cursor_get(c, &k, &v, Lux::IO::SYSTEM)); 
+    ASSERT_TRUE(strcmp((char *) (k->data), "aa") == 0);
+    ASSERT_EQ(0, *(int *) (v->data));
+    bt->clean_data(k);
+    bt->clean_data(v);
+
+    strcpy(buf, "d");
+    key.data = buf;
+    key.size = 1;
+    ASSERT_EQ(true, bt->lower_bound(c, &key));
+    ASSERT_EQ(true, bt->cursor_get(c, &k, &v, Lux::IO::SYSTEM)); 
+    ASSERT_TRUE(strcmp((char *) (k->data), "e") == 0);
+    ASSERT_EQ(2, *(int *) (v->data));
+    bt->clean_data(k);
+    bt->clean_data(v);
+
+    strcpy(buf, "j");
+    key.data = buf;
+    key.size = 1;
+    ASSERT_EQ(false, bt->lower_bound(c, &key));
+
+    ASSERT_EQ(true, bt->close());
+    delete bt;
+  }
+
 }
 
 int main(int argc, char *argv[])
