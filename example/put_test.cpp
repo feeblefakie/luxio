@@ -6,7 +6,7 @@
 int main(void)
 {
   Lux::IO::Btree *bt = new Lux::IO::Btree(Lux::IO::CLUSTER);
-  bt->open("test", Lux::DB_CREAT);
+  bt->open("test", Lux::IO::DB_CREAT);
 
   char str[9];
   for (int i = 0; i < NUM_RECORDS; ++i) {
