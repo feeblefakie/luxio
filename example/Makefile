@@ -1,5 +1,5 @@
-LDFLAGS=-L/usr/local/lib
-CPPFLAGS=-O2
+LDFLAGS=-L/usr/local/lib -lluxio
+CPPFLAGS=-O2 -I/usr/local/include
 
 objs=put_test get_test
 all: $(objs)

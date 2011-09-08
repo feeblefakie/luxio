@@ -104,7 +104,8 @@ namespace IO {
     OP_DELETE,
     OP_CUR_FIRST,
     OP_CUR_LAST,
-    OP_CUR_GET
+    OP_CUR_GET,
+    OP_CUR_LBOUND
   } op_mode_t;
 
   typedef struct {
@@ -149,6 +150,7 @@ namespace IO {
     bool first(cursor_t *c);
     bool last(cursor_t *c);
     bool get(cursor_t *c, data_t *key);
+    bool lower_bound(cursor_t *c, data_t *key);
     bool next(cursor_t *c);
     bool prev(cursor_t *c);
     bool cursor_get(cursor_t *c, data_t **key, data_t **val, alloc_type_t atype);

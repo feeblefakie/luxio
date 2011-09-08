@@ -270,6 +270,7 @@ namespace IO {
   }
 
   /* cursors */
+  /* [TODO] cursors methods are not thread-safe for now */
   cursor_t *Btree::cursor_init(void)
   {
     cursor_t *c = new cursor_t;
@@ -322,6 +323,18 @@ namespace IO {
     return true;
   }
 
+  bool Btree::lower_bound(cursor_t *c, data_t *key)
+  {
+    if (!cursor_find(c, dh_->root_id, key, OP_CUR_LBOUND)) {
+      return false;
+    }
+    if (c->node_id == 0) {
+      return false;
+    }
+    c->is_set = true;
+    return true;
+  }
+
   // next bigger key
   bool Btree::next(cursor_t *c) 
   {
@@ -330,15 +343,28 @@ namespace IO {
       return true;
     }
     if (c->slot_index == 0) {
-      node_t *node = _alloc_node(c->node_id);
-      c->node_id = node->h->next_id;  
-      delete node;
-      if (c->node_id == 0) {
+      node_id_t curr_node_id = c->node_id;
+      bool res = true;
+      while (true) {
+        node_t *node = _alloc_node(curr_node_id);
+        curr_node_id = node->h->next_id;  
+        delete node;
+        if (curr_node_id == 0) {
+          res = false;
+          break;
+        }
+        node_t *next_node = _alloc_node(curr_node_id);
+        if (next_node->h->num_keys >= 1) {
+          c->slot_index = next_node->h->num_keys - 1;
+          c->node_id = curr_node_id;
+          delete next_node;
+          break;
+        }
+        delete next_node;
+      }
+      if (!res) {
         return false;
       }
-      node_t *next_node = _alloc_node(c->node_id);
-      c->slot_index = next_node->h->num_keys - 1;
-      delete next_node;
     } else {
       --c->slot_index;
     }
@@ -356,14 +382,30 @@ namespace IO {
       return false;
     }
     node_t *node = _alloc_node(c->node_id);
+    bool res = true;
     if (c->slot_index == node->h->num_keys - 1) {
-      c->node_id = node->h->prev_id;
-      c->slot_index = 0;
+      node_id_t curr_node_id = node->h->prev_id;
+      while (true) {
+        if (curr_node_id == 0) {
+          res = false;
+          break;
+        }
+        node_t *node_prev = _alloc_node(curr_node_id);
+        if (node_prev->h->num_keys != 0) {
+          c->slot_index = 0;
+          c->node_id = curr_node_id;
+          delete node_prev;
+          break;
+        } else {
+          curr_node_id = node_prev->h->prev_id;
+        }
+        delete node_prev;
+      }
     } else {
       ++c->slot_index;
     }
     delete node;
-    if (c->node_id == 0) {
+    if (c->node_id == 0 || !res) {
       return false;
     }
     return true;
@@ -1433,6 +1475,22 @@ namespace IO {
           if (r.type == KEY_FOUND) {
             char *p = (char *) node->b + node->h->free_off;
             c->slot_index = (r.slot_p - p) / sizeof(slot_t);
+          }
+        } else if (op_mode == OP_CUR_LBOUND) {
+          find_res_t r;
+          find_key(node, key->data, key->size, &r);
+          if (r.type == KEY_FOUND || r.type == KEY_SMALLEST) {
+            char *p = (char *) node->b + node->h->free_off;
+            c->slot_index = (r.slot_p - p) / sizeof(slot_t);
+          } else if (r.type == KEY_BIGGER) {
+            char *p = (char *) node->b + node->h->free_off;
+            if (r.slot_p - p - 1 >= 0) {
+              c->slot_index = (r.slot_p - p - 1) / sizeof(slot_t);
+            } else {
+              res = false;
+            }
+          } else {
+            res = false;
           }
         } else {
           error_log("operation not supported");
